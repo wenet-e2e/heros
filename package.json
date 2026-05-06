@@ -1,0 +1,46 @@
+{
+  "name": "heros",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-native start",
+    "macos": "react-native run-macos",
+    "windows": "npx @react-native-community/cli run-windows",
+    "typecheck": "tsc --noEmit",
+    "test:windows": "jest --config jest.config.windows.js",
+    "test:chatttstext": "node ./scripts/test_chat_tts_text.mjs",
+    "agent:text": "node ./scripts/run_agent_text.mjs",
+    "doubao": "node ./scripts/doubao_cli.mjs",
+    "doubao:text": "node ./scripts/doubao_cli.mjs --mod=text",
+    "doubao:audio": "node ./scripts/doubao_cli.mjs --mod=audio",
+    "doubao:file": "node ./scripts/doubao_cli.mjs",
+    "test:pipeline": "npx tsx ./scripts/test_pipeline.ts"
+  },
+  "dependencies": {
+    "pako": "^2.1.0",
+    "react": "19.1.4",
+    "react-native": "0.81.6",
+    "react-native-fs": "^2.20.0",
+    "react-native-macos": "0.81.7",
+    "react-native-windows": "0.81.6",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@react-native/metro-config": "^0.81.6",
+    "@rnx-kit/jest-preset": "^0.1.17",
+    "@types/pako": "^2.0.4",
+    "@types/react": "19.1.4",
+    "@types/react-native": "0.72.8",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true,
+  "react-native-windows": {
+    "init-windows": {
+      "name": "heros",
+      "namespace": "heros",
+      "template": "cpp-app"
+    }
+  }
+}
