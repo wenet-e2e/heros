@@ -3,7 +3,7 @@ export function likelyListReminders(text) {
 }
 
 export function likelyListMemory(text) {
-  return /我的记忆|你记得什么|记住了什么|有哪些.*记忆|查看.*记忆|列出.*记忆/.test(text);
+  return /我的记忆|你记得什么|记住了什么|有哪些.*记忆|查看.*记忆|查询.*记忆|列出.*记忆|长期记忆/.test(text);
 }
 
 export function likelyReminder(text) {

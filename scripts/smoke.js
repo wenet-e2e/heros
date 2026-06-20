@@ -1530,6 +1530,9 @@ function testIntentBoundaries() {
   if (!likelyListMemory('你记得什么？')) {
     throw new Error('list memory intent smoke failed');
   }
+  if (!likelyListMemory('查询长期记忆')) {
+    throw new Error('natural list memory intent smoke failed');
+  }
   if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
     throw new Error('forget memory intent smoke failed');
   }
