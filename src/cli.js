@@ -514,10 +514,8 @@ async function status() {
   }, null, 2));
 }
 
-async function clientState() {
-  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
-  const { config, memoryStore, reminderStore } = runtime;
-  const events = readEventLog(config.eventLogPath);
+function buildClientStateSnapshot(runtime, events) {
+  const { memoryStore, reminderStore } = runtime;
   const runtimeState = summarizeRuntimeState(events);
   const reminders = reminderStore.list();
   const scheduledReminders = reminders
@@ -525,7 +523,7 @@ async function clientState() {
     .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
   const pendingClarifications = runtimeState.pendingClarifications || [];
 
-  console.log(JSON.stringify({
+  return {
     phase: 'phase_1_no_ui_cli',
     state: runtimeState.state,
     speaking: runtimeState.speaking,
@@ -557,7 +555,37 @@ async function clientState() {
     } : null,
     latestReview: latestReviewEvent(events),
     latestVerification: latestVerifyReportEvent(events),
-  }, null, 2));
+  };
+}
+
+async function clientState({ follow = false, fromStart = false, pollMs = 500 } = {}) {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const printSnapshot = (changedBy = null, pretty = false) => {
+    const events = readEventLog(runtime.config.eventLogPath);
+    const snapshot = {
+      ...buildClientStateSnapshot(runtime, events),
+      changedBy,
+    };
+    console.log(JSON.stringify(snapshot, null, pretty ? 2 : 0));
+  };
+
+  printSnapshot(null, !follow);
+  if (!follow) {
+    return;
+  }
+
+  await followEventLog(runtime.config.eventLogPath, {
+    fromStart,
+    pollMs,
+    onEvent(event) {
+      printSnapshot({
+        type: event.type,
+        turnId: event.turnId || event.sourceTurnId || null,
+        backgroundTaskId: event.backgroundTaskId || null,
+        createdAt: event.createdAt || null,
+      });
+    },
+  });
 }
 
 async function verificationStatus() {
@@ -1292,6 +1320,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     doctor: Boolean(scripts.doctor),
     status: Boolean(scripts.status),
     clientState: Boolean(scripts['client-state']),
+    clientStateFollow: Boolean(scripts['client-state:follow']),
     events: Boolean(scripts.events),
     eventsFollow: Boolean(scripts['events:follow']),
     eventSummary: Boolean(scripts['event-summary']),
@@ -1787,6 +1816,7 @@ function printUsage() {
     '  npm run verification      Print latest verification report/event status without network calls.',
     '  npm run status            Print local runtime status and routing boundary without network calls.',
     '  npm run client-state      Print compact client-consumable runtime state.',
+    '  npm run client-state:follow Stream compact client-consumable runtime state.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',
     '  npm run events -- --type response.completed',
@@ -1857,7 +1887,11 @@ try {
   } else if (args[0] === '--status') {
     await status();
   } else if (args[0] === '--client-state') {
-    await clientState();
+    await clientState({
+      follow: args.includes('--follow'),
+      fromStart: args.includes('--from-start'),
+      pollMs: getPositiveNumberArg(args, '--poll-ms', 500),
+    });
   } else if (args[0] === '--verification') {
     await verificationStatus();
   } else if (args[0] === '--events') {

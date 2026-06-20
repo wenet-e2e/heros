@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { configureEvents, emitEvent } from '../src/events.js';
 import { BackgroundAgent } from '../src/backgroundAgent.js';
 import { MemoryStore } from '../src/memoryStore.js';
@@ -37,6 +37,23 @@ import { createRuntime } from '../src/runtime.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function waitForCondition(condition, { intervalMs = 25, timeoutMs = 3000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      if (condition()) {
+        clearInterval(interval);
+        resolve();
+        return;
+      }
+      if (Date.now() - startedAt > timeoutMs) {
+        clearInterval(interval);
+        reject(new Error('condition timed out'));
+      }
+    }, intervalMs);
+  });
 }
 
 async function testEventLog() {
@@ -773,6 +790,58 @@ function testCliStatusOutput() {
   }
 }
 
+async function testCliClientStateFollowOutput() {
+  const dir = createTempDir('heros-client-state-follow-');
+  const logPath = path.join(dir, 'events.ndjson');
+  fs.writeFileSync(logPath, '');
+  const child = spawn(process.execPath, ['src/cli.js', '--client-state', '--follow', '--poll-ms', '25'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString('utf8');
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
+  });
+
+  try {
+    await waitForCondition(() => stdout.trim().split(/\r?\n/).filter(Boolean).length >= 1);
+    fs.appendFileSync(logPath, `${JSON.stringify({
+      type: 'input_audio.started',
+      mode: 'smoke',
+      turnEpoch: 9,
+      createdAt: '2026-06-21T00:00:20.000Z',
+    })}\n`);
+    await waitForCondition(() => stdout.trim().split(/\r?\n/).filter(Boolean).length >= 2);
+  } catch (error) {
+    child.kill('SIGTERM');
+    throw new Error(`cli client state follow smoke failed: ${error.message}; stdout=${stdout}; stderr=${stderr}`);
+  }
+
+  child.kill('SIGTERM');
+  await new Promise((resolve) => child.once('close', resolve));
+
+  const snapshots = stdout.trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+  const latest = snapshots.at(-1);
+  if (
+    snapshots[0].phase !== 'phase_1_no_ui_cli'
+    || latest.state !== 'listening'
+    || latest.inputAudio.active !== true
+    || latest.inputAudio.lastTurnEpoch !== 9
+    || latest.changedBy?.type !== 'input_audio.started'
+  ) {
+    throw new Error('cli client state follow output smoke failed');
+  }
+}
+
 function testCliVerificationCommand() {
   const dir = createTempDir('heros-verification-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -838,6 +907,7 @@ function testCliHelpOutput() {
   if (
     !result.stdout.includes('routing boundary')
     || !result.stdout.includes('npm run client-state')
+    || !result.stdout.includes('npm run client-state:follow')
     || !result.stdout.includes('npm run verification')
     || !result.stdout.includes('qwen3.5-omni-plus-realtime')
     || !result.stdout.includes('qwen3.7-plus')
@@ -2017,6 +2087,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.doctor !== true
     || review.checks.commandSurface.status !== true
     || review.checks.commandSurface.clientState !== true
+    || review.checks.commandSurface.clientStateFollow !== true
     || review.checks.commandSurface.events !== true
     || review.checks.commandSurface.eventSummary !== true
     || review.checks.commandSurface.runtimeState !== true
@@ -3578,6 +3649,7 @@ await testCliInteractionTurns();
 testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();
+await testCliClientStateFollowOutput();
 testCliVerificationCommand();
 testCliHelpOutput();
 testCliRuntimeStateCommand();
