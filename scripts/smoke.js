@@ -9,6 +9,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
+import { likelyReminder } from '../src/intents.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -153,6 +154,15 @@ function testSharedContextRedaction() {
   }
 }
 
+function testIntentBoundaries() {
+  if (likelyReminder('你记得我喜欢什么语音风格吗？')) {
+    throw new Error('memory question was misclassified as reminder');
+  }
+  if (!likelyReminder('明天上午九点提醒我喝水')) {
+    throw new Error('reminder intent smoke failed');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -185,6 +195,7 @@ testEventLog();
 testReminderScheduler();
 testMemoryStore();
 testSharedContextRedaction();
+testIntentBoundaries();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();

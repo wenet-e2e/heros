@@ -30,12 +30,20 @@ export class CliInteractionModel {
       'Use Chinese unless the user clearly uses another language.',
     ].join('\n');
 
+    const contextSnapshot = this.context.snapshot();
+    const sharedContext = {
+      contextVersion: contextSnapshot.contextVersion,
+      longTermMemory: contextSnapshot.longTermMemory,
+      backgroundTasks: contextSnapshot.backgroundTasks.slice(-5),
+    };
+
     const content = await this.client.text({
       model: this.model,
       temperature: 0.7,
       messages: [
         { role: 'system', content: system },
-        ...this.context.snapshot().turns.map((turn) => ({ role: turn.role, content: turn.content })),
+        { role: 'system', content: `Shared Context JSON:\n${JSON.stringify(sharedContext, null, 2)}` },
+        ...contextSnapshot.turns.map((turn) => ({ role: turn.role, content: turn.content })),
       ],
     });
 
