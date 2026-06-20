@@ -721,15 +721,16 @@ function testCliPreflightCommand() {
 
 function testCliReviewCommand() {
   const dir = createTempDir('heros-cli-review-');
+  const env = {
+    ...process.env,
+    DASHSCOPE_API_KEY: 'test-key',
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+  };
   const result = spawnSync(process.execPath, ['src/cli.js', '--review'], {
     cwd: process.cwd(),
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      DASHSCOPE_API_KEY: 'test-key',
-      HEROS_DATA_DIR: dir,
-      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
-    },
+    env,
   });
   if (result.status !== 0) {
     throw new Error(`cli review smoke failed: ${result.stderr || result.stdout}`);
@@ -744,6 +745,23 @@ function testCliReviewCommand() {
     || review.checks.docs.systemDesign !== true
   ) {
     throw new Error('cli review output smoke failed');
+  }
+
+  const reportResult = spawnSync(process.execPath, ['src/cli.js', '--review-report'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (reportResult.status !== 0) {
+    throw new Error(`cli review report smoke failed: ${reportResult.stderr || reportResult.stdout}`);
+  }
+  const reportReview = JSON.parse(reportResult.stdout);
+  if (!reportReview.reportPath || !reportReview.reportPath.startsWith(path.join(dir, 'reviews'))) {
+    throw new Error('cli review report path smoke failed');
+  }
+  const report = JSON.parse(fs.readFileSync(reportReview.reportPath, 'utf8'));
+  if (report.phase !== reportReview.phase || report.ready !== reportReview.ready) {
+    throw new Error('cli review report content smoke failed');
   }
 }
 

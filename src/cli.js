@@ -6,6 +6,7 @@ import process from 'node:process';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
 import { commandExists } from './audio.js';
+import { writeTextFileAtomic } from './storage.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
@@ -564,7 +565,11 @@ async function preflight() {
   console.log(JSON.stringify(await collectPreflight(), null, 2));
 }
 
-async function phaseOneReview() {
+function reviewTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+async function phaseOneReview({ writeReport = false } = {}) {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
   const preflightReport = await collectPreflight(runtime);
   const events = readEventLog(runtime.config.eventLogPath);
@@ -577,6 +582,7 @@ async function phaseOneReview() {
   });
   const review = {
     phase: 'phase_1_no_ui_cli',
+    createdAt: new Date().toISOString(),
     ready: preflightReport.ready
       && reminderRoute?.type === 'reminder'
       && !chatRoute
@@ -607,6 +613,11 @@ async function phaseOneReview() {
       },
     },
   };
+  if (writeReport) {
+    const reportPath = path.join(runtime.config.dataDir, 'reviews', `phase-1-review-${reviewTimestamp()}.json`);
+    review.reportPath = reportPath;
+    writeTextFileAtomic(reportPath, `${JSON.stringify(review, null, 2)}\n`);
+  }
   console.log(JSON.stringify(review, null, 2));
 }
 
@@ -912,6 +923,7 @@ function printUsage() {
     '  npm run audio:probe       Probe microphone capture without network calls.',
     '  npm run preflight         Check local readiness before starting voice.',
     '  npm run review            Run local Phase 1 no-UI CLI review.',
+    '  npm run review:report     Run Phase 1 review and write a local report artifact.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -982,6 +994,8 @@ try {
     await preflight();
   } else if (args[0] === '--review') {
     await phaseOneReview();
+  } else if (args[0] === '--review-report') {
+    await phaseOneReview({ writeReport: true });
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

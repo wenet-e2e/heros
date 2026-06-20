@@ -30,6 +30,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run audio:probe -- --duration-ms 500`: optionally probes microphone capture without network calls; failures usually point to local microphone permission or device selection.
 - `npm run preflight`: checks local voice-loop readiness without network calls.
 - `npm run review`: runs a local Phase 1 no-UI CLI review without network calls.
+- `npm run review:report`: runs the Phase 1 review and writes a JSON artifact under `.heros/reviews/`.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
@@ -109,6 +110,7 @@ Implemented:
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Headless Phase 1 review for local readiness, routing, observability, Shared Context, and docs.
+- Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Runtime status includes audio, reminder due, turn, error, and background task summaries.
