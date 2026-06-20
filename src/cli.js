@@ -122,6 +122,19 @@ async function events(count = 20) {
   }
 }
 
+function printInteractiveHelp() {
+  console.log([
+    'Commands:',
+    '  /help',
+    '  /exit',
+    '  /reminders',
+    '  /cancel-reminder <id>',
+    '  /memory',
+    '  /remember <content>',
+    '  /forget <id>',
+  ].join('\n'));
+}
+
 async function interactive() {
   const { interactionModel, reminderStore, reminderScheduler, memoryStore } = createRuntime();
   const rl = readline.createInterface({ input, output });
@@ -135,6 +148,10 @@ async function interactive() {
       }
       if (text === '/exit') {
         break;
+      }
+      if (text === '/help') {
+        printInteractiveHelp();
+        continue;
       }
       if (text === '/reminders') {
         console.log(JSON.stringify(reminderStore.list(), null, 2));
