@@ -1141,6 +1141,32 @@ function testCliReminderCommands() {
     throw new Error('cli reminders list smoke failed');
   }
 
+  const updatedAt = new Date(Date.now() + 120000).toISOString();
+  const updateResult = spawnSync(process.execPath, [
+    'src/cli.js',
+    '--update-reminder',
+    reminder.id,
+    '--time',
+    updatedAt,
+    '--title',
+    '喝水休息',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (updateResult.status !== 0) {
+    throw new Error(`cli update reminder smoke failed: ${updateResult.stderr || updateResult.stdout}`);
+  }
+  const updated = JSON.parse(updateResult.stdout);
+  if (updated.remindAt !== updatedAt || updated.title !== '喝水休息' || store.list()[0].title !== '喝水休息') {
+    throw new Error('cli update reminder output smoke failed');
+  }
+  const updateEvent = readEventLog(logPath).find((event) => event.type === 'reminder.updated');
+  if (updateEvent?.reminder?.id !== reminder.id || updateEvent.patch.remindAt !== updatedAt) {
+    throw new Error('cli update reminder event smoke failed');
+  }
+
   const cancelResult = spawnSync(process.execPath, ['src/cli.js', '--cancel-reminder', reminder.id], {
     cwd: process.cwd(),
     encoding: 'utf8',

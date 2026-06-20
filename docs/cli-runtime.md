@@ -39,6 +39,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
+- `npm run update-reminder -- <id> --time <iso>`: updates one scheduled local reminder without network calls.
 - `npm run memories`: lists long-term memories without network calls.
 - `npm run remember -- <content>`: creates one long-term memory without network calls.
 - `npm run update-memory -- <id> <content>`: updates one long-term memory without network calls.
@@ -102,7 +103,7 @@ Implemented:
 - Local reminders keep created/updated timestamps and list scheduled items by reminder time.
 - Headless one-shot due reminder trigger checks.
 - Local reminder and memory files use atomic writes to reduce partial-write corruption.
-- Headless local reminder listing and cancellation commands.
+- Headless local reminder listing, update, and cancellation commands.
 - Headless local reminder and memory mutations write structured events without polluting JSON output.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing and next-reminder query.

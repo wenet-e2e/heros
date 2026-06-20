@@ -870,6 +870,43 @@ async function cancelReminder(id) {
   console.log(JSON.stringify(reminder, null, 2));
 }
 
+async function updateReminder(id, args = []) {
+  if (!id) {
+    throw new Error('Usage: npm run update-reminder -- <id> --time <iso> [--title <title>] [--note <note>]');
+  }
+  const remindAt = getArgValue(args, '--time') || getArgValue(args, '--remind-at') || getArgValue(args, '--at');
+  const title = getArgValue(args, '--title');
+  const note = getArgValue(args, '--note');
+  const patch = {};
+  if (title?.trim()) {
+    patch.title = title.trim();
+  }
+  if (note !== null) {
+    patch.note = note.trim();
+  }
+  if (remindAt?.trim()) {
+    const remindAtMs = Date.parse(remindAt);
+    if (!Number.isFinite(remindAtMs)) {
+      throw new Error(`Invalid reminder time: ${remindAt}`);
+    }
+    if (remindAtMs <= Date.now()) {
+      throw new Error(`Reminder time is in the past: ${remindAt}`);
+    }
+    patch.remindAt = remindAt;
+  }
+  if (Object.keys(patch).length === 0) {
+    throw new Error('Usage: npm run update-reminder -- <id> --time <iso> [--title <title>] [--note <note>]');
+  }
+  const { reminderStore } = createRuntime({ requireApiKey: false, printEvents: false });
+  const existing = reminderStore.list().find((reminder) => reminder.id === id);
+  if (!existing || existing.status !== 'scheduled') {
+    throw new Error(`Scheduled reminder not found: ${id}`);
+  }
+  const reminder = reminderStore.update(id, patch);
+  emitEvent('reminder.updated', { reminder, patch });
+  console.log(JSON.stringify(reminder, null, 2));
+}
+
 async function checkReminders() {
   const { reminderScheduler } = createRuntime({ requireApiKey: false, printEvents: false });
   console.log(JSON.stringify(reminderScheduler.check({ print: false }), null, 2));
@@ -1154,6 +1191,7 @@ function printUsage() {
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
+    '  npm run update-reminder -- <id> --time <iso>',
     '  npm run memories          List long-term memories without network calls.',
     '  npm run remember -- <content>',
     '  npm run update-memory -- <id> <content>',
@@ -1239,6 +1277,8 @@ try {
     await checkReminders();
   } else if (args[0] === '--cancel-reminder') {
     await cancelReminder(args[1]);
+  } else if (args[0] === '--update-reminder') {
+    await updateReminder(args[1], args.slice(2));
   } else if (args[0] === '--memories') {
     await listMemories();
   } else if (args[0] === '--remember') {

@@ -35,6 +35,7 @@
     "reminders": "node src/cli.js --reminders",
     "check-reminders": "node src/cli.js --check-reminders",
     "cancel-reminder": "node src/cli.js --cancel-reminder",
+    "update-reminder": "node src/cli.js --update-reminder",
     "memories": "node src/cli.js --memories",
     "remember": "node src/cli.js --remember",
     "update-memory": "node src/cli.js --update-memory",
