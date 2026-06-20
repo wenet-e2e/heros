@@ -137,7 +137,7 @@ async function realtimeText(text) {
   if (!text.trim()) {
     throw new Error('Usage: npm run realtime -- <text>');
   }
-  const runtime = createRuntime();
+  const runtime = createRuntime({ printEvents: false });
   const realtime = createRealtimeClient(runtime.config);
   let responseText = '';
 
