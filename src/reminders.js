@@ -73,6 +73,10 @@ export class ReminderStore {
   }
 
   cancel(id) {
+    const reminder = this.list().find((item) => item.id === id);
+    if (!reminder || reminder.status !== 'scheduled') {
+      return null;
+    }
     return this.update(id, {
       status: 'cancelled',
       cancelledAt: new Date().toISOString(),

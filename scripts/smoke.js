@@ -74,6 +74,9 @@ function testReminderScheduler() {
   if (!triggeredByListener) {
     throw new Error('reminder trigger listener smoke failed');
   }
+  if (store.cancel(item.id) !== null || store.list()[0].status !== 'triggered') {
+    throw new Error('triggered reminder should not be cancellable');
+  }
 
   let refused = false;
   try {
