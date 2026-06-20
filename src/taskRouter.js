@@ -52,6 +52,7 @@ export class TaskRouter {
   }
 
   handleCancelReminder(text) {
+    emitEvent('background_task.started', { model: 'local_task_router', taskType: 'cancel_reminder' });
     const query = extractCancelReminderQuery(text);
     const matches = this.reminderStore.list().filter((reminder) => {
       if (reminder.status !== 'scheduled') {
@@ -90,6 +91,7 @@ export class TaskRouter {
   }
 
   handleMemory(text) {
+    emitEvent('background_task.started', { model: 'local_task_router', taskType: 'memory' });
     const content = extractMemoryContent(text);
     try {
       const memory = this.memoryStore.create(content);
