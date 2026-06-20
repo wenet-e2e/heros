@@ -1069,6 +1069,7 @@ function testVoiceLoopAnnouncementResponseCorrelation() {
   loop.attachRealtimeEvents();
   loop.activeAnnouncement = {
     backgroundTaskId: 'task_announcement',
+    reminderId: 'reminder_announcement',
     source: 'background_task',
     turnId: 'turn_user_source',
   };
@@ -1077,10 +1078,57 @@ function testVoiceLoopAnnouncementResponseCorrelation() {
   const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
   if (
     completed?.backgroundTaskId !== 'task_announcement'
+    || completed.reminderId !== 'reminder_announcement'
     || completed.source !== 'background_task'
     || completed.sourceTurnId !== 'turn_user_source'
   ) {
     throw new Error('voice loop announcement response correlation smoke failed');
+  }
+  configureEvents();
+}
+
+async function testVoiceLoopReminderAnnouncementCorrelation() {
+  const dir = createTempDir('heros-reminder-announcement-correlation-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const reminderScheduler = new ReminderScheduler({
+    reminderStore: new ReminderStore(dir),
+    pollMs: 1000,
+  });
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {
+      createUserTextMessage() {},
+      createResponse() {},
+      async waitFor() {},
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler,
+    playAudio: false,
+  });
+  reminderScheduler.onTriggered((reminder) => {
+    loop.enqueueAnnouncement(`提醒时间到了：${reminder.title}`, {
+      reminderId: reminder.id,
+      source: 'reminder_due',
+    });
+  });
+  const reminder = reminderScheduler.reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() - 1000).toISOString(),
+    note: '',
+  });
+  reminderScheduler.check({ print: false });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const events = readEventLog(logPath);
+  const queued = events.find((event) => event.type === 'announcement.queued');
+  const completed = events.find((event) => event.type === 'announcement.completed');
+  if (
+    queued?.reminderId !== reminder.id
+    || queued.source !== 'reminder_due'
+    || completed?.reminderId !== reminder.id
+  ) {
+    throw new Error('voice loop reminder announcement correlation smoke failed');
   }
   configureEvents();
 }
@@ -1304,6 +1352,7 @@ testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
 testVoiceLoopAnnouncementResponseCorrelation();
+await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();

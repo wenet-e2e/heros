@@ -83,6 +83,7 @@ Implemented:
 - Natural-language scheduled reminder listing.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
+- Due reminder announcements include reminder IDs for event-log correlation.
 - Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing, and safe natural-language memory deletion.
 - Headless long-term memory CRUD commands.

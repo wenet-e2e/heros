@@ -113,6 +113,7 @@ export class VoiceLoop {
     if (this.reminderScheduler) {
       this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
         this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`, {
+          reminderId: reminder.id,
           source: 'reminder_due',
         });
       });
@@ -148,6 +149,7 @@ export class VoiceLoop {
         this.isResponding = false;
         emitEvent('response.completed', {
           backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
+          reminderId: this.activeAnnouncement?.reminderId,
           sourceTurnId: this.activeAnnouncement?.turnId,
           source: this.activeAnnouncement?.source || 'realtime',
           text: this.currentAssistantText,
@@ -267,10 +269,11 @@ export class VoiceLoop {
     });
   }
 
-  enqueueAnnouncement(message, { backgroundTaskId, source = 'background_task', turnEpoch = this.turnEpoch, turnId } = {}) {
+  enqueueAnnouncement(message, { backgroundTaskId, reminderId, source = 'background_task', turnEpoch = this.turnEpoch, turnId } = {}) {
     if (turnEpoch < this.turnEpoch) {
       emitEvent('announcement.skipped', {
         backgroundTaskId,
+        reminderId,
         source,
         reason: 'stale_turn',
         turnEpoch,
@@ -279,8 +282,8 @@ export class VoiceLoop {
       });
       return;
     }
-    this.announcementQueue.push({ message, backgroundTaskId, source, turnEpoch, turnId });
-    emitEvent('announcement.queued', { backgroundTaskId, source, text: message, turnEpoch, turnId });
+    this.announcementQueue.push({ message, backgroundTaskId, reminderId, source, turnEpoch, turnId });
+    emitEvent('announcement.queued', { backgroundTaskId, reminderId, source, text: message, turnEpoch, turnId });
     this.drainAnnouncements();
   }
 
@@ -292,6 +295,7 @@ export class VoiceLoop {
     if (announcement.turnEpoch < this.turnEpoch) {
       emitEvent('announcement.skipped', {
         backgroundTaskId: announcement.backgroundTaskId,
+        reminderId: announcement.reminderId,
         source: announcement.source,
         reason: 'stale_turn',
         turnEpoch: announcement.turnEpoch,
@@ -305,6 +309,7 @@ export class VoiceLoop {
     this.activeAnnouncement = announcement;
     emitEvent('announcement.started', {
       backgroundTaskId: announcement.backgroundTaskId,
+      reminderId: announcement.reminderId,
       source: announcement.source,
       text: announcement.message,
       outlet: 'realtime',
@@ -321,6 +326,7 @@ export class VoiceLoop {
       await this.realtime.waitFor('response.done', 120000);
       emitEvent('announcement.completed', {
         backgroundTaskId: announcement.backgroundTaskId,
+        reminderId: announcement.reminderId,
         source: announcement.source,
         outlet: 'realtime',
         turnEpoch: announcement.turnEpoch,
@@ -329,6 +335,7 @@ export class VoiceLoop {
     } catch (error) {
       emitEvent('announcement.failed', {
         backgroundTaskId: announcement.backgroundTaskId,
+        reminderId: announcement.reminderId,
         source: announcement.source,
         outlet: 'realtime',
         message: error.message,
