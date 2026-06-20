@@ -673,6 +673,7 @@ async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId
   const timelineSummary = summarizeTimeline(filteredEvents);
   const taskSummaryData = summarizeBackgroundTasks(filteredEvents);
   const errorSummaryData = summarizeErrors(filteredEvents);
+  const currentRuntimeState = summarizeRuntimeState(allEvents);
   const sharedContext = summarizeSharedContext(allEvents, {
     bootstrapFiles: runtime.bootstrap.files,
     localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
@@ -689,7 +690,7 @@ async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId
       dataDir: runtime.config.dataDir,
       eventLogPath: runtime.config.eventLogPath,
     },
-    currentRuntimeState: summarizeRuntimeState(allEvents),
+    currentRuntimeState,
     sharedContext,
     eventSummary,
     turns: {
@@ -718,6 +719,13 @@ async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId
       eventCount: eventSummary.total,
       turnCount: turnSummaryData.total,
       filters,
+      runtimeState: {
+        state: currentRuntimeState.state,
+        inputAudioActive: currentRuntimeState.inputAudio.active,
+        announcementActive: currentRuntimeState.announcements.active,
+        activeBackgroundTaskCount: currentRuntimeState.activeBackgroundTaskCount,
+        pendingClarificationCount: currentRuntimeState.pendingClarificationCount,
+      },
     });
   }
   console.log(JSON.stringify(report, null, 2));

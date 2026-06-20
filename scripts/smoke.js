@@ -1576,6 +1576,7 @@ function testCliSessionReportCommand() {
   if (
     report.phase !== 'phase_1_no_ui_cli'
     || report.filters.sourceTurnId !== 'turn_session_user'
+    || report.currentRuntimeState.state !== 'idle'
     || report.turns.total !== 2
     || !report.timeline.items.some((entry) => entry.kind === 'response' && entry.taskType === 'list_reminders')
     || report.backgroundTasks.total !== 1
@@ -1600,6 +1601,8 @@ function testCliSessionReportCommand() {
     reportContent.filters.backgroundTaskId !== 'task_session'
     || reportEvent?.reportPath !== writtenReport.reportPath
     || reportEvent.eventCount !== writtenReport.eventSummary.total
+    || reportEvent.runtimeState?.state !== writtenReport.currentRuntimeState.state
+    || reportEvent.runtimeState?.pendingClarificationCount !== 0
   ) {
     throw new Error('cli session report event smoke failed');
   }
