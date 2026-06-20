@@ -342,8 +342,8 @@ function checkWritableDir(dir) {
   }
 }
 
-async function preflight() {
-  const { bootstrap, config } = createRuntime({ requireApiKey: false, printEvents: false });
+async function collectPreflight(runtime = createRuntime({ requireApiKey: false, printEvents: false })) {
+  const { bootstrap, config } = runtime;
   const recorderAvailable = await commandExists('rec');
   const playerAvailable = await commandExists('play');
   const bootstrapNames = bootstrap.files.map((filePath) => path.basename(filePath));
@@ -378,7 +378,7 @@ async function preflight() {
       missing: missingBootstrap,
     },
   };
-  console.log(JSON.stringify({
+  return {
     ready: checks.apiKey.ok
       && checks.audio.recorder.ok
       && checks.audio.player.ok
@@ -388,7 +388,57 @@ async function preflight() {
     realtimeModel: config.realtimeModel,
     backgroundModel: config.backgroundModel,
     checks,
-  }, null, 2));
+  };
+}
+
+async function preflight() {
+  console.log(JSON.stringify(await collectPreflight(), null, 2));
+}
+
+async function phaseOneReview() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const preflightReport = await collectPreflight(runtime);
+  const events = readEventLog(runtime.config.eventLogPath);
+  const reminderRoute = runtime.taskRouter.shouldDelegate('明天九点提醒我喝水');
+  const chatRoute = runtime.taskRouter.shouldDelegate('你怎么看这个观点？');
+  const context = summarizeSharedContext(events, {
+    bootstrapFiles: runtime.bootstrap.files,
+    memories: runtime.memoryStore.list(),
+    reminders: runtime.reminderStore.list(),
+  });
+  const review = {
+    phase: 'phase_1_no_ui_cli',
+    ready: preflightReport.ready
+      && reminderRoute?.type === 'reminder'
+      && !chatRoute
+      && fs.existsSync(path.join(process.cwd(), 'README.md'))
+      && fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
+    checks: {
+      preflight: preflightReport,
+      routing: {
+        reminderDelegatesToBackground: reminderRoute?.type === 'reminder',
+        chatStaysRealtime: !chatRoute,
+      },
+      observability: {
+        eventLogPath: runtime.config.eventLogPath,
+        eventCount: events.length,
+        lastEventType: events.at(-1)?.type || null,
+      },
+      sharedContext: {
+        contextVersion: context.contextVersion,
+        turns: context.turns.total,
+        backgroundTasks: context.backgroundTasks.total,
+        reminders: context.reminders.total,
+        memories: context.longTermMemory.total,
+      },
+      docs: {
+        readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
+        systemDesign: fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
+        cliRuntime: fs.existsSync(path.join(process.cwd(), 'docs', 'cli-runtime.md')),
+      },
+    },
+  };
+  console.log(JSON.stringify(review, null, 2));
 }
 
 async function listReminders() {
@@ -681,6 +731,7 @@ function printUsage() {
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
     '  npm run preflight         Check local readiness before starting voice.',
+    '  npm run review            Run local Phase 1 no-UI CLI review.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -744,6 +795,8 @@ try {
     await audioStatus();
   } else if (args[0] === '--preflight') {
     await preflight();
+  } else if (args[0] === '--review') {
+    await phaseOneReview();
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

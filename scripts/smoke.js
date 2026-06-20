@@ -650,6 +650,34 @@ function testCliPreflightCommand() {
   }
 }
 
+function testCliReviewCommand() {
+  const dir = createTempDir('heros-cli-review-');
+  const result = spawnSync(process.execPath, ['src/cli.js', '--review'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      DASHSCOPE_API_KEY: 'test-key',
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli review smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const review = JSON.parse(result.stdout);
+  if (
+    review.phase !== 'phase_1_no_ui_cli'
+    || typeof review.ready !== 'boolean'
+    || review.checks.routing.reminderDelegatesToBackground !== true
+    || review.checks.routing.chatStaysRealtime !== true
+    || review.checks.docs.readme !== true
+    || review.checks.docs.systemDesign !== true
+  ) {
+    throw new Error('cli review output smoke failed');
+  }
+}
+
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1643,6 +1671,7 @@ testCliRouteCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
 testCliPreflightCommand();
+testCliReviewCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();
