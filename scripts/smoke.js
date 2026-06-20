@@ -19,9 +19,15 @@ function testEventLog() {
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
   emitEvent('smoke.event_log', { ok: true, type: 'payload_must_not_override_event_type' });
-  const event = JSON.parse(fs.readFileSync(logPath, 'utf8').trim());
+  emitEvent('smoke.secret_redaction', { text: 'DASHSCOPE_API_KEY=abc123 Bearer secret-token' });
+  const events = fs.readFileSync(logPath, 'utf8').trim().split('\n').map(JSON.parse);
+  const event = events[0];
   if (event.type !== 'smoke.event_log' || event.ok !== true) {
     throw new Error('event log smoke failed');
+  }
+  const redacted = events[1];
+  if (redacted.text.includes('abc123') || redacted.text.includes('secret-token')) {
+    throw new Error('event secret redaction smoke failed');
   }
   configureEvents();
 }
