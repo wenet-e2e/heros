@@ -1295,9 +1295,30 @@ function testCliReviewCommand() {
     || review.checks.routing.bareForgetMemoryClarifiesLocally !== true
     || review.checks.routing.pendingForgetMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
+    || review.checks.commandSurface.check !== true
+    || review.checks.commandSurface.verify !== true
+    || review.checks.commandSurface.doctor !== true
+    || review.checks.commandSurface.status !== true
+    || review.checks.commandSurface.events !== true
+    || review.checks.commandSurface.eventSummary !== true
+    || review.checks.commandSurface.runtimeState !== true
+    || review.checks.commandSurface.context !== true
+    || review.checks.commandSurface.route !== true
+    || review.checks.commandSurface.task !== true
     || review.checks.commandSurface.scenario !== true
+    || review.checks.commandSurface.bootstrap !== true
+    || review.checks.commandSurface.preflight !== true
+    || review.checks.commandSurface.review !== true
+    || review.checks.commandSurface.reviewReport !== true
+    || review.checks.commandSurface.reminders !== true
+    || review.checks.commandSurface.cancelReminder !== true
     || review.checks.commandSurface.taskDetail !== true
     || review.checks.commandSurface.updateReminder !== true
+    || review.checks.commandSurface.remember !== true
+    || review.checks.commandSurface.updateMemory !== true
+    || review.checks.commandSurface.forgetMemory !== true
+    || review.checks.commandSurface.realtime !== true
+    || review.checks.commandSurface.voice !== true
     || review.checks.docs.readme !== true
     || review.checks.docs.systemDesign !== true
   ) {
