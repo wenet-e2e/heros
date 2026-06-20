@@ -16,6 +16,7 @@ import { BackgroundAgent } from './backgroundAgent.js';
 import { CliInteractionModel } from './interactionModel.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { ensureAgentBootstrap } from './bootstrap.js';
+import { configureEvents } from './events.js';
 
 function createRuntime() {
   const config = getConfig();
@@ -26,6 +27,7 @@ function createRuntime() {
   });
   const context = new SharedContext();
   const reminderStore = new ReminderStore(config.dataDir);
+  configureEvents({ logPath: config.eventLogPath });
   const reminderScheduler = new ReminderScheduler({
     reminderStore,
     pollMs: config.reminderPollMs,
@@ -88,6 +90,7 @@ async function doctor() {
   console.log(`Time zone: ${config.timeZone}`);
   console.log(`Reminder poll interval: ${config.reminderPollMs}ms`);
   console.log(`Data dir: ${config.dataDir}`);
+  console.log(`Event log path: ${config.eventLogPath}`);
   console.log(`Agent bootstrap dir: ${bootstrap.targetDir}`);
   console.log('Checking realtime WebSocket session...');
   await checkRealtime(config);
@@ -263,6 +266,7 @@ function printUsage() {
     '  HEROS_BACKGROUND_MODEL    Default qwen3.7-plus.',
     '  HEROS_TIME_ZONE           Default system time zone.',
     '  HEROS_REMINDER_POLL_MS    Default 30000.',
+    '  HEROS_EVENT_LOG_PATH      Default .heros/events.ndjson.',
   ].join('\n'));
 }
 

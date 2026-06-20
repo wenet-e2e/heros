@@ -60,5 +60,6 @@ export function getConfig() {
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
     reminderPollMs: Number(process.env.HEROS_REMINDER_POLL_MS || '30000'),
     dataDir: process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'),
+    eventLogPath: process.env.HEROS_EVENT_LOG_PATH || path.join(process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'), 'events.ndjson'),
   };
 }
