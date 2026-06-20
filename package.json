@@ -7,6 +7,7 @@
     "check": "node scripts/check.js && node scripts/smoke.js",
     "verify": "npm run check && npm run doctor && npm run smoke:background && npm run smoke:realtime",
     "verify:report": "node scripts/verify-report.js",
+    "verification": "node src/cli.js --verification",
     "smoke": "node scripts/smoke.js",
     "smoke:background": "node scripts/background-smoke.js",
     "smoke:realtime": "node scripts/realtime-smoke.js",

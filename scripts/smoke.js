@@ -706,6 +706,56 @@ function testCliStatusOutput() {
   }
 }
 
+function testCliVerificationCommand() {
+  const dir = createTempDir('heros-verification-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const verifyReportDir = path.join(dir, 'verify-reports');
+  fs.mkdirSync(verifyReportDir, { recursive: true });
+  const verifyReportPath = path.join(verifyReportDir, 'verify-report-smoke.json');
+  fs.writeFileSync(verifyReportPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    type: 'verify_report',
+    startedAt: '2026-06-21T00:00:02.000Z',
+    endedAt: '2026-06-21T00:00:12.000Z',
+    ok: true,
+    steps: [
+      { name: 'check', ok: true, durationMs: 100 },
+      { name: 'doctor', ok: true, durationMs: 200 },
+    ],
+  }, null, 2)}\n`);
+  fs.writeFileSync(logPath, `${JSON.stringify({
+    type: 'verify_report.created',
+    phase: 'phase_1_no_ui_cli',
+    ok: true,
+    reportPath: verifyReportPath,
+    stepCount: 2,
+    failedStep: null,
+    createdAt: '2026-06-21T00:00:13.000Z',
+  })}\n`);
+  const result = spawnSync(process.execPath, ['src/cli.js', '--verification'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli verification smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const verification = JSON.parse(result.stdout);
+  if (
+    verification.latestReport?.path !== verifyReportPath
+    || verification.latestReport.ok !== true
+    || verification.latestEvent?.reportPath !== verifyReportPath
+    || verification.latestEvent.stepCount !== 2
+    || verification.reportEventAligned !== true
+  ) {
+    throw new Error('cli verification output smoke failed');
+  }
+}
+
 function testCliHelpOutput() {
   const result = spawnSync(process.execPath, ['src/cli.js', '--help'], {
     cwd: process.cwd(),
@@ -720,6 +770,7 @@ function testCliHelpOutput() {
   }
   if (
     !result.stdout.includes('routing boundary')
+    || !result.stdout.includes('npm run verification')
     || !result.stdout.includes('qwen3.5-omni-plus-realtime')
     || !result.stdout.includes('qwen3.7-plus')
   ) {
@@ -1891,6 +1942,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.check !== true
     || review.checks.commandSurface.verify !== true
     || review.checks.commandSurface.verifyReport !== true
+    || review.checks.commandSurface.verification !== true
     || review.checks.commandSurface.doctor !== true
     || review.checks.commandSurface.status !== true
     || review.checks.commandSurface.events !== true
@@ -3417,6 +3469,7 @@ await testCliInteractionTurns();
 testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();
+testCliVerificationCommand();
 testCliHelpOutput();
 testCliRuntimeStateCommand();
 testCliTimelineCommand();

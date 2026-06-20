@@ -512,6 +512,23 @@ async function status() {
   }, null, 2));
 }
 
+async function verificationStatus() {
+  const { config } = createRuntime({ requireApiKey: false, printEvents: false });
+  const latestReport = latestVerifyReport(config.dataDir);
+  const latestEvent = latestVerifyReportEvent(readEventLog(config.eventLogPath));
+  console.log(JSON.stringify({
+    dataDir: config.dataDir,
+    eventLogPath: config.eventLogPath,
+    latestReport,
+    latestEvent,
+    hasLatestReport: Boolean(latestReport),
+    hasLatestEvent: Boolean(latestEvent),
+    reportEventAligned: latestReport && latestEvent
+      ? latestReport.path === latestEvent.reportPath && latestReport.ok === latestEvent.ok
+      : null,
+  }, null, 2));
+}
+
 async function events({ backgroundTaskId, count = 20, follow = false, fromStart = false, pollMs = 500, since, sourceTurnId, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
   if (follow) {
@@ -1210,6 +1227,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     check: Boolean(scripts.check),
     verify: Boolean(scripts.verify),
     verifyReport: Boolean(scripts['verify:report']),
+    verification: Boolean(scripts.verification),
     smoke: Boolean(scripts.smoke),
     smokeBackground: Boolean(scripts['smoke:background']),
     smokeRealtime: Boolean(scripts['smoke:realtime']),
@@ -1698,6 +1716,7 @@ function printUsage() {
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run verify:report     Run full verification and write a local report artifact.',
+    '  npm run verification      Print latest verification report/event status without network calls.',
     '  npm run status            Print local runtime status and routing boundary without network calls.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',
@@ -1768,6 +1787,8 @@ try {
     await doctor();
   } else if (args[0] === '--status') {
     await status();
+  } else if (args[0] === '--verification') {
+    await verificationStatus();
   } else if (args[0] === '--events') {
     await events({
       count: getEventCount(args),
