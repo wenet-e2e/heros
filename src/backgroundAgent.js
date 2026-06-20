@@ -12,6 +12,22 @@ function extractJson(text) {
   return JSON.parse(match[0]);
 }
 
+function formatLocalTime(isoString, timeZone) {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return isoString;
+  }
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone,
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export class BackgroundAgent {
   constructor({ client, model, reminderStore, timeZone }) {
     this.client = client;
@@ -81,7 +97,7 @@ export class BackgroundAgent {
       return {
         type: 'reminder_created',
         reminder,
-        message: `已创建提醒：${reminder.title}，时间：${reminder.remindAt}`,
+        message: `已创建提醒：${reminder.title}，时间：${formatLocalTime(reminder.remindAt, this.timeZone)}`,
       };
     }
 
