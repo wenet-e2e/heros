@@ -67,6 +67,12 @@ function getEventFilters(args) {
   };
 }
 
+function compactObject(value) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== null && item !== undefined)
+  );
+}
+
 async function checkRealtime(config) {
   const realtime = createRealtimeClient(config);
   const logSessionEvent = (event) => {
@@ -505,6 +511,72 @@ async function transcript({ backgroundTaskId, count = 20, since, sourceTurnId, t
   console.log(lines.join('\n'));
 }
 
+async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId, turnId, type, writeReport = false } = {}) {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const allEvents = readEventLog(runtime.config.eventLogPath);
+  const filters = compactObject({
+    backgroundTaskId,
+    since,
+    sourceTurnId,
+    turnId,
+    type,
+  });
+  const filteredEvents = filterEvents(allEvents, filters);
+  const eventSummary = summarizeEvents(filteredEvents);
+  const turnSummaryData = summarizeTurns(filteredEvents);
+  const timelineSummary = summarizeTimeline(filteredEvents);
+  const taskSummaryData = summarizeBackgroundTasks(filteredEvents);
+  const errorSummaryData = summarizeErrors(filteredEvents);
+  const sharedContext = summarizeSharedContext(allEvents, {
+    bootstrapFiles: runtime.bootstrap.files,
+    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
+    memories: runtime.memoryStore.list(),
+    reminders: runtime.reminderStore.list(),
+  });
+  const report = {
+    phase: 'phase_1_no_ui_cli',
+    createdAt: new Date().toISOString(),
+    filters,
+    status: {
+      realtimeModel: runtime.config.realtimeModel,
+      backgroundModel: runtime.config.backgroundModel,
+      dataDir: runtime.config.dataDir,
+      eventLogPath: runtime.config.eventLogPath,
+    },
+    currentRuntimeState: summarizeRuntimeState(allEvents),
+    sharedContext,
+    eventSummary,
+    turns: {
+      total: turnSummaryData.total,
+      items: turnSummaryData.turns.slice(-count),
+    },
+    timeline: {
+      total: timelineSummary.total,
+      items: timelineSummary.entries.slice(-count),
+    },
+    backgroundTasks: {
+      total: taskSummaryData.total,
+      items: taskSummaryData.tasks.slice(0, count),
+    },
+    errors: {
+      total: errorSummaryData.total,
+      items: errorSummaryData.errors.slice(-count),
+    },
+  };
+  if (writeReport) {
+    const reportPath = path.join(runtime.config.dataDir, 'session-reports', `session-report-${reviewTimestamp()}.json`);
+    report.reportPath = reportPath;
+    writeTextFileAtomic(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+    emitEvent('session_report.created', {
+      reportPath,
+      eventCount: eventSummary.total,
+      turnCount: turnSummaryData.total,
+      filters,
+    });
+  }
+  console.log(JSON.stringify(report, null, 2));
+}
+
 function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
@@ -935,6 +1007,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     timeline: Boolean(scripts.timeline),
     tasks: Boolean(scripts.tasks),
     taskDetail: Boolean(scripts['task-detail']),
+    sessionReport: Boolean(scripts['session-report']),
     runtimeState: Boolean(scripts['runtime-state']),
     context: Boolean(scripts.context),
     turns: Boolean(scripts.turns),
@@ -1380,6 +1453,7 @@ function printUsage() {
     '  npm run timeline -- --background-task-id task_xxx',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run task-detail -- <task_id>',
+    '  npm run session-report    Write a no-UI runtime session report artifact.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -1451,6 +1525,12 @@ try {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--task-detail') {
     await taskDetail(args[1]);
+  } else if (args[0] === '--session-report') {
+    await sessionReport({
+      count: getEventCount(args),
+      writeReport: args.includes('--write'),
+      ...getEventFilters(args),
+    });
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
   } else if (args[0] === '--context') {

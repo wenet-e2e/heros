@@ -24,6 +24,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run timeline -- --turn-id turn_xxx`: filters the normalized timeline by turn, background task, event type, or time window.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run task-detail -- <task_id>`: prints one background task's related turns and event timeline.
+- `npm run session-report`: writes a no-UI runtime session report artifact with turns, timeline, tasks, errors, Shared Context, and runtime state.
+- `node src/cli.js --session-report --since <iso-or-ms>`: prints a filtered session report without writing an artifact.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
@@ -146,6 +148,7 @@ Implemented:
 - Timeline summaries resolve task types across events with the same background task ID, so completed and announcement entries keep task context.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns, normalized timeline, and raw event list.
+- No-UI session report command writes milestone artifacts with event, turn, task, timeline, error, Shared Context, and runtime state summaries.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, turn, error, and background task summaries.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.

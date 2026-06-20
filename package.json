@@ -20,6 +20,7 @@
     "timeline": "node src/cli.js --timeline",
     "tasks": "node src/cli.js --tasks",
     "task-detail": "node src/cli.js --task-detail",
+    "session-report": "node src/cli.js --session-report --write",
     "runtime-state": "node src/cli.js --runtime-state",
     "context": "node src/cli.js --context",
     "turns": "node src/cli.js --turns",

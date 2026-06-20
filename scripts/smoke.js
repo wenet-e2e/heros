@@ -1358,6 +1358,78 @@ function testCliTaskDetailCommand() {
   }
 }
 
+function testCliSessionReportCommand() {
+  const dir = createTempDir('heros-cli-session-report-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '下一个提醒是什么',
+    turnId: 'turn_session_user',
+  });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_session',
+    taskType: 'list_reminders',
+    turnId: 'turn_session_user',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_session',
+    result: { action: 'list_reminders' },
+    turnId: 'turn_session_user',
+  });
+  emitEvent('response.completed', {
+    backgroundTaskId: 'task_session',
+    source: 'local_task_router',
+    sourceTurnId: 'turn_session_user',
+    text: '下一个提醒是喝水。',
+    turnId: 'turn_session_assistant',
+  });
+  configureEvents();
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: logPath,
+  };
+  const result = spawnSync(process.execPath, ['src/cli.js', '--session-report', '--source-turn-id', 'turn_session_user'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli session report smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const report = JSON.parse(result.stdout);
+  if (
+    report.phase !== 'phase_1_no_ui_cli'
+    || report.filters.sourceTurnId !== 'turn_session_user'
+    || report.turns.total !== 2
+    || !report.timeline.items.some((entry) => entry.kind === 'response' && entry.taskType === 'list_reminders')
+    || report.backgroundTasks.total !== 1
+  ) {
+    throw new Error('cli session report output smoke failed');
+  }
+  const writeResult = spawnSync(process.execPath, ['src/cli.js', '--session-report', '--write', '--background-task-id', 'task_session'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (writeResult.status !== 0) {
+    throw new Error(`cli session report write smoke failed: ${writeResult.stderr || writeResult.stdout}`);
+  }
+  const writtenReport = JSON.parse(writeResult.stdout);
+  if (!writtenReport.reportPath || !fs.existsSync(writtenReport.reportPath)) {
+    throw new Error('cli session report artifact smoke failed');
+  }
+  const reportContent = JSON.parse(fs.readFileSync(writtenReport.reportPath, 'utf8'));
+  const reportEvent = readEventLog(logPath).find((event) => event.type === 'session_report.created');
+  if (
+    reportContent.filters.backgroundTaskId !== 'task_session'
+    || reportEvent?.reportPath !== writtenReport.reportPath
+    || reportEvent.eventCount !== writtenReport.eventSummary.total
+  ) {
+    throw new Error('cli session report event smoke failed');
+  }
+}
+
 function testCliScenarioCommand() {
   const dir = createTempDir('heros-cli-scenario-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1632,6 +1704,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.reminders !== true
     || review.checks.commandSurface.cancelReminder !== true
     || review.checks.commandSurface.taskDetail !== true
+    || review.checks.commandSurface.sessionReport !== true
     || review.checks.commandSurface.updateReminder !== true
     || review.checks.commandSurface.remember !== true
     || review.checks.commandSurface.updateMemory !== true
@@ -3115,6 +3188,7 @@ testCliErrorsCommand();
 testCliRouteCommand();
 testCliTaskCommand();
 testCliTaskDetailCommand();
+testCliSessionReportCommand();
 testCliScenarioCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
