@@ -28,6 +28,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 ## Typed CLI Commands
 
 - `/reminders`: list reminders.
+- `/context`: print the current Shared Context snapshot.
 - `/help`: list typed CLI commands.
 - `/cancel-reminder <id>`: cancel a scheduled reminder.
 - `/memory`: list long-term memories.

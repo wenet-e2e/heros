@@ -156,6 +156,7 @@ function printInteractiveHelp() {
     '  /help',
     '  /exit',
     '  /reminders',
+    '  /context',
     '  /cancel-reminder <id>',
     '  /memory',
     '  /remember <content>',
@@ -184,6 +185,10 @@ async function interactive() {
       }
       if (text === '/reminders') {
         console.log(JSON.stringify(reminderStore.list(), null, 2));
+        continue;
+      }
+      if (text === '/context') {
+        console.log(JSON.stringify(interactionModel.context.snapshot(), null, 2));
         continue;
       }
       if (text.startsWith('/cancel-reminder ')) {
