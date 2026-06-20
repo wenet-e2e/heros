@@ -1324,6 +1324,10 @@ function testCliReviewCommand() {
   ) {
     throw new Error('cli review output smoke failed');
   }
+  const reviewEvents = readEventLog(env.HEROS_EVENT_LOG_PATH).filter((event) => event.type === 'review.completed');
+  if (reviewEvents.length !== 1 || reviewEvents[0].phase !== review.phase || reviewEvents[0].ready !== review.ready) {
+    throw new Error('cli review event smoke failed');
+  }
 
   const reportResult = spawnSync(process.execPath, ['src/cli.js', '--review-report'], {
     cwd: process.cwd(),
@@ -1340,6 +1344,10 @@ function testCliReviewCommand() {
   const report = JSON.parse(fs.readFileSync(reportReview.reportPath, 'utf8'));
   if (report.phase !== reportReview.phase || report.ready !== reportReview.ready) {
     throw new Error('cli review report content smoke failed');
+  }
+  const reportEvent = readEventLog(env.HEROS_EVENT_LOG_PATH).filter((event) => event.type === 'review.completed').at(-1);
+  if (reportEvent?.reportPath !== reportReview.reportPath || reportEvent.ready !== reportReview.ready) {
+    throw new Error('cli review report event smoke failed');
   }
 }
 

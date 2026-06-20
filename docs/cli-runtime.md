@@ -129,6 +129,7 @@ Implemented:
 - Phase 1 review covers bare and pending reminder cancellation routing, pending memory update routing, and pending memory deletion routing.
 - Phase 1 review also checks the Phase 1 CLI command surface for no-UI regression coverage.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
+- Phase 1 review completion emits a structured event for CLI and later UI observability.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.

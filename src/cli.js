@@ -925,6 +925,11 @@ async function phaseOneReview({ writeReport = false } = {}) {
     review.reportPath = reportPath;
     writeTextFileAtomic(reportPath, `${JSON.stringify(review, null, 2)}\n`);
   }
+  emitEvent('review.completed', {
+    phase: review.phase,
+    ready: review.ready,
+    reportPath: review.reportPath || null,
+  });
   console.log(JSON.stringify(review, null, 2));
 }
 
