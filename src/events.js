@@ -7,6 +7,7 @@ const SECRET_REDACTIONS = [
   /\b(Bearer)\s+[A-Za-z0-9._~+/=-]+/gi,
   /\b(sk-[A-Za-z0-9_-]{8,})\b/g,
 ];
+const SECRET_KEY_PATTERN = /(api[_-]?key|token|secret|password|passwd|authorization|bearer)/i;
 
 export function configureEvents({ logPath } = {}) {
   eventLogPath = logPath || null;
@@ -28,7 +29,10 @@ export function redactSecrets(value) {
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, redactSecrets(item)]),
+      Object.entries(value).map(([key, item]) => [
+        key,
+        SECRET_KEY_PATTERN.test(key) ? '[REDACTED]' : redactSecrets(item),
+      ]),
     );
   }
   return value;

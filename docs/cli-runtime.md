@@ -89,7 +89,7 @@ Implemented:
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
 - Realtime announcement response events include their background task source and ID.
 - Background task correlation IDs and triggering turn IDs across request, execution, tool call, and completion events.
-- Basic secret redaction before structured events are printed/persisted or written into Shared Context.
+- Secret redaction before structured events are printed/persisted or written into Shared Context, including secret-like field names.
 - Voice loop state transitions, including `background_running`, as `state.changed` events for later desktop UI mapping.
 
 ## Environment

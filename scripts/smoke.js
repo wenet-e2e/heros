@@ -32,6 +32,8 @@ async function testEventLog() {
   emitEvent('smoke.event_log', { ok: true, type: 'payload_must_not_override_event_type' });
   emitEvent('smoke.secret_redaction', {
     backgroundTaskId: 'task_smoke',
+    apiKey: 'plain-secret',
+    nested: { token: 'nested-secret' },
     text: 'DASHSCOPE_API_KEY=abc123 Bearer secret-token',
     turnId: 'turn_smoke',
   });
@@ -43,6 +45,9 @@ async function testEventLog() {
   const redacted = events[1];
   if (redacted.text.includes('abc123') || redacted.text.includes('secret-token')) {
     throw new Error('event secret redaction smoke failed');
+  }
+  if (redacted.apiKey !== '[REDACTED]' || redacted.nested.token !== '[REDACTED]') {
+    throw new Error('event secret key redaction smoke failed');
   }
   const summary = summarizeEvents(readEventLog(logPath));
   if (summary.total !== 2 || summary.byType['smoke.event_log'] !== 1) {
