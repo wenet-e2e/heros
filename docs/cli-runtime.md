@@ -35,6 +35,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run remember -- <content>`: creates one long-term memory without network calls.
 - `npm run update-memory -- <id> <content>`: updates one long-term memory without network calls.
 - `npm run forget-memory -- <id>`: deletes one long-term memory without network calls.
+- `npm run realtime -- <text>`: sends one text turn through Qwen-Omni-Realtime without microphone input.
 - `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
 - `npm run voice -- --no-play --duration-ms 3000`: starts a short no-play voice loop smoke.
 - `npm run talk`: records one manual voice turn for focused realtime debugging.
@@ -67,6 +68,7 @@ Implemented:
 - Doctor emits structured started/ok/failed/completed events for connectivity checks.
 - Headless local audio command availability check.
 - Realtime connection retry events for transient WebSocket startup failures.
+- Headless realtime text turn for no-microphone Qwen-Omni-Realtime debugging.
 - Continuous VAD voice loop with microphone input and PCM audio output.
 - User interrupt handling by cancelling the active realtime response.
 - New user speech cancels active Background Agent delegations so stale tasks cannot complete after interruption.

@@ -33,6 +33,7 @@
     "remember": "node src/cli.js --remember",
     "update-memory": "node src/cli.js --update-memory",
     "forget-memory": "node src/cli.js --forget-memory",
+    "realtime": "node src/cli.js --realtime-text",
     "talk": "node src/cli.js --talk",
     "voice": "node src/cli.js --voice-loop"
   },

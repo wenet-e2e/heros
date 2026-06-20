@@ -133,6 +133,80 @@ async function once(text) {
   console.log(`HerOS: ${reply}`);
 }
 
+async function realtimeText(text) {
+  if (!text.trim()) {
+    throw new Error('Usage: npm run realtime -- <text>');
+  }
+  const runtime = createRuntime();
+  const realtime = createRealtimeClient(runtime.config);
+  let responseText = '';
+
+  realtime.on('event', (event) => {
+    if (event.type === 'response.audio_transcript.delta' || event.type === 'response.text.delta') {
+      responseText += event.delta || '';
+    } else if (event.type === 'response.audio_transcript.done') {
+      responseText = event.transcript || responseText;
+    } else if (event.type === 'response.text.done') {
+      responseText = event.text || responseText;
+    } else if (event.type === 'error') {
+      emitEvent('error', { source: 'realtime_text', error: event.error || event });
+    }
+  });
+
+  const userTurn = runtime.context.addTurn('user', text);
+  emitEvent('input_audio.completed', { mode: 'realtime_text' });
+  emitEvent('interaction.context_updated', {
+    contextVersion: runtime.context.version,
+    reason: 'realtime_text_input',
+    turnId: userTurn.id,
+  });
+  emitEvent('transcript.completed', {
+    mode: 'realtime_text',
+    text,
+    contextVersion: runtime.context.version,
+    turnId: userTurn.id,
+  });
+
+  try {
+    await connectRealtimeWithRetry(realtime, {
+      retries: runtime.config.realtimeConnectRetries,
+      delayMs: runtime.config.realtimeConnectRetryDelayMs,
+    });
+    realtime.updateSession({
+      modalities: ['text', 'audio'],
+      voice: runtime.config.realtimeVoice,
+      instructions: runtime.config.realtimeInstructions,
+      turnDetection: null,
+      inputAudioTranscription: {
+        model: runtime.config.realtimeInputTranscriptionModel,
+      },
+    });
+    await realtime.waitFor('session.updated', 15000);
+    realtime.createUserTextMessage(text);
+    realtime.createResponse();
+    await realtime.waitFor('response.done', 60000);
+  } finally {
+    realtime.close();
+  }
+
+  const reply = responseText.trim();
+  if (!reply) {
+    throw new Error('Realtime text turn did not return a transcript');
+  }
+  const assistantTurn = runtime.context.addTurn('assistant', reply);
+  emitEvent('response.completed', {
+    source: 'realtime_text',
+    model: runtime.config.realtimeModel,
+    sourceTurnId: userTurn.id,
+    text: reply,
+    turnId: assistantTurn.id,
+  });
+  console.log(JSON.stringify({
+    text,
+    response: reply,
+  }, null, 2));
+}
+
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
@@ -748,6 +822,7 @@ function printUsage() {
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
+    '  npm run realtime -- hi     Send one text turn through Qwen-Omni-Realtime.',
     '  npm run cli -- --talk     Record one voice turn with Qwen-Omni-Realtime.',
     '  npm run cli -- --once hi  Send one typed fallback turn.',
     '',
@@ -820,6 +895,8 @@ try {
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });
+  } else if (args[0] === '--realtime-text') {
+    await realtimeText(args.slice(1).join(' '));
   } else if (args[0] === '--talk') {
     await talkOnce({ playAudio: args[1] !== '--no-play' });
   } else if (args[0] === '--help' || args[0] === '-h') {
