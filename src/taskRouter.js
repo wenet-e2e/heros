@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { emitEvent } from './events.js';
+import { emitEvent, redactSecrets } from './events.js';
 import {
   extractCancelReminderQuery,
   extractForgetMemoryQuery,
@@ -144,6 +144,43 @@ export class TaskRouter {
     return null;
   }
 
+  buildContextPackage() {
+    const sharedContext = this.context.snapshot();
+    const reminders = this.reminderStore?.list?.() || [];
+    const scheduledReminders = reminders
+      .filter((reminder) => reminder.status === 'scheduled')
+      .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt))
+      .map((reminder) => ({
+        id: reminder.id,
+        title: reminder.title,
+        remindAt: reminder.remindAt,
+        note: reminder.note || '',
+        status: reminder.status,
+      }));
+    const longTermMemory = this.memoryStore?.list?.()
+      .map((memory) => ({
+        id: memory.id,
+        content: memory.content,
+        updatedAt: memory.updatedAt,
+      }))
+      || sharedContext.longTermMemory;
+    return redactSecrets({
+      runtime: {
+        timeZone: this.timeZone,
+      },
+      sharedContext,
+      reminders: {
+        totalScheduled: scheduledReminders.length,
+        nextScheduledAt: scheduledReminders[0]?.remindAt || null,
+        scheduled: scheduledReminders.slice(0, 10),
+      },
+      longTermMemory: {
+        total: longTermMemory.length,
+        items: longTermMemory.slice(0, 20),
+      },
+    });
+  }
+
   async maybeHandle(text, { turnId, signal } = {}) {
     const decision = this.shouldDelegate(text);
     if (!decision) {
@@ -178,7 +215,7 @@ export class TaskRouter {
         backgroundTaskId,
         turnId,
         userText: text,
-        context: this.context.snapshot(),
+        context: this.buildContextPackage(),
         signal: taskSignal,
       }), this.taskTimeoutMs, signal);
     } catch (error) {

@@ -69,6 +69,7 @@ export class BackgroundAgent {
     const system = [
       'You are HerOS Background LLM/Agent.',
       'Your job is to handle complex tasks asynchronously for a realtime interaction model.',
+      'You receive a rich context package with sharedContext, reminders, longTermMemory, and runtime metadata.',
       'For this MVP, the only executable tool is create_reminder.',
       'Decide whether the user asks to create a reminder.',
       'Return strict JSON only, with this schema:',

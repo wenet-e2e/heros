@@ -1262,6 +1262,45 @@ async function testTaskRouterBackgroundCancellation() {
   }
 }
 
+async function testTaskRouterBackgroundContextPackage() {
+  const dir = createTempDir('heros-router-context-package-');
+  const context = new SharedContext();
+  const reminderStore = new ReminderStore(dir);
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: 'DASHSCOPE_API_KEY=should-not-leak',
+  });
+  memoryStore.create('用户喜欢安静的语音风格');
+  let receivedContext = null;
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    reminderStore,
+    timeZone: 'Asia/Shanghai',
+    backgroundAgent: {
+      async handleTask({ context: contextPackage }) {
+        receivedContext = contextPackage;
+        return { type: 'none', message: '' };
+      },
+    },
+  });
+  await router.maybeHandle('明天九点提醒我喝水', { turnId: 'turn_context_package' });
+  if (
+    receivedContext?.runtime?.timeZone !== 'Asia/Shanghai'
+    || receivedContext.reminders.totalScheduled !== 1
+    || receivedContext.reminders.scheduled[0].title !== '喝水'
+    || receivedContext.longTermMemory.total !== 1
+    || !receivedContext.sharedContext
+  ) {
+    throw new Error('task router background context package smoke failed');
+  }
+  if (JSON.stringify(receivedContext).includes('should-not-leak')) {
+    throw new Error('task router background context package redaction smoke failed');
+  }
+}
+
 function testTaskRouterForgetMemory() {
   const dir = createTempDir('heros-router-forget-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -1793,6 +1832,7 @@ await testTaskRouterBackgroundFailure();
 await testTaskRouterBackgroundClarification();
 await testTaskRouterBackgroundTimeout();
 await testTaskRouterBackgroundCancellation();
+await testTaskRouterBackgroundContextPackage();
 testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
