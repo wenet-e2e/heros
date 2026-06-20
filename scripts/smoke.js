@@ -30,6 +30,7 @@ import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
 import { getConfig } from '../src/config.js';
 import { CliInteractionModel } from '../src/interactionModel.js';
 import { DashScopeClient } from '../src/dashscope.js';
+import { commandExists } from '../src/audio.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -104,6 +105,18 @@ async function testEventLog() {
     throw new Error('event follow smoke failed');
   }
   configureEvents();
+}
+
+async function testCommandExistsMissingWhich() {
+  const previousPath = process.env.PATH;
+  process.env.PATH = '';
+  try {
+    if (await commandExists('rec')) {
+      throw new Error('commandExists should be false without PATH');
+    }
+  } finally {
+    process.env.PATH = previousPath;
+  }
 }
 
 function testReminderScheduler() {
@@ -1934,6 +1947,7 @@ function testTaskRouterListMemory() {
 }
 
 await testEventLog();
+await testCommandExistsMissingWhich();
 testReminderScheduler();
 testMemoryStore();
 testBackgroundTaskSummary();

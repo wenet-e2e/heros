@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 export function commandExists(command) {
   return new Promise((resolve) => {
     const child = spawn('which', [command], { stdio: 'ignore' });
+    child.on('error', () => resolve(false));
     child.on('close', (code) => resolve(code === 0));
   });
 }
