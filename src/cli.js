@@ -15,6 +15,7 @@ import {
   followEventLog,
   readEventLog,
   summarizeBackgroundTasks,
+  summarizeBackgroundTaskDetail,
   summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
@@ -379,6 +380,14 @@ async function taskSummary({ count = 20 } = {}) {
     ...summary,
     tasks: summary.tasks.slice(0, count),
   }, null, 2));
+}
+
+async function taskDetail(backgroundTaskId) {
+  if (!backgroundTaskId) {
+    throw new Error('Usage: npm run task-detail -- <task_id>');
+  }
+  const { config } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(summarizeBackgroundTaskDetail(readEventLog(config.eventLogPath), backgroundTaskId), null, 2));
 }
 
 async function runtimeState() {
@@ -1059,6 +1068,7 @@ function printUsage() {
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run errors            Summarize recent error events.',
     '  npm run tasks             Summarize background tasks from event logs.',
+    '  npm run task-detail -- <task_id>',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -1123,6 +1133,8 @@ try {
     await errorSummary({ count: getEventCount(args) });
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--task-detail') {
+    await taskDetail(args[1]);
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
   } else if (args[0] === '--context') {

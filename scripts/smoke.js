@@ -17,6 +17,7 @@ import {
   followEventLog,
   readEventLog,
   summarizeBackgroundTasks,
+  summarizeBackgroundTaskDetail,
   summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
@@ -222,6 +223,10 @@ function testBackgroundTaskSummary() {
   const dir = createTempDir('heros-task-summary-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '明天九点提醒我喝水',
+    turnId: 'turn_summary_user',
+  });
   emitEvent('background_task.requested', {
     backgroundTaskId: 'task_summary',
     turnId: 'turn_summary_user',
@@ -248,7 +253,9 @@ function testBackgroundTaskSummary() {
   emitEvent('response.completed', {
     backgroundTaskId: 'task_summary',
     turnId: 'turn_summary_assistant',
+    sourceTurnId: 'turn_summary_user',
     source: 'background_agent',
+    text: '好的，已经创建提醒。',
   });
   const summary = summarizeBackgroundTasks(readEventLog(logPath));
   const task = summary.tasks[0];
@@ -260,6 +267,19 @@ function testBackgroundTaskSummary() {
     || task.responseTurnId !== 'turn_summary_assistant'
   ) {
     throw new Error('background task summary smoke failed');
+  }
+  const detail = summarizeBackgroundTaskDetail(readEventLog(logPath), 'task_summary');
+  if (
+    !detail.found
+    || detail.task.backgroundTaskId !== 'task_summary'
+    || detail.turns.length !== 2
+    || !detail.events.some((event) => event.type === 'background_task.progress')
+  ) {
+    throw new Error('background task detail smoke failed');
+  }
+  const missing = summarizeBackgroundTaskDetail(readEventLog(logPath), 'task_missing');
+  if (missing.found || missing.events.length !== 0) {
+    throw new Error('missing background task detail smoke failed');
   }
   configureEvents();
 }
@@ -779,6 +799,42 @@ function testCliTaskCommand() {
   const chatTask = JSON.parse(chatResult.stdout);
   if (chatTask.delegated || chatTask.handledBy !== 'realtime_interaction_model' || chatTask.result !== null) {
     throw new Error('cli task chat output smoke failed');
+  }
+}
+
+function testCliTaskDetailCommand() {
+  const dir = createTempDir('heros-cli-task-detail-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: logPath,
+  };
+  const taskResult = spawnSync(process.execPath, ['src/cli.js', '--task', '记住用户喜欢自然的回答'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (taskResult.status !== 0) {
+    throw new Error(`cli task detail setup smoke failed: ${taskResult.stderr || taskResult.stdout}`);
+  }
+  const task = JSON.parse(taskResult.stdout);
+  const detailResult = spawnSync(process.execPath, ['src/cli.js', '--task-detail', task.result.backgroundTaskId], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (detailResult.status !== 0) {
+    throw new Error(`cli task detail smoke failed: ${detailResult.stderr || detailResult.stdout}`);
+  }
+  const detail = JSON.parse(detailResult.stdout);
+  if (
+    !detail.found
+    || detail.task.backgroundTaskId !== task.result.backgroundTaskId
+    || !detail.turns.some((turn) => turn.turnId === task.turnId)
+    || !detail.events.some((event) => event.type === 'memory.created')
+  ) {
+    throw new Error('cli task detail output smoke failed');
   }
 }
 
@@ -2149,6 +2205,7 @@ testCliTranscriptCommand();
 testCliErrorsCommand();
 testCliRouteCommand();
 testCliTaskCommand();
+testCliTaskDetailCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
 testCliPreflightCommand();

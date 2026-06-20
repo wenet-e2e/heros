@@ -242,6 +242,55 @@ export function summarizeBackgroundTasks(events) {
   };
 }
 
+export function summarizeBackgroundTaskDetail(events, backgroundTaskId) {
+  const task = summarizeBackgroundTasks(events).tasks.find((item) => item.backgroundTaskId === backgroundTaskId) || null;
+  if (!task) {
+    return {
+      backgroundTaskId,
+      found: false,
+      task: null,
+      turns: [],
+      events: [],
+    };
+  }
+
+  const turnIds = new Set([
+    task.turnId,
+    task.responseTurnId,
+  ].filter(Boolean));
+
+  for (const event of events) {
+    if (event.backgroundTaskId !== backgroundTaskId) {
+      continue;
+    }
+    if (event.turnId) {
+      turnIds.add(event.turnId);
+    }
+    if (event.sourceTurnId) {
+      turnIds.add(event.sourceTurnId);
+    }
+  }
+
+  const relatedEvents = events.filter((event) => (
+    event.backgroundTaskId === backgroundTaskId
+    || turnIds.has(event.turnId)
+    || turnIds.has(event.sourceTurnId)
+  ));
+  const turns = summarizeTurns(relatedEvents).turns.filter((turn) => (
+    turn.backgroundTaskId === backgroundTaskId
+    || turnIds.has(turn.turnId)
+    || turnIds.has(turn.sourceTurnId)
+  ));
+
+  return {
+    backgroundTaskId,
+    found: true,
+    task,
+    turns,
+    events: relatedEvents,
+  };
+}
+
 function stateFromEvent(fallback, event) {
   if (event.type === 'state.changed') {
     return {
