@@ -53,7 +53,7 @@ Implemented:
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Stale background announcements are skipped when the user starts a newer voice turn.
-- Runtime `MEMORY.md` CRUD, explicit natural-language memory creation, and safe natural-language memory deletion.
+- Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing, and safe natural-language memory deletion.
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.

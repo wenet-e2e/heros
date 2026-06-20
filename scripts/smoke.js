@@ -9,7 +9,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyCancelReminder, likelyForgetMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
+import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
@@ -294,6 +294,9 @@ function testIntentBoundaries() {
   if (!likelyListReminders('我有哪些提醒？')) {
     throw new Error('list reminders intent smoke failed');
   }
+  if (!likelyListMemory('你记得什么？')) {
+    throw new Error('list memory intent smoke failed');
+  }
   if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
     throw new Error('forget memory intent smoke failed');
   }
@@ -487,6 +490,26 @@ function testTaskRouterListReminders() {
   }
 }
 
+function testTaskRouterListMemory() {
+  const dir = createTempDir('heros-router-list-memory-');
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  memoryStore.create('用户喜欢安静的语音风格');
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    reminderStore: null,
+    backgroundAgent: null,
+  });
+  const result = router.handleListMemory();
+  if (result.type !== 'memory_listed' || result.memories.length !== 1 || !result.message.includes('安静')) {
+    throw new Error('task router list memory smoke failed');
+  }
+  if (context.snapshot().longTermMemory.length !== 1) {
+    throw new Error('task router list memory context smoke failed');
+  }
+}
+
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
@@ -505,6 +528,7 @@ await testTaskRouterBackgroundFailure();
 testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
+testTaskRouterListMemory();
 await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 console.log('smoke ok');

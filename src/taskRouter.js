@@ -6,6 +6,7 @@ import {
   extractMemoryContent,
   likelyCancelReminder,
   likelyForgetMemory,
+  likelyListMemory,
   likelyListReminders,
   likelyMemory,
   likelyReminder,
@@ -42,6 +43,9 @@ export class TaskRouter {
   shouldDelegate(text) {
     if (likelyListReminders(text)) {
       return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };
+    }
+    if (likelyListMemory(text)) {
+      return { type: 'list_memory', reason: 'explicit_list_memory_request' };
     }
     if (likelyMemory(text)) {
       return { type: 'memory', reason: 'explicit_memory_request' };
@@ -82,6 +86,9 @@ export class TaskRouter {
     }
     if (decision.type === 'list_reminders') {
       return { ...this.handleListReminders({ backgroundTaskId, turnId }), source: 'local_task_router' };
+    }
+    if (decision.type === 'list_memory') {
+      return { ...this.handleListMemory({ backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     let result;
     try {
@@ -152,6 +159,42 @@ export class TaskRouter {
       type: 'reminders_listed',
       reminders: scheduled,
       message: `你现在有 ${scheduled.length} 个提醒：${summary}${suffix}`,
+    };
+  }
+
+  handleListMemory({ backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'list_memory' });
+    const memories = this.memoryStore.list();
+    this.context.addBackgroundTask({
+      backgroundTaskId,
+      turnId,
+      type: 'list_memory',
+      status: 'completed',
+      result: { count: memories.length },
+    });
+    this.context.setLongTermMemory(memories);
+    emitEvent('background_task.completed', {
+      backgroundTaskId,
+      turnId,
+      result: { action: 'list_memory', count: memories.length },
+    });
+    emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+
+    if (memories.length === 0) {
+      return {
+        backgroundTaskId,
+        type: 'memory_listed',
+        memories,
+        message: '我现在没有长期记忆。',
+      };
+    }
+    const summary = memories.slice(0, 5).map((memory) => memory.content).join('；');
+    const suffix = memories.length > 5 ? `；另外还有 ${memories.length - 5} 条记忆` : '';
+    return {
+      backgroundTaskId,
+      type: 'memory_listed',
+      memories,
+      message: `我现在记得 ${memories.length} 条：${summary}${suffix}`,
     };
   }
 

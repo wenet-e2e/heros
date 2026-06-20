@@ -2,6 +2,10 @@ export function likelyListReminders(text) {
   return /提醒列表|我的提醒|有哪些.*(提醒|闹钟)|查看.*(提醒|闹钟)|列出.*(提醒|闹钟)/.test(text);
 }
 
+export function likelyListMemory(text) {
+  return /我的记忆|你记得什么|记住了什么|有哪些.*记忆|查看.*记忆|列出.*记忆/.test(text);
+}
+
 export function likelyReminder(text) {
   const explicitReminder = /提醒|闹钟|到点|叫我|通知我/.test(text);
   const relativeDelay = /\d+\s*(分钟|小时|天)后/.test(text);
