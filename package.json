@@ -25,6 +25,7 @@
     "transcript": "node src/cli.js --transcript",
     "route": "node src/cli.js --route",
     "task": "node src/cli.js --task",
+    "scenario": "node src/cli.js --scenario",
     "bootstrap": "node src/cli.js --bootstrap",
     "audio": "node src/cli.js --audio",
     "audio:probe": "node src/cli.js --audio-probe",

@@ -28,6 +28,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run transcript`: prints recent conversation turns as readable text.
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run task -- <text>`: runs one delegated task and prints a clean JSON result.
+- `npm run scenario -- <turn1> <turn2>`: replays multiple text turns in one Shared Context without microphone input.
 - `npm run bootstrap`: prints runtime agent bootstrap status.
 - `npm run audio`: checks local audio recorder/player command availability without network calls.
 - `npm run audio:probe -- --duration-ms 500`: optionally probes microphone capture without network calls; failures usually point to local microphone permission or device selection.
@@ -131,6 +132,7 @@ Implemented:
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Headless delegated task runner for JSON verification without entering the interactive CLI.
 - Headless delegated task runner emits assistant response events for transcript replay.
+- Headless scenario replay runs multiple text turns in one Shared Context for no-microphone regression checks.
 - Turn IDs on conversation turns and response/transcript events.
 - Typed CLI fallback emits transcript and response turn events for conversation replay.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.

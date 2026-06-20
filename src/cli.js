@@ -513,6 +513,74 @@ async function taskText(text) {
   }, null, 2));
 }
 
+async function scenario(turns) {
+  const texts = turns.map((text) => text.trim()).filter(Boolean);
+  if (texts.length === 0) {
+    throw new Error('Usage: npm run scenario -- <turn1> <turn2> ...');
+  }
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const results = [];
+  for (const text of texts) {
+    const decision = runtime.taskRouter.shouldDelegate(text);
+    const userTurn = runtime.context.addTurn('user', text);
+    emitEvent('input_audio.completed', { mode: 'cli_scenario' });
+    emitEvent('interaction.context_updated', {
+      contextVersion: runtime.context.version,
+      reason: 'cli_scenario_input',
+      turnId: userTurn.id,
+    });
+    emitEvent('transcript.completed', {
+      mode: 'cli_scenario',
+      text,
+      contextVersion: runtime.context.version,
+      turnId: userTurn.id,
+    });
+
+    if (!decision) {
+      results.push({
+        text,
+        delegated: false,
+        handledBy: 'realtime_interaction_model',
+        reason: 'no_background_task',
+        turnId: userTurn.id,
+        result: null,
+      });
+      continue;
+    }
+    const handledBy = routeTarget(decision);
+    if (handledBy === 'background_agent' && !runtime.config.dashscopeApiKey) {
+      throw new Error('DASHSCOPE_API_KEY is required for background reminder tasks.');
+    }
+    const result = await runtime.taskRouter.maybeHandle(text, { turnId: userTurn.id });
+    let responseTurn = null;
+    if (result?.message) {
+      responseTurn = runtime.context.addTurn('assistant', result.message);
+      emitEvent('response.completed', {
+        backgroundTaskId: result.backgroundTaskId,
+        source: result.source || handledBy,
+        sourceTurnId: userTurn.id,
+        text: result.message,
+        turnId: responseTurn.id,
+      });
+    }
+    results.push({
+      text,
+      delegated: true,
+      handledBy,
+      taskType: decision.type,
+      reason: decision.reason,
+      turnId: userTurn.id,
+      responseTurnId: responseTurn?.id || null,
+      result,
+    });
+  }
+  console.log(JSON.stringify({
+    turns: results,
+    contextVersion: runtime.context.version,
+    backgroundTasks: runtime.context.snapshot().backgroundTasks.length,
+  }, null, 2));
+}
+
 async function bootstrapStatus() {
   const { bootstrap, memoryStore } = createRuntime({ requireApiKey: false, printEvents: false });
   const files = bootstrap.files.map((filePath) => {
@@ -1075,6 +1143,7 @@ function printUsage() {
     '  npm run transcript        Print recent conversation turns as text.',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run task -- <text>    Run one delegated task and print JSON.',
+    '  npm run scenario -- <turn1> <turn2>',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
     '  npm run audio:probe       Probe microphone capture without network calls.',
@@ -1147,6 +1216,8 @@ try {
     await routeText(args.slice(1).join(' '));
   } else if (args[0] === '--task') {
     await taskText(args.slice(1).join(' '));
+  } else if (args[0] === '--scenario') {
+    await scenario(args.slice(1));
   } else if (args[0] === '--bootstrap') {
     await bootstrapStatus();
   } else if (args[0] === '--audio') {

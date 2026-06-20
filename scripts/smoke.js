@@ -838,6 +838,42 @@ function testCliTaskDetailCommand() {
   }
 }
 
+function testCliScenarioCommand() {
+  const dir = createTempDir('heros-cli-scenario-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const result = spawnSync(process.execPath, [
+    'src/cli.js',
+    '--scenario',
+    '记住用户喜欢安静的语音风格',
+    '我的记忆',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli scenario smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const scenario = JSON.parse(result.stdout);
+  if (
+    scenario.turns.length !== 2
+    || scenario.turns[0].result?.type !== 'memory_created'
+    || scenario.turns[1].result?.type !== 'memory_listed'
+    || !scenario.turns[1].result.message.includes('安静')
+  ) {
+    throw new Error('cli scenario output smoke failed');
+  }
+  const events = readEventLog(logPath);
+  const scenarioTranscripts = events.filter((event) => event.mode === 'cli_scenario' && event.type === 'transcript.completed');
+  if (scenarioTranscripts.length !== 2 || scenario.backgroundTasks !== 2) {
+    throw new Error('cli scenario event smoke failed');
+  }
+}
+
 function testCliBootstrapCommand() {
   const dir = createTempDir('heros-cli-bootstrap-');
   const result = spawnSync(process.execPath, ['src/cli.js', '--bootstrap'], {
@@ -2228,6 +2264,7 @@ testCliErrorsCommand();
 testCliRouteCommand();
 testCliTaskCommand();
 testCliTaskDetailCommand();
+testCliScenarioCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
 testCliPreflightCommand();
