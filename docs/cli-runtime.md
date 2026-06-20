@@ -18,6 +18,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run events:follow -- --type state.changed`: follows only matching structured runtime events.
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
+- `npm run reminders`: lists local reminders without network calls.
+- `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
 - `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
 - `npm run voice -- --no-play --duration-ms 3000`: starts a short no-play voice loop smoke.
 - `npm run talk`: records one manual voice turn for focused realtime debugging.
@@ -63,6 +65,7 @@ Implemented:
 - Background clarification results are tracked as `needs_clarification` in Shared Context.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Headless local reminder listing and cancellation commands.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.

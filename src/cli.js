@@ -180,6 +180,23 @@ async function taskSummary({ count = 20 } = {}) {
   }, null, 2));
 }
 
+async function listReminders() {
+  const { reminderStore } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(reminderStore.list(), null, 2));
+}
+
+async function cancelReminder(id) {
+  if (!id) {
+    throw new Error('Usage: npm run cancel-reminder -- <id>');
+  }
+  const { reminderStore } = createRuntime({ requireApiKey: false });
+  const reminder = reminderStore.cancel(id);
+  if (!reminder) {
+    throw new Error(`Scheduled reminder not found: ${id}`);
+  }
+  console.log(JSON.stringify(reminder, null, 2));
+}
+
 function printInteractiveHelp() {
   console.log([
     'Commands:',
@@ -398,6 +415,8 @@ function printUsage() {
     '  npm run events -- --background-task-id task_xxx',
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run tasks             Summarize background tasks from event logs.',
+    '  npm run reminders         List local reminders without network calls.',
+    '  npm run cancel-reminder -- <id>',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
@@ -437,6 +456,10 @@ try {
     await eventSummary();
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--reminders') {
+    await listReminders();
+  } else if (args[0] === '--cancel-reminder') {
+    await cancelReminder(args[1]);
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });

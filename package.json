@@ -17,6 +17,8 @@
     "events:follow": "node src/cli.js --events --follow",
     "event-summary": "node src/cli.js --event-summary",
     "tasks": "node src/cli.js --tasks",
+    "reminders": "node src/cli.js --reminders",
+    "cancel-reminder": "node src/cli.js --cancel-reminder",
     "talk": "node src/cli.js --talk",
     "voice": "node src/cli.js --voice-loop"
   },

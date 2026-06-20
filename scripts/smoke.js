@@ -240,6 +240,46 @@ function testCliStatusOutput() {
   }
 }
 
+function testCliReminderCommands() {
+  const dir = createTempDir('heros-cli-reminders-');
+  const store = new ReminderStore(dir);
+  const reminder = store.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+  };
+  const listResult = spawnSync(process.execPath, ['src/cli.js', '--reminders'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (listResult.status !== 0) {
+    throw new Error(`cli reminders smoke failed: ${listResult.stderr || listResult.stdout}`);
+  }
+  const reminders = JSON.parse(listResult.stdout);
+  if (reminders.length !== 1 || reminders[0].id !== reminder.id) {
+    throw new Error('cli reminders list smoke failed');
+  }
+
+  const cancelResult = spawnSync(process.execPath, ['src/cli.js', '--cancel-reminder', reminder.id], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (cancelResult.status !== 0) {
+    throw new Error(`cli cancel reminder smoke failed: ${cancelResult.stderr || cancelResult.stdout}`);
+  }
+  const cancelled = JSON.parse(cancelResult.stdout);
+  if (cancelled.status !== 'cancelled' || store.list()[0].status !== 'cancelled') {
+    throw new Error('cli cancel reminder output smoke failed');
+  }
+}
+
 function testConfigNumberFallback() {
   const previous = process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS;
   process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS = 'not-a-number';
@@ -915,6 +955,7 @@ testMemoryStore();
 testBackgroundTaskSummary();
 testAgentBootstrap();
 testCliStatusOutput();
+testCliReminderCommands();
 testConfigNumberFallback();
 testSharedContextRedaction();
 await testCliBackgroundResponseCorrelation();
