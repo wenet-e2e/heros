@@ -801,6 +801,19 @@ async function phaseOneReview({ writeReport = false } = {}) {
     updateMemoryHandledLocally: updateMemoryRoute?.type === 'update_memory',
     chatStaysRealtime: !chatRoute,
   };
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+  const scripts = packageJson.scripts || {};
+  const commandSurface = {
+    voice: Boolean(scripts.voice),
+    realtime: Boolean(scripts.realtime),
+    task: Boolean(scripts.task),
+    scenario: Boolean(scripts.scenario),
+    taskDetail: Boolean(scripts['task-detail']),
+    reminders: Boolean(scripts.reminders),
+    updateReminder: Boolean(scripts['update-reminder']),
+    memories: Boolean(scripts.memories),
+    reviewReport: Boolean(scripts['review:report']),
+  };
   const context = summarizeSharedContext(events, {
     bootstrapFiles: runtime.bootstrap.files,
     memories: runtime.memoryStore.list(),
@@ -811,11 +824,13 @@ async function phaseOneReview({ writeReport = false } = {}) {
     createdAt: new Date().toISOString(),
     ready: preflightReport.ready
       && Object.values(routing).every(Boolean)
+      && Object.values(commandSurface).every(Boolean)
       && fs.existsSync(path.join(process.cwd(), 'README.md'))
       && fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
     checks: {
       preflight: preflightReport,
       routing,
+      commandSurface,
       observability: {
         eventLogPath: runtime.config.eventLogPath,
         eventCount: events.length,

@@ -1090,6 +1090,9 @@ function testCliReviewCommand() {
     || review.checks.routing.cancelNextReminderHandledLocally !== true
     || review.checks.routing.updateMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
+    || review.checks.commandSurface.scenario !== true
+    || review.checks.commandSurface.taskDetail !== true
+    || review.checks.commandSurface.updateReminder !== true
     || review.checks.docs.readme !== true
     || review.checks.docs.systemDesign !== true
   ) {
