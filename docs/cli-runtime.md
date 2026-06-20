@@ -50,6 +50,7 @@ Implemented:
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
+- Background clarification results are tracked as `needs_clarification` in Shared Context.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
 - Natural-language scheduled reminder listing.

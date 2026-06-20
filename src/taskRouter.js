@@ -95,6 +95,13 @@ function formatReminderTime(isoString, timeZone) {
   }).format(date);
 }
 
+function backgroundTaskStatus(result) {
+  if (result.type === 'clarify') {
+    return 'needs_clarification';
+  }
+  return result.type;
+}
+
 export class TaskRouter {
   constructor({ backgroundAgent, context, memoryStore, reminderStore, taskTimeoutMs = 60000, timeZone }) {
     this.backgroundAgent = backgroundAgent;
@@ -218,7 +225,7 @@ export class TaskRouter {
       backgroundTaskId,
       turnId,
       type: decision.type,
-      status: result.type,
+      status: backgroundTaskStatus(result),
       result,
     });
     emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });

@@ -269,6 +269,31 @@ async function testTaskRouterBackgroundFailure() {
   }
 }
 
+async function testTaskRouterBackgroundClarification() {
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore: null,
+    reminderStore: null,
+    backgroundAgent: {
+      async handleTask() {
+        return {
+          type: 'clarify',
+          message: '你想让我什么时候提醒？',
+        };
+      },
+    },
+  });
+  const result = await router.maybeHandle('提醒我喝水', { turnId: 'turn_clarify' });
+  if (result.type !== 'clarify' || !result.message.includes('什么时候')) {
+    throw new Error('task router background clarification smoke failed');
+  }
+  const task = context.snapshot().backgroundTasks.at(-1);
+  if (task.status !== 'needs_clarification' || task.turnId !== 'turn_clarify') {
+    throw new Error('task router background clarification context smoke failed');
+  }
+}
+
 async function testTaskRouterBackgroundTimeout() {
   const context = new SharedContext();
   let aborted = false;
@@ -677,6 +702,7 @@ await testVoiceLoopShutdownCancelsBackgroundTasks();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();
 await testTaskRouterBackgroundFailure();
+await testTaskRouterBackgroundClarification();
 await testTaskRouterBackgroundTimeout();
 await testTaskRouterBackgroundCancellation();
 testTaskRouterForgetMemory();
