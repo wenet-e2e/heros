@@ -39,11 +39,15 @@ export function likelyForgetMemory(text) {
 
 export function extractCancelReminderQuery(text) {
   const trimmed = text.trim();
-  const match = trimmed.match(/^(取消|删除|去掉)[：:，,\s]*(.+?)(提醒|闹钟)?$/);
-  if (!match) {
-    return '';
+  const cancelMatch = trimmed.match(/^取消[：:，,\s]*(.+?)(提醒|闹钟)?$/);
+  if (cancelMatch) {
+    return cancelMatch[1].replace(/提醒|闹钟/g, '').trim();
   }
-  return match[2].replace(/提醒|闹钟/g, '').trim();
+  const deleteMatch = trimmed.match(/^(删除|去掉)[：:，,\s]*(.+?)(提醒|闹钟)$/);
+  if (deleteMatch) {
+    return deleteMatch[2].replace(/提醒|闹钟/g, '').trim();
+  }
+  return '';
 }
 
 export function likelyCancelReminder(text) {

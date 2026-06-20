@@ -9,7 +9,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyForgetMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
+import { likelyCancelReminder, likelyForgetMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
@@ -265,6 +265,15 @@ function testIntentBoundaries() {
   }
   if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
     throw new Error('forget memory intent smoke failed');
+  }
+  if (!likelyForgetMemory('删除记忆用户喜欢安静的语音风格')) {
+    throw new Error('delete memory intent smoke failed');
+  }
+  if (likelyCancelReminder('删除记忆用户喜欢安静的语音风格')) {
+    throw new Error('delete memory was misclassified as cancel reminder');
+  }
+  if (!likelyCancelReminder('删除喝水提醒')) {
+    throw new Error('delete reminder intent smoke failed');
   }
 }
 

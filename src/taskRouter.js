@@ -43,14 +43,14 @@ export class TaskRouter {
     if (likelyListReminders(text)) {
       return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };
     }
-    if (likelyCancelReminder(text)) {
-      return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
-    }
     if (likelyMemory(text)) {
       return { type: 'memory', reason: 'explicit_memory_request' };
     }
     if (likelyForgetMemory(text)) {
       return { type: 'forget_memory', reason: 'explicit_forget_memory_request' };
+    }
+    if (likelyCancelReminder(text)) {
+      return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
     }
     if (likelyReminder(text)) {
       return { type: 'reminder', reason: 'likely_reminder' };
