@@ -54,6 +54,19 @@ export class TaskRouter {
   handleCancelReminder(text) {
     emitEvent('background_task.started', { model: 'local_task_router', taskType: 'cancel_reminder' });
     const query = extractCancelReminderQuery(text);
+    if (!query) {
+      this.context.addBackgroundTask({
+        type: 'cancel_reminder',
+        status: 'needs_clarification',
+        result: { query },
+      });
+      emitEvent('background_task.completed', { result: { action: 'cancel_reminder_needs_clarification' } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      return {
+        type: 'cancel_reminder_needs_clarification',
+        message: '你想取消哪一个提醒？可以说一下提醒内容。',
+      };
+    }
     const matches = this.reminderStore.list().filter((reminder) => {
       if (reminder.status !== 'scheduled') {
         return false;

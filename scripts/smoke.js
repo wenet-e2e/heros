@@ -175,6 +175,10 @@ function testTaskRouterCancelReminder() {
   if (reminderStore.list().find((item) => item.id === reminder.id)?.status !== 'cancelled') {
     throw new Error('task router cancel reminder did not persist');
   }
+  const clarify = router.handleCancelReminder('取消提醒');
+  if (clarify.type !== 'cancel_reminder_needs_clarification') {
+    throw new Error('empty cancel reminder query did not clarify');
+  }
 }
 
 testEventLog();
