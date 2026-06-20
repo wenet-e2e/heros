@@ -83,12 +83,28 @@ export class TaskRouter {
     if (decision.type === 'list_reminders') {
       return { ...this.handleListReminders({ backgroundTaskId, turnId }), source: 'local_task_router' };
     }
-    const result = await this.backgroundAgent.handleTask({
-      backgroundTaskId,
-      turnId,
-      userText: text,
-      context: this.context.snapshot(),
-    });
+    let result;
+    try {
+      result = await this.backgroundAgent.handleTask({
+        backgroundTaskId,
+        turnId,
+        userText: text,
+        context: this.context.snapshot(),
+      });
+    } catch (error) {
+      result = {
+        backgroundTaskId,
+        turnId,
+        type: 'background_failed',
+        message: '后台任务执行失败了，可以稍后再试一次。',
+        error: error.message,
+      };
+      emitEvent('background_task.completed', {
+        backgroundTaskId,
+        turnId,
+        result: { action: 'failed', error: error.message },
+      });
+    }
     this.context.addBackgroundTask({
       backgroundTaskId,
       turnId,

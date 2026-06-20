@@ -216,6 +216,28 @@ async function testTaskRouterTurnLink() {
   }
 }
 
+async function testTaskRouterBackgroundFailure() {
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore: null,
+    reminderStore: null,
+    backgroundAgent: {
+      async handleTask() {
+        throw new Error('model returned invalid JSON');
+      },
+    },
+  });
+  const result = await router.maybeHandle('明天九点提醒我喝水', { turnId: 'turn_failure' });
+  if (result.type !== 'background_failed' || !result.message) {
+    throw new Error('task router background failure smoke failed');
+  }
+  const task = context.snapshot().backgroundTasks.at(-1);
+  if (task.status !== 'background_failed' || task.turnId !== 'turn_failure') {
+    throw new Error('task router background failure context smoke failed');
+  }
+}
+
 function testTaskRouterForgetMemory() {
   const dir = createTempDir('heros-router-forget-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -476,6 +498,7 @@ await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();
+await testTaskRouterBackgroundFailure();
 testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
