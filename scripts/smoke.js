@@ -782,10 +782,11 @@ function testCliErrorsCommand() {
 
 function testCliRouteCommand() {
   const dir = createTempDir('heros-cli-route-');
+  const logPath = path.join(dir, 'events.ndjson');
   const env = {
     ...process.env,
     HEROS_DATA_DIR: dir,
-    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    HEROS_EVENT_LOG_PATH: logPath,
   };
   const reminderResult = spawnSync(process.execPath, ['src/cli.js', '--route', '明天九点提醒我喝水'], {
     cwd: process.cwd(),
@@ -842,6 +843,45 @@ function testCliRouteCommand() {
   const chatRoute = JSON.parse(chatResult.stdout);
   if (chatRoute.delegatesToBackground || chatRoute.handledBy !== 'realtime_interaction_model' || chatRoute.nextOnly !== false) {
     throw new Error('cli route chat output smoke failed');
+  }
+
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '提醒我喝水',
+    turnId: 'turn_pending_route',
+    contextVersion: 1,
+  });
+  emitEvent('background_task.requested', {
+    backgroundTaskId: 'task_pending_route',
+    turnId: 'turn_pending_route',
+    taskType: 'reminder',
+    reason: 'likely_reminder',
+  });
+  emitEvent('background_task.needs_clarification', {
+    backgroundTaskId: 'task_pending_route',
+    turnId: 'turn_pending_route',
+    question: '什么时候提醒你喝水？',
+    reason: 'missing_time',
+  });
+  configureEvents();
+
+  const pendingResult = spawnSync(process.execPath, ['src/cli.js', '--route', '九点'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (pendingResult.status !== 0) {
+    throw new Error(`cli route pending clarification smoke failed: ${pendingResult.stderr || pendingResult.stdout}`);
+  }
+  const pendingRoute = JSON.parse(pendingResult.stdout);
+  if (
+    !pendingRoute.delegatesToBackground
+    || pendingRoute.handledBy !== 'background_agent'
+    || pendingRoute.taskType !== 'reminder'
+    || pendingRoute.reason !== 'pending_clarification_response'
+    || pendingRoute.pendingBackgroundTaskId !== 'task_pending_route'
+  ) {
+    throw new Error('cli route pending clarification output smoke failed');
   }
 }
 
