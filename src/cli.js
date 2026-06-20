@@ -89,6 +89,10 @@ async function once(text) {
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime();
   const reminders = reminderStore.list();
+  const eventLines = fs.existsSync(config.eventLogPath)
+    ? fs.readFileSync(config.eventLogPath, 'utf8').trim().split(/\r?\n/).filter(Boolean)
+    : [];
+  const lastEvent = eventLines.length > 0 ? JSON.parse(eventLines[eventLines.length - 1]) : null;
   const remindersByStatus = reminders.reduce((acc, reminder) => {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
@@ -104,6 +108,11 @@ async function status() {
     reminders: {
       total: reminders.length,
       byStatus: remindersByStatus,
+    },
+    events: {
+      total: eventLines.length,
+      lastEventType: lastEvent?.type || null,
+      lastEventAt: lastEvent?.createdAt || null,
     },
     memories: {
       total: memoryStore.list().length,
