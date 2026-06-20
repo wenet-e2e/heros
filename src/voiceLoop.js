@@ -17,6 +17,7 @@ export class VoiceLoop {
     this.isResponding = false;
     this.isAnnouncing = false;
     this.announcementQueue = [];
+    this.activeAnnouncement = null;
     this.currentAssistantText = '';
     this.currentAssistantTurnId = null;
     this.backgroundTasks = new Set();
@@ -145,7 +146,11 @@ export class VoiceLoop {
         this.player.write(Buffer.from(event.delta || '', 'base64'));
       } else if (event.type === 'response.done') {
         this.isResponding = false;
-        emitEvent('response.completed', { source: 'realtime', turnId: this.currentAssistantTurnId });
+        emitEvent('response.completed', {
+          backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
+          source: this.activeAnnouncement?.source || 'realtime',
+          turnId: this.currentAssistantTurnId,
+        });
         this.setState('listening', 'response_done');
         this.drainAnnouncements();
       } else if (event.type === 'error') {
@@ -293,6 +298,7 @@ export class VoiceLoop {
       return;
     }
     this.isAnnouncing = true;
+    this.activeAnnouncement = announcement;
     emitEvent('announcement.started', {
       backgroundTaskId: announcement.backgroundTaskId,
       source: announcement.source,
@@ -324,6 +330,7 @@ export class VoiceLoop {
       });
     } finally {
       this.isAnnouncing = false;
+      this.activeAnnouncement = null;
       this.drainAnnouncements();
     }
   }

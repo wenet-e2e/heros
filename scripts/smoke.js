@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { configureEvents, emitEvent } from '../src/events.js';
 import { BackgroundAgent } from '../src/backgroundAgent.js';
@@ -553,6 +554,33 @@ function testVoiceLoopAssistantTurnId() {
   }
 }
 
+function testVoiceLoopAnnouncementResponseCorrelation() {
+  const dir = createTempDir('heros-voice-response-correlation-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const realtime = new EventEmitter();
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.attachRealtimeEvents();
+  loop.activeAnnouncement = {
+    backgroundTaskId: 'task_announcement',
+    source: 'background_task',
+  };
+  loop.currentAssistantTurnId = 'turn_announcement';
+  realtime.emit('event', { type: 'response.done' });
+  const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
+  if (completed?.backgroundTaskId !== 'task_announcement' || completed.source !== 'background_task') {
+    throw new Error('voice loop announcement response correlation smoke failed');
+  }
+  configureEvents();
+}
+
 async function testRealtimeConnectRetry() {
   let attempts = 0;
   const realtime = {
@@ -756,6 +784,7 @@ testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
+testVoiceLoopAnnouncementResponseCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();
