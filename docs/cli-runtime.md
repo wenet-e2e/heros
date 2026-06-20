@@ -44,6 +44,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run preflight`: checks local voice-loop readiness without network calls.
 - `npm run preflight -- --probe-audio --duration-ms 500`: includes a local microphone capture probe in preflight.
 - `npm run review`: runs a local Phase 1 no-UI CLI review without network calls.
+- `npm run review -- --probe-audio --duration-ms 500`: includes the local microphone capture probe in the Phase 1 review gate.
 - `npm run review:report`: runs the Phase 1 review and writes a JSON artifact under `.heros/reviews/`.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
@@ -142,6 +143,7 @@ Implemented:
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
+- Optional microphone capture probe can be included in the Phase 1 review ready gate.
 - Phase 1 review includes realtime/background context-health checks.
 - Phase 1 review checks README and system-design product contracts: HER-inspired product definition, desktop-first shape, no-UI CLI first, realtime/background split, Shared Context, and reminder MVP loop.
 - Phase 1 review checks that the system design records the Local Task Router boundary.

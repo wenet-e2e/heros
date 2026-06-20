@@ -1086,9 +1086,9 @@ function readIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
 }
 
-async function phaseOneReview({ writeReport = false } = {}) {
+async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, writeReport = false } = {}) {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
-  const preflightReport = await collectPreflight(runtime);
+  const preflightReport = await collectPreflight(runtime, { probeAudio, audioProbeDurationMs });
   const events = readEventLog(runtime.config.eventLogPath);
   const reminderRoute = runtime.taskRouter.shouldDelegate('明天九点提醒我喝水');
   const updateReminderRoute = runtime.taskRouter.shouldDelegate('把喝水提醒改到明天十点');
@@ -1654,6 +1654,7 @@ function printUsage() {
     '  npm run preflight         Check local readiness before starting voice.',
     '  npm run preflight -- --probe-audio',
     '  npm run review            Run local Phase 1 no-UI CLI review.',
+    '  npm run review -- --probe-audio',
     '  npm run review:report     Run Phase 1 review and write a local report artifact.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
@@ -1748,9 +1749,16 @@ try {
       durationMs: getPositiveNumberArg(args, '--duration-ms', 500),
     });
   } else if (args[0] === '--review') {
-    await phaseOneReview();
+    await phaseOneReview({
+      probeAudio: args.includes('--probe-audio'),
+      audioProbeDurationMs: getPositiveNumberArg(args, '--duration-ms', 500),
+    });
   } else if (args[0] === '--review-report') {
-    await phaseOneReview({ writeReport: true });
+    await phaseOneReview({
+      writeReport: true,
+      probeAudio: args.includes('--probe-audio'),
+      audioProbeDurationMs: getPositiveNumberArg(args, '--duration-ms', 500),
+    });
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

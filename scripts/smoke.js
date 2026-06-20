@@ -1894,6 +1894,35 @@ function testCliReviewCommand() {
     throw new Error('cli review event smoke failed');
   }
 
+  const probeDir = createTempDir('heros-cli-review-probe-');
+  const fakeBin = path.join(probeDir, 'bin');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  const fakeWhich = path.join(fakeBin, 'which');
+  fs.writeFileSync(fakeWhich, '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(fakeWhich, 0o755);
+  const probeResult = spawnSync(process.execPath, ['src/cli.js', '--review', '--probe-audio', '--duration-ms', '100'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: fakeBin,
+      DASHSCOPE_API_KEY: 'test-key',
+      HEROS_DATA_DIR: probeDir,
+      HEROS_EVENT_LOG_PATH: path.join(probeDir, 'events.ndjson'),
+    },
+  });
+  if (probeResult.status !== 0) {
+    throw new Error(`cli review audio probe smoke failed: ${probeResult.stderr || probeResult.stdout}`);
+  }
+  const probeReview = JSON.parse(probeResult.stdout);
+  if (
+    probeReview.ready !== false
+    || probeReview.checks.preflight.checks.audio.capture.checked !== true
+    || probeReview.checks.preflight.checks.audio.capture.ok !== false
+  ) {
+    throw new Error('cli review audio probe output smoke failed');
+  }
+
   const reportResult = spawnSync(process.execPath, ['src/cli.js', '--review-report'], {
     cwd: process.cwd(),
     encoding: 'utf8',
