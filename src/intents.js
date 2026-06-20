@@ -14,6 +14,33 @@ export function likelyListMemory(text) {
   return /我的记忆|你记得什么|记住了什么|有哪些.*记忆|查看.*记忆|查询.*记忆|列出.*记忆|长期记忆/.test(text);
 }
 
+export function extractUpdateMemoryPatch(text) {
+  const trimmed = text.trim();
+  if (!/(记忆|记得|记住)/.test(trimmed)) {
+    return { query: '', content: '' };
+  }
+  const replaceMatch = trimmed.match(/^把(?:长期)?(?:记忆里|记忆中|你记得的|你记住的)?[：:，,\s]*(.+?)(?:这条)?(?:(?:长期)?记忆)?(?:改成|改为|更新为|改到)[：:，,\s]*(.+)$/);
+  if (replaceMatch) {
+    return {
+      query: replaceMatch[1].replace(/这条|记忆/g, '').trim(),
+      content: replaceMatch[2].trim(),
+    };
+  }
+  const updateMatch = trimmed.match(/^(?:更新|修改)(?:长期)?记忆[：:，,\s]*(.+?)(?:为|成|到)[：:，,\s]*(.+)$/);
+  if (updateMatch) {
+    return {
+      query: updateMatch[1].replace(/这条|记忆/g, '').trim(),
+      content: updateMatch[2].trim(),
+    };
+  }
+  return { query: '', content: '' };
+}
+
+export function likelyUpdateMemory(text) {
+  const patch = extractUpdateMemoryPatch(text);
+  return Boolean(patch.query && patch.content);
+}
+
 export function likelyReminder(text) {
   const explicitReminder = /提醒|闹钟|到点|叫我|通知我/.test(text);
   const relativeDelay = /\d+\s*(分钟|小时|天)后/.test(text);

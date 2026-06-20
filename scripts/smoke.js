@@ -11,7 +11,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder, likelyUpdateReminder } from '../src/intents.js';
+import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder, likelyUpdateMemory, likelyUpdateReminder } from '../src/intents.js';
 import {
   filterEvents,
   followEventLog,
@@ -681,6 +681,19 @@ function testCliRouteCommand() {
     throw new Error('cli route update reminder output smoke failed');
   }
 
+  const updateMemoryResult = spawnSync(process.execPath, ['src/cli.js', '--route', '把记忆里短回答改成用户喜欢详细回答'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (updateMemoryResult.status !== 0) {
+    throw new Error(`cli route update memory smoke failed: ${updateMemoryResult.stderr || updateMemoryResult.stdout}`);
+  }
+  const updateMemoryRoute = JSON.parse(updateMemoryResult.stdout);
+  if (!updateMemoryRoute.delegatesToBackground || updateMemoryRoute.handledBy !== 'local_task_router' || updateMemoryRoute.taskType !== 'update_memory') {
+    throw new Error('cli route update memory output smoke failed');
+  }
+
   const chatResult = spawnSync(process.execPath, ['src/cli.js', '--route', '你怎么看这个观点？'], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -720,6 +733,24 @@ function testCliTaskCommand() {
     || memoryTask.result.type !== 'memory_created'
   ) {
     throw new Error('cli task memory output smoke failed');
+  }
+
+  const updateMemoryResult = spawnSync(process.execPath, ['src/cli.js', '--task', '把记忆里安静的语音风格改成用户喜欢自然温暖的语音风格'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (updateMemoryResult.status !== 0) {
+    throw new Error(`cli task update memory smoke failed: ${updateMemoryResult.stderr || updateMemoryResult.stdout}`);
+  }
+  const updateMemoryTask = JSON.parse(updateMemoryResult.stdout);
+  if (
+    !updateMemoryTask.delegated
+    || updateMemoryTask.handledBy !== 'local_task_router'
+    || updateMemoryTask.taskType !== 'update_memory'
+    || updateMemoryTask.result?.type !== 'memory_updated'
+  ) {
+    throw new Error('cli task update memory output smoke failed');
   }
   const createdEvent = readEventLog(logPath).find((event) => event.type === 'memory.created');
   if (!createdEvent?.memory?.content.includes('安静')) {
@@ -1541,6 +1572,33 @@ function testTaskRouterForgetMemory() {
   }
 }
 
+function testTaskRouterUpdateMemory() {
+  const dir = createTempDir('heros-router-update-memory-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  memoryStore.create('用户喜欢安静的语音风格');
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    reminderStore: null,
+    backgroundAgent: null,
+  });
+  const result = router.handleUpdateMemory('把记忆里安静的语音风格改成用户喜欢自然温暖的语音风格');
+  if (result.type !== 'memory_updated' || !result.memory.content.includes('自然温暖')) {
+    throw new Error('task router update memory smoke failed');
+  }
+  if (context.snapshot().longTermMemory[0]?.content !== result.memory.content) {
+    throw new Error('task router update memory context smoke failed');
+  }
+  const updatedEvent = readEventLog(logPath).find((event) => event.type === 'memory.updated');
+  if (updatedEvent?.backgroundTaskId !== result.backgroundTaskId || updatedEvent.memory.id !== result.memory.id) {
+    throw new Error('task router update memory event smoke failed');
+  }
+  configureEvents();
+}
+
 function testSharedContextRedaction() {
   const context = new SharedContext();
   const turn = context.addTurn('user', 'Bearer secret-token');
@@ -1618,6 +1676,9 @@ function testIntentBoundaries() {
   }
   if (!likelyListMemory('查询长期记忆')) {
     throw new Error('natural list memory intent smoke failed');
+  }
+  if (!likelyUpdateMemory('把记忆里短回答改成用户喜欢详细回答')) {
+    throw new Error('update memory intent smoke failed');
   }
   if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
     throw new Error('forget memory intent smoke failed');
@@ -2072,6 +2133,7 @@ await testTaskRouterBackgroundTimeout();
 await testTaskRouterBackgroundCancellation();
 await testTaskRouterBackgroundContextPackage();
 testTaskRouterForgetMemory();
+testTaskRouterUpdateMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
 testTaskRouterListMemory();

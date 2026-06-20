@@ -423,7 +423,7 @@ function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
   }
-  const localTaskTypes = new Set(['cancel_reminder', 'forget_memory', 'list_memory', 'list_reminders', 'memory']);
+  const localTaskTypes = new Set(['cancel_reminder', 'forget_memory', 'list_memory', 'list_reminders', 'memory', 'update_memory']);
   return localTaskTypes.has(decision.type) ? 'local_task_router' : 'background_agent';
 }
 

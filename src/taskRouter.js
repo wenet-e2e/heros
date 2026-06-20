@@ -4,11 +4,13 @@ import {
   extractCancelReminderQuery,
   extractForgetMemoryQuery,
   extractMemoryContent,
+  extractUpdateMemoryPatch,
   likelyCancelReminder,
   likelyForgetMemory,
   likelyListMemory,
   likelyListReminders,
   likelyNextReminder,
+  likelyUpdateMemory,
   likelyUpdateReminder,
   likelyMemory,
   likelyReminder,
@@ -134,6 +136,9 @@ export class TaskRouter {
     if (likelyListReminders(text)) {
       return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };
     }
+    if (likelyUpdateMemory(text)) {
+      return { type: 'update_memory', reason: 'explicit_update_memory_request' };
+    }
     if (likelyListMemory(text)) {
       return { type: 'list_memory', reason: 'explicit_list_memory_request' };
     }
@@ -207,6 +212,9 @@ export class TaskRouter {
     }
     if (decision.type === 'forget_memory') {
       return { ...this.handleForgetMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
+    }
+    if (decision.type === 'update_memory') {
+      return { ...this.handleUpdateMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'cancel_reminder') {
       return { ...this.handleCancelReminder(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
@@ -577,5 +585,115 @@ export class TaskRouter {
       memory,
       message: `我忘记了：${memory.content}`,
     };
+  }
+
+  handleUpdateMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'update_memory' });
+    const { query, content } = extractUpdateMemoryPatch(text);
+    if (!query || !content) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'update_memory',
+        status: 'needs_clarification',
+        result: { query },
+      });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '你想修改哪条记忆？也请说一下新的内容。',
+        reason: 'missing_update_memory_patch',
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'update_memory_needs_clarification' } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'update_memory_needs_clarification',
+        message: '你想修改哪条记忆？也请说一下新的内容。',
+      };
+    }
+
+    const matches = this.memoryStore.list().filter((memory) => memory.content.includes(query) || query.includes(memory.content));
+    if (matches.length === 0) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'update_memory',
+        status: 'not_found',
+        result: { query },
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'update_memory_not_found', query } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'update_memory_not_found',
+        message: `我没有找到这条长期记忆：${query}`,
+      };
+    }
+    if (matches.length > 1) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'update_memory',
+        status: 'ambiguous',
+        result: { query, count: matches.length },
+      });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '找到多条相关记忆，需要你说得更具体一点。',
+        reason: 'ambiguous_update_memory_query',
+        candidates: matches.slice(0, 5).map((memory) => ({
+          id: memory.id,
+          content: memory.content,
+        })),
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'update_memory_ambiguous', query, count: matches.length } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'update_memory_ambiguous',
+        message: `找到 ${matches.length} 条相关记忆，需要你说得更具体一点。`,
+      };
+    }
+
+    try {
+      const [memory] = matches;
+      const updated = this.memoryStore.update(memory.id, content);
+      const memories = this.memoryStore.list();
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'update_memory',
+        status: 'updated',
+        result: updated,
+      });
+      this.context.setLongTermMemory(memories);
+      emitEvent('memory.updated', { backgroundTaskId, turnId, memory: updated });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'update_memory', memoryId: updated.id } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'memory_updated',
+        memory: updated,
+        message: `我更新了记忆：${updated.content}`,
+      };
+    } catch (error) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'update_memory',
+        status: 'failed',
+        result: { error: error.message },
+      });
+      emitEvent('memory.failed', { backgroundTaskId, turnId, message: error.message });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'update_memory_failed', error: error.message } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'memory_update_failed',
+        message: '这条内容我不能安全地写入长期记忆。',
+      };
+    }
   }
 }
