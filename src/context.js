@@ -2,6 +2,7 @@ export class SharedContext {
   constructor() {
     this.turns = [];
     this.backgroundTasks = [];
+    this.longTermMemory = [];
     this.version = 0;
   }
 
@@ -30,11 +31,21 @@ export class SharedContext {
     }
   }
 
+  setLongTermMemory(memories) {
+    this.version += 1;
+    this.longTermMemory = memories.map((memory) => ({
+      id: memory.id,
+      content: memory.content,
+      updatedAt: memory.updatedAt,
+    }));
+  }
+
   snapshot() {
     return {
       contextVersion: this.version,
       turns: this.turns,
       backgroundTasks: this.backgroundTasks,
+      longTermMemory: this.longTermMemory,
     };
   }
 }

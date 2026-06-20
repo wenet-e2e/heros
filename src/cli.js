@@ -17,6 +17,7 @@ import { CliInteractionModel } from './interactionModel.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { ensureAgentBootstrap } from './bootstrap.js';
 import { configureEvents } from './events.js';
+import { MemoryStore } from './memoryStore.js';
 
 function createRuntime() {
   const config = getConfig();
@@ -33,6 +34,8 @@ function createRuntime() {
     pollMs: config.reminderPollMs,
   });
   const bootstrap = ensureAgentBootstrap(config.dataDir);
+  const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
+  context.setLongTermMemory(memoryStore.list());
   const backgroundAgent = new BackgroundAgent({
     client,
     model: config.backgroundModel,
@@ -45,7 +48,7 @@ function createRuntime() {
     backgroundAgent,
     context,
   });
-  return { config, client, interactionModel, reminderStore, reminderScheduler, bootstrap };
+  return { config, client, interactionModel, reminderStore, reminderScheduler, memoryStore, bootstrap };
 }
 
 function createRealtimeClient(config) {
@@ -114,10 +117,10 @@ async function once(text) {
 }
 
 async function interactive() {
-  const { interactionModel, reminderStore, reminderScheduler } = createRuntime();
+  const { interactionModel, reminderStore, reminderScheduler, memoryStore } = createRuntime();
   const rl = readline.createInterface({ input, output });
   reminderScheduler.start();
-  console.log('HerOS CLI ready. Type /exit to quit, /reminders to list reminders.');
+  console.log('HerOS CLI ready. Type /exit to quit, /reminders to list reminders, /memory to list memory.');
   try {
     while (true) {
       const text = (await rl.question('You: ')).trim();
@@ -129,6 +132,23 @@ async function interactive() {
       }
       if (text === '/reminders') {
         console.log(JSON.stringify(reminderStore.list(), null, 2));
+        continue;
+      }
+      if (text === '/memory') {
+        console.log(JSON.stringify(memoryStore.list(), null, 2));
+        interactionModel.context.setLongTermMemory(memoryStore.list());
+        continue;
+      }
+      if (text.startsWith('/remember ')) {
+        const memory = memoryStore.create(text.slice('/remember '.length));
+        interactionModel.context.setLongTermMemory(memoryStore.list());
+        console.log(`Remembered: ${memory.id}`);
+        continue;
+      }
+      if (text.startsWith('/forget ')) {
+        const deleted = memoryStore.delete(text.slice('/forget '.length).trim());
+        interactionModel.context.setLongTermMemory(memoryStore.list());
+        console.log(deleted ? 'Forgotten.' : 'Memory not found.');
         continue;
       }
       try {
