@@ -141,6 +141,7 @@ function printInteractiveHelp() {
     '  /cancel-reminder <id>',
     '  /memory',
     '  /remember <content>',
+    '  /update-memory <id> <content>',
     '  /forget <id>',
   ].join('\n'));
 }
@@ -187,6 +188,18 @@ async function interactive() {
         const deleted = memoryStore.delete(text.slice('/forget '.length).trim());
         interactionModel.context.setLongTermMemory(memoryStore.list());
         console.log(deleted ? 'Forgotten.' : 'Memory not found.');
+        continue;
+      }
+      if (text.startsWith('/update-memory ')) {
+        const rest = text.slice('/update-memory '.length).trim();
+        const space = rest.indexOf(' ');
+        if (space === -1) {
+          console.log('Usage: /update-memory <id> <content>');
+          continue;
+        }
+        const memory = memoryStore.update(rest.slice(0, space), rest.slice(space + 1));
+        interactionModel.context.setLongTermMemory(memoryStore.list());
+        console.log(memory ? `Updated: ${memory.id}` : 'Memory not found.');
         continue;
       }
       try {
