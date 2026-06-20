@@ -8,8 +8,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run smoke:realtime`: network smoke test for realtime text injection and spoken transcript.
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
 - `npm run status`: prints local runtime status without network calls.
-- `npm run voice`: starts the continuous realtime voice loop.
-- `npm run talk`: records one manual voice turn.
+- `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
+- `npm run talk`: records one manual voice turn for focused realtime debugging.
 - `npm run cli`: starts the typed CLI fallback.
 
 ## Runtime Data

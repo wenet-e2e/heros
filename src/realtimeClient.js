@@ -250,7 +250,14 @@ export class DashScopeRealtimeClient extends EventEmitter {
       this.emit(event.type, event);
     });
     this.ws.on('close', () => this.emit('close'));
-    this.ws.on('error', (error) => this.emit('error', error));
+    this.ws.on('error', (error) => {
+      if (!this.closed) {
+        this.emit('event', { type: 'error', error: { message: error.message } });
+      }
+      if (this.listenerCount('error') > 0) {
+        this.emit('error', error);
+      }
+    });
     await this.ws.connect();
   }
 
