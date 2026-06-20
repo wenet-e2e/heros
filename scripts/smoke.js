@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { configureEvents, emitEvent } from '../src/events.js';
+import { BackgroundAgent } from '../src/backgroundAgent.js';
 import { MemoryStore } from '../src/memoryStore.js';
 import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
@@ -38,6 +39,16 @@ function testReminderScheduler() {
   if (item.status !== 'triggered') {
     throw new Error('reminder scheduler smoke failed');
   }
+
+  let refused = false;
+  try {
+    store.create({ title: 'bad', remindAt: 'not-a-date', note: '' });
+  } catch {
+    refused = true;
+  }
+  if (!refused) {
+    throw new Error('invalid reminder time was not refused');
+  }
 }
 
 function testMemoryStore() {
@@ -63,7 +74,33 @@ function testMemoryStore() {
   }
 }
 
+async function testBackgroundAgentInvalidReminder() {
+  const dir = createTempDir('heros-agent-');
+  const reminderStore = new ReminderStore(dir);
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text() {
+        return JSON.stringify({
+          action: 'create_reminder',
+          title: 'bad',
+          remindAt: 'not-a-date',
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  const result = await agent.handleTask({ userText: '提醒我', context: {} });
+  if (result.type !== 'reminder_failed') {
+    throw new Error('background agent invalid reminder smoke failed');
+  }
+}
+
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
+await testBackgroundAgentInvalidReminder();
 console.log('smoke ok');

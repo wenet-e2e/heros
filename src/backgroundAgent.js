@@ -61,11 +61,21 @@ export class BackgroundAgent {
     const decision = extractJson(content);
 
     if (decision.action === 'create_reminder') {
-      const reminder = this.reminderStore.create({
-        title: decision.title || userText,
-        remindAt: decision.remindAt,
-        note: decision.note || '',
-      });
+      let reminder;
+      try {
+        reminder = this.reminderStore.create({
+          title: decision.title || userText,
+          remindAt: decision.remindAt,
+          note: decision.note || '',
+        });
+      } catch (error) {
+        emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
+        emitEvent('background_task.completed', { result: { action: 'failed', error: error.message } });
+        return {
+          type: 'reminder_failed',
+          message: '提醒时间解析失败了，可以换一种更具体的说法再试一次。',
+        };
+      }
       emitEvent('tool_call.completed', { toolName: 'create_reminder', result: reminder });
       emitEvent('background_task.completed', { result: reminder });
       return {

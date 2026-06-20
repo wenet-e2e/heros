@@ -17,6 +17,10 @@ export class ReminderStore {
   }
 
   create({ title, remindAt, note }) {
+    const remindAtMs = Date.parse(remindAt);
+    if (!Number.isFinite(remindAtMs)) {
+      throw new Error(`Invalid reminder time: ${remindAt}`);
+    }
     const reminders = this.list();
     const reminder = {
       id: crypto.randomUUID(),
