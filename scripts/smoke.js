@@ -1022,6 +1022,44 @@ function testCliScenarioCommand() {
   if (scenarioTranscripts.length !== 2 || scenario.backgroundTasks !== 2) {
     throw new Error('cli scenario event smoke failed');
   }
+
+  const cancelDir = createTempDir('heros-cli-scenario-cancel-');
+  const cancelLogPath = path.join(cancelDir, 'events.ndjson');
+  const cancelStore = new ReminderStore(cancelDir);
+  const reminder = cancelStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const cancelResult = spawnSync(process.execPath, [
+    'src/cli.js',
+    '--scenario',
+    '取消提醒',
+    '喝水',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: cancelDir,
+      HEROS_EVENT_LOG_PATH: cancelLogPath,
+    },
+  });
+  if (cancelResult.status !== 0) {
+    throw new Error(`cli pending cancel scenario smoke failed: ${cancelResult.stderr || cancelResult.stdout}`);
+  }
+  const cancelScenario = JSON.parse(cancelResult.stdout);
+  const cancelItems = cancelStore.list();
+  if (
+    cancelScenario.turns.length !== 2
+    || cancelScenario.turns[0].result?.type !== 'cancel_reminder_needs_clarification'
+    || cancelScenario.turns[1].result?.type !== 'reminder_cancelled'
+    || cancelScenario.turns[1].reason !== 'pending_clarification_response'
+    || cancelScenario.turns[1].pendingBackgroundTaskId !== cancelScenario.turns[0].result.backgroundTaskId
+    || cancelItems.find((item) => item.id === reminder.id)?.status !== 'cancelled'
+  ) {
+    throw new Error('cli pending cancel scenario output smoke failed');
+  }
 }
 
 function testCliBootstrapCommand() {

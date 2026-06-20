@@ -137,6 +137,7 @@ Implemented:
 - Headless delegated task runner for JSON verification without entering the interactive CLI.
 - Headless delegated task runner emits assistant response events for transcript replay.
 - Headless scenario replay runs multiple text turns in one Shared Context for no-microphone regression checks.
+- Headless task and scenario JSON output includes pending task routing metadata for multi-turn debugging.
 - Turn IDs on conversation turns and response/transcript events.
 - Typed CLI fallback emits transcript and response turn events for conversation replay.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
