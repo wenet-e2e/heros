@@ -39,6 +39,7 @@ function runStep(name) {
     cwd: process.cwd(),
     encoding: 'utf8',
     env: process.env,
+    maxBuffer: 10 * 1024 * 1024,
   });
   const stdout = result.stdout || '';
   const stderr = result.stderr || '';
