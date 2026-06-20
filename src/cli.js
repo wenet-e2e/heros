@@ -110,6 +110,18 @@ async function status() {
   }, null, 2));
 }
 
+async function events(count = 20) {
+  const { config } = createRuntime();
+  if (!fs.existsSync(config.eventLogPath)) {
+    console.log('No event log yet.');
+    return;
+  }
+  const lines = fs.readFileSync(config.eventLogPath, 'utf8').trim().split(/\r?\n/).filter(Boolean);
+  for (const line of lines.slice(-count)) {
+    console.log(line);
+  }
+}
+
 async function interactive() {
   const { interactionModel, reminderStore, reminderScheduler, memoryStore } = createRuntime();
   const rl = readline.createInterface({ input, output });
@@ -269,6 +281,7 @@ function printUsage() {
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run status            Print local runtime status without network calls.',
+    '  npm run events            Print recent structured runtime events.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
@@ -291,6 +304,8 @@ try {
     await doctor();
   } else if (args[0] === '--status') {
     await status();
+  } else if (args[0] === '--events') {
+    await events(Number(args[1] || 20));
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });
