@@ -842,6 +842,45 @@ async function testCliClientStateFollowOutput() {
   ) {
     throw new Error('cli client state follow output smoke failed');
   }
+
+  const heartbeatDir = createTempDir('heros-client-state-heartbeat-');
+  const heartbeatLogPath = path.join(heartbeatDir, 'events.ndjson');
+  fs.writeFileSync(heartbeatLogPath, '');
+  const heartbeatChild = spawn(process.execPath, ['src/cli.js', '--client-state', '--follow', '--heartbeat-ms', '100', '--poll-ms', '25'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: heartbeatDir,
+      HEROS_EVENT_LOG_PATH: heartbeatLogPath,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let heartbeatStdout = '';
+  let heartbeatStderr = '';
+  heartbeatChild.stdout.on('data', (chunk) => {
+    heartbeatStdout += chunk.toString('utf8');
+  });
+  heartbeatChild.stderr.on('data', (chunk) => {
+    heartbeatStderr += chunk.toString('utf8');
+  });
+  try {
+    await waitForCondition(() => heartbeatStdout.trim().split(/\r?\n/).filter(Boolean).length >= 2);
+  } catch (error) {
+    heartbeatChild.kill('SIGTERM');
+    throw new Error(`cli client state heartbeat smoke failed: ${error.message}; stdout=${heartbeatStdout}; stderr=${heartbeatStderr}`);
+  }
+  heartbeatChild.kill('SIGTERM');
+  await new Promise((resolve) => heartbeatChild.once('close', resolve));
+
+  const heartbeatSnapshots = heartbeatStdout.trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+  const heartbeatLatest = heartbeatSnapshots.at(-1);
+  if (
+    heartbeatSnapshots[0].schemaVersion !== 1
+    || heartbeatLatest.changedBy?.type !== 'heartbeat'
+    || heartbeatLatest.state !== 'idle'
+  ) {
+    throw new Error('cli client state heartbeat output smoke failed');
+  }
 }
 
 function testCliVerificationCommand() {
@@ -1016,6 +1055,7 @@ function testCliHelpOutput() {
     || !result.stdout.includes('npm run gate')
     || !result.stdout.includes('npm run client-state')
     || !result.stdout.includes('npm run client-state:follow')
+    || !result.stdout.includes('--heartbeat-ms')
     || !result.stdout.includes('npm run verification')
     || !result.stdout.includes('qwen3.5-omni-plus-realtime')
     || !result.stdout.includes('qwen3.7-plus')

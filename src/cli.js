@@ -587,7 +587,7 @@ function buildClientStateSnapshot(runtime, events) {
   };
 }
 
-async function clientState({ follow = false, fromStart = false, pollMs = 500 } = {}) {
+async function clientState({ follow = false, fromStart = false, heartbeatMs = 0, pollMs = 500 } = {}) {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
   const printSnapshot = (changedBy = null, pretty = false) => {
     const events = readEventLog(runtime.config.eventLogPath);
@@ -603,6 +603,16 @@ async function clientState({ follow = false, fromStart = false, pollMs = 500 } =
     return;
   }
 
+  let heartbeat = null;
+  if (heartbeatMs > 0) {
+    heartbeat = setInterval(() => {
+      printSnapshot({
+        type: 'heartbeat',
+        createdAt: new Date().toISOString(),
+      });
+    }, Math.max(100, heartbeatMs));
+  }
+
   await followEventLog(runtime.config.eventLogPath, {
     fromStart,
     pollMs,
@@ -615,6 +625,9 @@ async function clientState({ follow = false, fromStart = false, pollMs = 500 } =
       });
     },
   });
+  if (heartbeat) {
+    clearInterval(heartbeat);
+  }
 }
 
 async function verificationStatus() {
@@ -1890,6 +1903,7 @@ function printUsage() {
     '  npm run status            Print local runtime status and routing boundary without network calls.',
     '  npm run client-state      Print compact client-consumable runtime state.',
     '  npm run client-state:follow Stream compact client-consumable runtime state.',
+    '  npm run client-state:follow -- --heartbeat-ms 1000',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',
     '  npm run events -- --type response.completed',
@@ -1965,6 +1979,7 @@ try {
     await clientState({
       follow: args.includes('--follow'),
       fromStart: args.includes('--from-start'),
+      heartbeatMs: getPositiveNumberArg(args, '--heartbeat-ms', 0),
       pollMs: getPositiveNumberArg(args, '--poll-ms', 500),
     });
   } else if (args[0] === '--verification') {

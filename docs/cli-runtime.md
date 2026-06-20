@@ -15,6 +15,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run status`: prints local runtime status and local task routing boundary without network calls.
 - `npm run client-state`: prints compact client-consumable runtime state for later desktop mapping.
 - `npm run client-state:follow`: streams compact client-consumable runtime state as NDJSON.
+- `npm run client-state:follow -- --heartbeat-ms 1000`: keeps streaming state snapshots even when no new events arrive.
 - `npm run events`: prints recent structured runtime events.
 - `npm run events:follow`: follows structured runtime events as they arrive.
 - `npm run events -- --type response.completed`: filters recent structured runtime events by type.
@@ -176,6 +177,7 @@ Implemented:
 - Compact client state command previews the no-UI runtime state contract that a desktop client can consume later.
 - Compact client state output includes an explicit schema version for desktop client compatibility checks.
 - Compact client state follow mode streams the same state contract as NDJSON for later desktop client mapping.
+- Compact client state follow mode can emit heartbeat snapshots for resident desktop clients.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Shared Context and Phase 1 review expose which deterministic task types are handled locally before Background Agent delegation.
