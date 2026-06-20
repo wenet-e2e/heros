@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { configureEvents, emitEvent } from '../src/events.js';
 import { BackgroundAgent } from '../src/backgroundAgent.js';
 import { MemoryStore } from '../src/memoryStore.js';
@@ -133,6 +134,27 @@ function testAgentBootstrap() {
   const content = readAgentBootstrap(bootstrap.files);
   if (!content['AGENTS.md']?.includes('Mission') || !content['SOUL.md']?.includes('Voice')) {
     throw new Error('agent bootstrap read smoke failed');
+  }
+}
+
+function testCliStatusOutput() {
+  const dir = createTempDir('heros-status-');
+  const result = spawnSync(process.execPath, ['src/cli.js', '--status'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+      HEROS_BACKGROUND_TASK_TIMEOUT_MS: '1234',
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli status smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const status = JSON.parse(result.stdout);
+  if (status.backgroundTaskTimeoutMs !== 1234 || status.dataDir !== dir) {
+    throw new Error('cli status config smoke failed');
   }
 }
 
@@ -641,6 +663,7 @@ testEventLog();
 testReminderScheduler();
 testMemoryStore();
 testAgentBootstrap();
+testCliStatusOutput();
 testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();

@@ -73,6 +73,7 @@ async function doctor() {
   console.log(`Realtime turn detection: ${config.realtimeTurnDetection}`);
   console.log(`Realtime connect retries: ${config.realtimeConnectRetries}`);
   console.log(`Background model: ${config.backgroundModel}`);
+  console.log(`Background task timeout: ${config.backgroundTaskTimeoutMs}ms`);
   console.log(`Time zone: ${config.timeZone}`);
   console.log(`Reminder poll interval: ${config.reminderPollMs}ms`);
   console.log(`Data dir: ${config.dataDir}`);
@@ -113,6 +114,7 @@ async function status() {
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
     backgroundModel: config.backgroundModel,
+    backgroundTaskTimeoutMs: config.backgroundTaskTimeoutMs,
     timeZone: config.timeZone,
     dataDir: config.dataDir,
     eventLogPath: config.eventLogPath,
