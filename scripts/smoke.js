@@ -680,6 +680,12 @@ function testCliTimelineCommand() {
     taskType: 'reminder',
     model: 'fake',
     createdAt: '2026-06-21T00:00:01.000Z',
+  })}\n${JSON.stringify({
+    type: 'response.completed',
+    source: 'realtime_text',
+    text: '你好',
+    turnId: 'turn_cli_timeline_other',
+    createdAt: '2026-06-21T00:00:02.000Z',
   })}\n`);
   const result = spawnSync(process.execPath, ['src/cli.js', '--timeline'], {
     cwd: process.cwd(),
@@ -695,11 +701,27 @@ function testCliTimelineCommand() {
   }
   const timeline = JSON.parse(result.stdout);
   if (
-    timeline.total !== 2
+    timeline.total !== 3
     || timeline.entries[0].kind !== 'user_turn'
     || timeline.entries[1].backgroundTaskId !== 'task_cli_timeline'
   ) {
     throw new Error('cli timeline output smoke failed');
+  }
+  const filteredResult = spawnSync(process.execPath, ['src/cli.js', '--timeline', '--background-task-id', 'task_cli_timeline'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (filteredResult.status !== 0) {
+    throw new Error(`cli timeline filter smoke failed: ${filteredResult.stderr || filteredResult.stdout}`);
+  }
+  const filtered = JSON.parse(filteredResult.stdout);
+  if (filtered.total !== 1 || filtered.entries[0].backgroundTaskId !== 'task_cli_timeline') {
+    throw new Error('cli timeline filter output smoke failed');
   }
 }
 

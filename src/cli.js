@@ -402,9 +402,15 @@ async function errorSummary({ count = 20 } = {}) {
   }, null, 2));
 }
 
-async function timeline({ count = 20 } = {}) {
+async function timeline({ backgroundTaskId, count = 20, since, sourceTurnId, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
-  const summary = summarizeTimeline(readEventLog(config.eventLogPath));
+  const summary = summarizeTimeline(filterEvents(readEventLog(config.eventLogPath), {
+    backgroundTaskId,
+    since,
+    sourceTurnId,
+    turnId,
+    type,
+  }));
   console.log(JSON.stringify({
     ...summary,
     entries: summary.entries.slice(-count),
@@ -1316,6 +1322,8 @@ function printUsage() {
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run errors            Summarize recent error events.',
     '  npm run timeline          Print a normalized runtime timeline.',
+    '  npm run timeline -- --turn-id turn_xxx',
+    '  npm run timeline -- --background-task-id task_xxx',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run task-detail -- <task_id>',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
@@ -1383,7 +1391,14 @@ try {
   } else if (args[0] === '--errors') {
     await errorSummary({ count: getEventCount(args) });
   } else if (args[0] === '--timeline') {
-    await timeline({ count: getEventCount(args) });
+    await timeline({
+      count: getEventCount(args),
+      type: getArgValue(args, '--type'),
+      since: getArgValue(args, '--since'),
+      turnId: getArgValue(args, '--turn-id'),
+      sourceTurnId: getArgValue(args, '--source-turn-id'),
+      backgroundTaskId: getArgValue(args, '--background-task-id'),
+    });
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--task-detail') {
