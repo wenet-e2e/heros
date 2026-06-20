@@ -145,6 +145,14 @@ function testTaskRouterMemory() {
   }
 }
 
+function testSharedContextRedaction() {
+  const context = new SharedContext();
+  context.addTurn('user', 'Bearer secret-token');
+  if (context.snapshot().turns[0].content.includes('secret-token')) {
+    throw new Error('shared context redaction smoke failed');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -172,6 +180,7 @@ function testTaskRouterCancelReminder() {
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
+testSharedContextRedaction();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();

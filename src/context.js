@@ -1,3 +1,5 @@
+import { redactSecrets } from './events.js';
+
 export class SharedContext {
   constructor() {
     this.turns = [];
@@ -10,7 +12,7 @@ export class SharedContext {
     this.version += 1;
     this.turns.push({
       role,
-      content,
+      content: redactSecrets(content),
       createdAt: new Date().toISOString(),
       contextVersion: this.version,
     });
@@ -22,7 +24,7 @@ export class SharedContext {
   addBackgroundTask(task) {
     this.version += 1;
     this.backgroundTasks.push({
-      ...task,
+      ...redactSecrets(task),
       createdAt: new Date().toISOString(),
       contextVersion: this.version,
     });

@@ -19,7 +19,7 @@ function redactString(value) {
   return SECRET_REDACTIONS.reduce((text, pattern) => text.replace(pattern, '[REDACTED]'), value);
 }
 
-function redactSecrets(value) {
+export function redactSecrets(value) {
   if (typeof value === 'string') {
     return redactString(value);
   }
