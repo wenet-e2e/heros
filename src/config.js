@@ -29,6 +29,11 @@ export function loadEnvFile(filePath = '.env.local') {
   }
 }
 
+function numberConfig(name, fallback) {
+  const value = Number(process.env[name] || String(fallback));
+  return Number.isFinite(value) ? value : fallback;
+}
+
 export function getConfig({ requireApiKey = true } = {}) {
   loadEnvFile();
   const apiKey = process.env.DASHSCOPE_API_KEY;
@@ -47,7 +52,7 @@ export function getConfig({ requireApiKey = true } = {}) {
   return {
     dashscopeApiKey: apiKey || '',
     dashscopeBaseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    dashscopeRequestTimeoutMs: Number(process.env.DASHSCOPE_REQUEST_TIMEOUT_MS || '60000'),
+    dashscopeRequestTimeoutMs: numberConfig('DASHSCOPE_REQUEST_TIMEOUT_MS', 60000),
     realtimeUrl: process.env.HEROS_REALTIME_URL || 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime',
     realtimeModel: process.env.HEROS_REALTIME_MODEL || 'qwen3.5-omni-plus-realtime',
     realtimeVoice: process.env.HEROS_REALTIME_VOICE || 'Ethan',
@@ -57,12 +62,12 @@ export function getConfig({ requireApiKey = true } = {}) {
     realtimeVadThreshold: process.env.HEROS_REALTIME_VAD_THRESHOLD || '0.5',
     realtimeVadPrefixPaddingMs: process.env.HEROS_REALTIME_VAD_PREFIX_PADDING_MS || '500',
     realtimeVadSilenceDurationMs: process.env.HEROS_REALTIME_VAD_SILENCE_DURATION_MS || '800',
-    realtimeConnectRetries: Number(process.env.HEROS_REALTIME_CONNECT_RETRIES || '2'),
-    realtimeConnectRetryDelayMs: Number(process.env.HEROS_REALTIME_CONNECT_RETRY_DELAY_MS || '500'),
+    realtimeConnectRetries: numberConfig('HEROS_REALTIME_CONNECT_RETRIES', 2),
+    realtimeConnectRetryDelayMs: numberConfig('HEROS_REALTIME_CONNECT_RETRY_DELAY_MS', 500),
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
-    backgroundTaskTimeoutMs: Number(process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS || '60000'),
+    backgroundTaskTimeoutMs: numberConfig('HEROS_BACKGROUND_TASK_TIMEOUT_MS', 60000),
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
-    reminderPollMs: Number(process.env.HEROS_REMINDER_POLL_MS || '30000'),
+    reminderPollMs: numberConfig('HEROS_REMINDER_POLL_MS', 30000),
     dataDir: process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'),
     eventLogPath: process.env.HEROS_EVENT_LOG_PATH || path.join(process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'), 'events.ndjson'),
   };

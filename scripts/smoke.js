@@ -16,6 +16,7 @@ import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
 import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
+import { getConfig } from '../src/config.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -158,6 +159,22 @@ function testCliStatusOutput() {
   const status = JSON.parse(result.stdout);
   if (status.backgroundTaskTimeoutMs !== 1234 || status.dataDir !== dir) {
     throw new Error('cli status config smoke failed');
+  }
+}
+
+function testConfigNumberFallback() {
+  const previous = process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS;
+  process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS = 'not-a-number';
+  const fallbackConfig = getConfig({ requireApiKey: false });
+  process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS = '1234';
+  const overrideConfig = getConfig({ requireApiKey: false });
+  if (previous === undefined) {
+    delete process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS;
+  } else {
+    process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS = previous;
+  }
+  if (fallbackConfig.backgroundTaskTimeoutMs !== 60000 || overrideConfig.backgroundTaskTimeoutMs !== 1234) {
+    throw new Error('config number fallback smoke failed');
   }
 }
 
@@ -692,6 +709,7 @@ testReminderScheduler();
 testMemoryStore();
 testAgentBootstrap();
 testCliStatusOutput();
+testConfigNumberFallback();
 testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
