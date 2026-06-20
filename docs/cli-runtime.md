@@ -19,6 +19,20 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 - `reminders.json`: local reminder data.
 - `agent-bootstrap/`: runtime copies of `AGENTS.md`, `SOUL.md`, and `MEMORY.md`.
 
+## Current Phase 1 Status
+
+Implemented:
+
+- DashScope Realtime WebSocket session check.
+- Continuous VAD voice loop with microphone input and PCM audio output.
+- User interrupt handling by cancelling the active realtime response.
+- Shared Context updates from typed turns and realtime transcripts.
+- Background reminder delegation through a shared TaskRouter.
+- Background task result announcements through the same realtime audio outlet.
+- Local reminder creation, validation, scheduling, and trigger events.
+- Runtime `MEMORY.md` CRUD for long-term memory data.
+- Structured event logging to `events.ndjson`.
+
 ## Environment
 
 Required:

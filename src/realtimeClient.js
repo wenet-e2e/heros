@@ -295,6 +295,22 @@ export class DashScopeRealtimeClient extends EventEmitter {
     return this.send({ type: 'input_audio_buffer.commit' });
   }
 
+  createUserTextMessage(text) {
+    return this.send({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text,
+          },
+        ],
+      },
+    });
+  }
+
   createResponse() {
     return this.send({ type: 'response.create' });
   }

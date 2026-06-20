@@ -13,6 +13,8 @@ export class VoiceLoop {
     this.player = new PcmPlayer({ sampleRate: 24000, enabled: playAudio });
     this.recorder = new PcmRecorder({ sampleRate: 16000 });
     this.isResponding = false;
+    this.isAnnouncing = false;
+    this.announcementQueue = [];
     this.currentAssistantText = '';
     this.backgroundTasks = new Set();
   }
@@ -73,6 +75,7 @@ export class VoiceLoop {
       } else if (event.type === 'response.done') {
         this.isResponding = false;
         emitEvent('response.completed', { source: 'realtime' });
+        this.drainAnnouncements();
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
       }
@@ -130,6 +133,7 @@ export class VoiceLoop {
     const task = this.taskRouter.maybeHandle(transcript).then((result) => {
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
+        this.enqueueAnnouncement(result.message);
       }
     }).catch((error) => {
       emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
@@ -137,6 +141,36 @@ export class VoiceLoop {
       this.backgroundTasks.delete(task);
     });
     this.backgroundTasks.add(task);
+  }
+
+  enqueueAnnouncement(message) {
+    this.announcementQueue.push(message);
+    emitEvent('announcement.queued', { text: message });
+    this.drainAnnouncements();
+  }
+
+  async drainAnnouncements() {
+    if (this.isResponding || this.isAnnouncing || this.announcementQueue.length === 0) {
+      return;
+    }
+    const message = this.announcementQueue.shift();
+    this.isAnnouncing = true;
+    emitEvent('announcement.started', { text: message, outlet: 'realtime' });
+    try {
+      this.realtime.createUserTextMessage([
+        '后台任务结果如下。',
+        message,
+        '请用一句自然、简短、适合语音播报的话告诉用户。',
+      ].join('\n'));
+      this.realtime.createResponse();
+      await this.realtime.waitFor('response.done', 120000);
+      emitEvent('announcement.completed', { outlet: 'realtime' });
+    } catch (error) {
+      emitEvent('announcement.failed', { outlet: 'realtime', message: error.message });
+    } finally {
+      this.isAnnouncing = false;
+      this.drainAnnouncements();
+    }
   }
 
   waitForShutdown({ durationMs } = {}) {
