@@ -523,6 +523,7 @@ function testCliBootstrapCommand() {
 
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
+  const logPath = path.join(dir, 'events.ndjson');
   const store = new ReminderStore(dir);
   const reminder = store.create({
     title: '喝水',
@@ -532,7 +533,7 @@ function testCliReminderCommands() {
   const env = {
     ...process.env,
     HEROS_DATA_DIR: dir,
-    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    HEROS_EVENT_LOG_PATH: logPath,
   };
   const listResult = spawnSync(process.execPath, ['src/cli.js', '--reminders'], {
     cwd: process.cwd(),
@@ -559,6 +560,10 @@ function testCliReminderCommands() {
   if (cancelled.status !== 'cancelled' || store.list()[0].status !== 'cancelled') {
     throw new Error('cli cancel reminder output smoke failed');
   }
+  const cancelEvent = readEventLog(logPath).find((event) => event.type === 'reminder.cancelled');
+  if (cancelEvent?.reminder?.id !== reminder.id) {
+    throw new Error('cli cancel reminder event smoke failed');
+  }
 
   const due = store.create({
     title: '站起来活动',
@@ -581,10 +586,11 @@ function testCliReminderCommands() {
 
 function testCliMemoryCommands() {
   const dir = createTempDir('heros-cli-memory-');
+  const logPath = path.join(dir, 'events.ndjson');
   const env = {
     ...process.env,
     HEROS_DATA_DIR: dir,
-    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    HEROS_EVENT_LOG_PATH: logPath,
   };
 
   const rememberResult = spawnSync(process.execPath, ['src/cli.js', '--remember', '用户喜欢安静的语音风格'], {
@@ -599,6 +605,10 @@ function testCliMemoryCommands() {
   if (!memory.id || !memory.content.includes('安静')) {
     throw new Error('cli remember output smoke failed');
   }
+  const createdEvent = readEventLog(logPath).find((event) => event.type === 'memory.created');
+  if (createdEvent?.memory?.id !== memory.id) {
+    throw new Error('cli remember event smoke failed');
+  }
 
   const updateResult = spawnSync(process.execPath, ['src/cli.js', '--update-memory', memory.id, '用户喜欢安静但有温度的语音风格'], {
     cwd: process.cwd(),
@@ -611,6 +621,10 @@ function testCliMemoryCommands() {
   const updated = JSON.parse(updateResult.stdout);
   if (!updated.content.includes('温度')) {
     throw new Error('cli update memory output smoke failed');
+  }
+  const updatedEvent = readEventLog(logPath).find((event) => event.type === 'memory.updated');
+  if (updatedEvent?.memory?.id !== memory.id || !updatedEvent.memory.content.includes('温度')) {
+    throw new Error('cli update memory event smoke failed');
   }
 
   const listResult = spawnSync(process.execPath, ['src/cli.js', '--memories'], {
@@ -637,6 +651,10 @@ function testCliMemoryCommands() {
   const forgotten = JSON.parse(forgetResult.stdout);
   if (!forgotten.deleted) {
     throw new Error('cli forget memory output smoke failed');
+  }
+  const deletedEvent = readEventLog(logPath).find((event) => event.type === 'memory.deleted');
+  if (deletedEvent?.memoryId !== memory.id) {
+    throw new Error('cli forget memory event smoke failed');
   }
 }
 

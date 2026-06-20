@@ -300,11 +300,12 @@ async function cancelReminder(id) {
   if (!id) {
     throw new Error('Usage: npm run cancel-reminder -- <id>');
   }
-  const { reminderStore } = createRuntime({ requireApiKey: false });
+  const { reminderStore } = createRuntime({ requireApiKey: false, printEvents: false });
   const reminder = reminderStore.cancel(id);
   if (!reminder) {
     throw new Error(`Scheduled reminder not found: ${id}`);
   }
+  emitEvent('reminder.cancelled', { reminder });
   console.log(JSON.stringify(reminder, null, 2));
 }
 
@@ -322,19 +323,22 @@ async function remember(content) {
   if (!content.trim()) {
     throw new Error('Usage: npm run remember -- <content>');
   }
-  const { memoryStore } = createRuntime({ requireApiKey: false });
-  console.log(JSON.stringify(memoryStore.create(content), null, 2));
+  const { memoryStore } = createRuntime({ requireApiKey: false, printEvents: false });
+  const memory = memoryStore.create(content);
+  emitEvent('memory.created', { memory });
+  console.log(JSON.stringify(memory, null, 2));
 }
 
 async function updateMemory(id, content) {
   if (!id || !content.trim()) {
     throw new Error('Usage: npm run update-memory -- <id> <content>');
   }
-  const { memoryStore } = createRuntime({ requireApiKey: false });
+  const { memoryStore } = createRuntime({ requireApiKey: false, printEvents: false });
   const memory = memoryStore.update(id, content);
   if (!memory) {
     throw new Error(`Memory not found: ${id}`);
   }
+  emitEvent('memory.updated', { memory });
   console.log(JSON.stringify(memory, null, 2));
 }
 
@@ -342,10 +346,11 @@ async function forgetMemory(id) {
   if (!id) {
     throw new Error('Usage: npm run forget-memory -- <id>');
   }
-  const { memoryStore } = createRuntime({ requireApiKey: false });
+  const { memoryStore } = createRuntime({ requireApiKey: false, printEvents: false });
   if (!memoryStore.delete(id)) {
     throw new Error(`Memory not found: ${id}`);
   }
+  emitEvent('memory.deleted', { memoryId: id });
   console.log(JSON.stringify({ deleted: true, id }, null, 2));
 }
 

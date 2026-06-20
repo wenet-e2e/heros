@@ -81,6 +81,7 @@ Implemented:
 - Headless one-shot due reminder trigger checks.
 - Local reminder and memory files use atomic writes to reduce partial-write corruption.
 - Headless local reminder listing and cancellation commands.
+- Headless local reminder and memory mutations write structured events without polluting JSON output.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
