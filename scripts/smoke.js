@@ -2310,7 +2310,7 @@ async function testVoiceLoopShutdownCancelsBackgroundTasks() {
   }
 }
 
-function testTaskRouterCancelReminder() {
+async function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
@@ -2344,6 +2344,34 @@ function testTaskRouterCancelReminder() {
   const clarificationEvent = readEventLog(logPath).find((event) => event.type === 'background_task.needs_clarification');
   if (clarificationEvent?.reason !== 'missing_cancel_reminder_query') {
     throw new Error('cancel reminder clarification event smoke failed');
+  }
+
+  const pendingDir = createTempDir('heros-router-pending-cancel-reminder-');
+  const pendingStore = new ReminderStore(pendingDir);
+  const pendingReminder = pendingStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const pendingContext = new SharedContext();
+  const pendingRouter = new TaskRouter({
+    context: pendingContext,
+    reminderStore: pendingStore,
+    memoryStore: null,
+    backgroundAgent: null,
+  });
+  const pendingClarify = await pendingRouter.maybeHandle('取消提醒', { turnId: 'turn_cancel_pending' });
+  const pendingDecision = pendingRouter.shouldDelegate('喝水');
+  const pendingResult = await pendingRouter.maybeHandle('喝水', { turnId: 'turn_cancel_answer' });
+  if (
+    pendingClarify.type !== 'cancel_reminder_needs_clarification'
+    || pendingDecision?.type !== 'cancel_reminder'
+    || pendingDecision.reason !== 'pending_clarification_response'
+    || pendingDecision.pendingBackgroundTaskId !== pendingClarify.backgroundTaskId
+    || pendingResult.type !== 'reminder_cancelled'
+    || pendingStore.list().find((item) => item.id === pendingReminder.id)?.status !== 'cancelled'
+  ) {
+    throw new Error('task router pending cancel reminder smoke failed');
   }
 
   const nextDir = createTempDir('heros-router-next-reminder-');
@@ -2480,7 +2508,7 @@ await testTaskRouterBackgroundCancellation();
 await testTaskRouterBackgroundContextPackage();
 testTaskRouterForgetMemory();
 testTaskRouterUpdateMemory();
-testTaskRouterCancelReminder();
+await testTaskRouterCancelReminder();
 testTaskRouterListReminders();
 testTaskRouterListMemory();
 await testBackgroundAgentInvalidReminder();

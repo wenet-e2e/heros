@@ -87,5 +87,6 @@ export function extractCancelReminderQuery(text) {
 }
 
 export function likelyCancelReminder(text) {
-  return Boolean(extractCancelReminderQuery(text));
+  const trimmed = text.trim();
+  return Boolean(extractCancelReminderQuery(trimmed)) || /^(取消|删除|去掉)[：:，,\s]*(提醒|闹钟)$/.test(trimmed);
 }

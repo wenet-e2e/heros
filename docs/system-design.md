@@ -88,7 +88,7 @@ Realtime Interaction Model 负责判断是否需要委托后台能力：
   - Interaction Model 发出异步任务请求，携带共享上下文，而不是只发送孤立 query。
   - Background LLM/Agent 完成任务编排、工具调用、参数校验和结果组织。
   - MVP 的首个任务能力是提醒创建、查询、修改、取消与确认。
-  - 当后台任务需要澄清时，下一句用户回答会继续进入同一类后台任务链路，并携带 pending clarification 上下文。
+  - 当任务需要澄清时，下一句用户回答会继续进入同一类任务链路，并携带 pending clarification 上下文。
   - 结果流式返回 Interaction Model，由它根据用户当前状态选择合适时机说出。
 
 - **不需要复杂能力**

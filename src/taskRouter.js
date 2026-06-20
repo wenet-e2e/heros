@@ -122,12 +122,20 @@ function emitNeedsClarification({ backgroundTaskId, turnId, question, reason, ca
   });
 }
 
+const PENDING_CLARIFICATION_TASK_TYPES = new Set([
+  'cancel_reminder',
+  'forget_memory',
+  'reminder',
+  'update_memory',
+  'update_reminder',
+]);
+
 function latestPendingClarification(context) {
   const task = context?.snapshot?.().backgroundTasks?.at(-1) || null;
   if (!task || task.status !== 'needs_clarification') {
     return null;
   }
-  if (!['reminder', 'update_reminder'].includes(task.type)) {
+  if (!PENDING_CLARIFICATION_TASK_TYPES.has(task.type)) {
     return null;
   }
   return {
@@ -243,13 +251,25 @@ export class TaskRouter {
       return { ...this.handleMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'forget_memory') {
-      return { ...this.handleForgetMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
+      return { ...this.handleForgetMemory(text, {
+        backgroundTaskId,
+        pendingBackgroundTaskId: decision.pendingBackgroundTaskId,
+        turnId,
+      }), source: 'local_task_router' };
     }
     if (decision.type === 'update_memory') {
-      return { ...this.handleUpdateMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
+      return { ...this.handleUpdateMemory(text, {
+        backgroundTaskId,
+        pendingBackgroundTaskId: decision.pendingBackgroundTaskId,
+        turnId,
+      }), source: 'local_task_router' };
     }
     if (decision.type === 'cancel_reminder') {
-      return { ...this.handleCancelReminder(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
+      return { ...this.handleCancelReminder(text, {
+        backgroundTaskId,
+        pendingBackgroundTaskId: decision.pendingBackgroundTaskId,
+        turnId,
+      }), source: 'local_task_router' };
     }
     if (decision.type === 'list_reminders') {
       return { ...this.handleListReminders({ backgroundTaskId, nextOnly: decision.nextOnly, turnId }), source: 'local_task_router' };
@@ -414,9 +434,9 @@ export class TaskRouter {
     };
   }
 
-  handleCancelReminder(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+  handleCancelReminder(text, { backgroundTaskId = createBackgroundTaskId(), pendingBackgroundTaskId, turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'cancel_reminder' });
-    const query = extractCancelReminderQuery(text);
+    const query = extractCancelReminderQuery(text) || (pendingBackgroundTaskId ? text.trim() : '');
     if (!query) {
       this.context.addBackgroundTask({
         backgroundTaskId,
@@ -552,9 +572,9 @@ export class TaskRouter {
     }
   }
 
-  handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+  handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId(), pendingBackgroundTaskId, turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'forget_memory' });
-    const query = extractForgetMemoryQuery(text);
+    const query = extractForgetMemoryQuery(text) || (pendingBackgroundTaskId ? text.trim() : '');
     if (!query) {
       this.context.addBackgroundTask({
         backgroundTaskId,
@@ -642,9 +662,16 @@ export class TaskRouter {
     };
   }
 
-  handleUpdateMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+  handleUpdateMemory(text, { backgroundTaskId = createBackgroundTaskId(), pendingBackgroundTaskId, turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'update_memory' });
-    const { query, content } = extractUpdateMemoryPatch(text);
+    let { query, content } = extractUpdateMemoryPatch(text);
+    if (pendingBackgroundTaskId && (!query || !content)) {
+      const pendingPatch = text.trim().match(/^(.+?)(?:改成|改为|更新为|改到)[：:，,\s]*(.+)$/);
+      if (pendingPatch) {
+        query = pendingPatch[1].replace(/这条|记忆/g, '').trim();
+        content = pendingPatch[2].trim();
+      }
+    }
     if (!query || !content) {
       this.context.addBackgroundTask({
         backgroundTaskId,
