@@ -14,3 +14,16 @@ export function extractMemoryContent(text) {
 export function likelyMemory(text) {
   return Boolean(extractMemoryContent(text));
 }
+
+export function extractCancelReminderQuery(text) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(取消|删除|去掉)[：:，,\s]*(.+?)(提醒|闹钟)?$/);
+  if (!match) {
+    return '';
+  }
+  return match[2].replace(/提醒|闹钟/g, '').trim();
+}
+
+export function likelyCancelReminder(text) {
+  return Boolean(extractCancelReminderQuery(text));
+}

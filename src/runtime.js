@@ -37,6 +37,7 @@ export function createRuntime() {
     backgroundAgent,
     context,
     memoryStore,
+    reminderStore,
   });
   const interactionModel = new CliInteractionModel({
     client,

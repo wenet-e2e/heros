@@ -1,14 +1,18 @@
 import { emitEvent } from './events.js';
-import { extractMemoryContent, likelyMemory, likelyReminder } from './intents.js';
+import { extractCancelReminderQuery, extractMemoryContent, likelyCancelReminder, likelyMemory, likelyReminder } from './intents.js';
 
 export class TaskRouter {
-  constructor({ backgroundAgent, context, memoryStore }) {
+  constructor({ backgroundAgent, context, memoryStore, reminderStore }) {
     this.backgroundAgent = backgroundAgent;
     this.context = context;
     this.memoryStore = memoryStore;
+    this.reminderStore = reminderStore;
   }
 
   shouldDelegate(text) {
+    if (likelyCancelReminder(text)) {
+      return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
+    }
     if (likelyMemory(text)) {
       return { type: 'memory', reason: 'explicit_memory_request' };
     }
@@ -31,6 +35,9 @@ export class TaskRouter {
     if (decision.type === 'memory') {
       return this.handleMemory(text);
     }
+    if (decision.type === 'cancel_reminder') {
+      return this.handleCancelReminder(text);
+    }
     const result = await this.backgroundAgent.handleTask({
       userText: text,
       context: this.context.snapshot(),
@@ -42,6 +49,44 @@ export class TaskRouter {
     });
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
     return result;
+  }
+
+  handleCancelReminder(text) {
+    const query = extractCancelReminderQuery(text);
+    const matches = this.reminderStore.list().filter((reminder) => {
+      if (reminder.status !== 'scheduled') {
+        return false;
+      }
+      return reminder.title.includes(query) || reminder.note?.includes(query);
+    });
+    if (matches.length === 0) {
+      emitEvent('background_task.completed', { result: { action: 'cancel_reminder_not_found', query } });
+      return {
+        type: 'cancel_reminder_not_found',
+        message: `没有找到可取消的提醒：${query}`,
+      };
+    }
+    if (matches.length > 1) {
+      emitEvent('background_task.completed', { result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
+      return {
+        type: 'cancel_reminder_ambiguous',
+        message: `找到 ${matches.length} 个相关提醒，需要你说得更具体一点。`,
+      };
+    }
+    const reminder = this.reminderStore.cancel(matches[0].id);
+    this.context.addBackgroundTask({
+      type: 'cancel_reminder',
+      status: 'cancelled',
+      result: reminder,
+    });
+    emitEvent('reminder.cancelled', { reminder });
+    emitEvent('background_task.completed', { result: { action: 'cancel_reminder', reminderId: reminder.id } });
+    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    return {
+      type: 'reminder_cancelled',
+      reminder,
+      message: `已取消提醒：${reminder.title}`,
+    };
   }
 
   handleMemory(text) {

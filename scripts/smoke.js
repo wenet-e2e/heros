@@ -136,9 +136,34 @@ function testTaskRouterMemory() {
   }
 }
 
+function testTaskRouterCancelReminder() {
+  const dir = createTempDir('heros-router-reminder-');
+  const reminderStore = new ReminderStore(dir);
+  const reminder = reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    reminderStore,
+    memoryStore: null,
+    backgroundAgent: null,
+  });
+  const result = router.handleCancelReminder('取消喝水提醒');
+  if (result.type !== 'reminder_cancelled') {
+    throw new Error('task router cancel reminder smoke failed');
+  }
+  if (reminderStore.list().find((item) => item.id === reminder.id)?.status !== 'cancelled') {
+    throw new Error('task router cancel reminder did not persist');
+  }
+}
+
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
 testTaskRouterMemory();
+testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();
 console.log('smoke ok');
