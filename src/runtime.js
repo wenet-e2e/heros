@@ -10,8 +10,8 @@ import { ReminderScheduler } from './reminderScheduler.js';
 import { ReminderStore } from './reminders.js';
 import { TaskRouter } from './taskRouter.js';
 
-export function createRuntime() {
-  const config = getConfig();
+export function createRuntime({ requireApiKey = true } = {}) {
+  const config = getConfig({ requireApiKey });
   const client = new DashScopeClient({
     apiKey: config.dashscopeApiKey,
     baseUrl: config.dashscopeBaseUrl,

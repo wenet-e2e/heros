@@ -87,7 +87,7 @@ async function once(text) {
 }
 
 async function status() {
-  const { config, reminderStore, memoryStore, bootstrap } = createRuntime();
+  const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
   const eventLines = fs.existsSync(config.eventLogPath)
     ? fs.readFileSync(config.eventLogPath, 'utf8').trim().split(/\r?\n/).filter(Boolean)
@@ -121,7 +121,7 @@ async function status() {
 }
 
 async function events(count = 20) {
-  const { config } = createRuntime();
+  const { config } = createRuntime({ requireApiKey: false });
   if (!fs.existsSync(config.eventLogPath)) {
     console.log('No event log yet.');
     return;

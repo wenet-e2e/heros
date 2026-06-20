@@ -29,10 +29,10 @@ export function loadEnvFile(filePath = '.env.local') {
   }
 }
 
-export function getConfig() {
+export function getConfig({ requireApiKey = true } = {}) {
   loadEnvFile();
   const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) {
+  if (!apiKey && requireApiKey) {
     throw new Error('Missing DASHSCOPE_API_KEY in .env.local or environment.');
   }
 
@@ -45,7 +45,7 @@ export function getConfig() {
   ].join('\n');
 
   return {
-    dashscopeApiKey: apiKey,
+    dashscopeApiKey: apiKey || '',
     dashscopeBaseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     dashscopeRequestTimeoutMs: Number(process.env.DASHSCOPE_REQUEST_TIMEOUT_MS || '60000'),
     realtimeUrl: process.env.HEROS_REALTIME_URL || 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime',
