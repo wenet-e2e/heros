@@ -330,6 +330,67 @@ async function audioStatus() {
   }, null, 2));
 }
 
+function checkWritableDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const probePath = path.join(dir, `.heros-preflight-${process.pid}`);
+    fs.writeFileSync(probePath, 'ok');
+    fs.unlinkSync(probePath);
+    return { path: dir, writable: true };
+  } catch (error) {
+    return { path: dir, writable: false, error: error.message };
+  }
+}
+
+async function preflight() {
+  const { bootstrap, config } = createRuntime({ requireApiKey: false, printEvents: false });
+  const recorderAvailable = await commandExists('rec');
+  const playerAvailable = await commandExists('play');
+  const bootstrapNames = bootstrap.files.map((filePath) => path.basename(filePath));
+  const missingBootstrap = ['AGENTS.md', 'SOUL.md', 'MEMORY.md'].filter((name) => !bootstrapNames.includes(name));
+  const dataDir = checkWritableDir(config.dataDir);
+  const eventLogDir = checkWritableDir(path.dirname(config.eventLogPath));
+  const checks = {
+    apiKey: {
+      ok: Boolean(config.dashscopeApiKey),
+      source: config.dashscopeApiKey ? 'env_or_dotenv' : null,
+    },
+    audio: {
+      recorder: {
+        command: 'rec',
+        ok: recorderAvailable,
+        installHint: recorderAvailable ? null : 'Install SoX, for example: brew install sox',
+      },
+      player: {
+        command: 'play',
+        ok: playerAvailable,
+        installHint: playerAvailable ? null : 'Install SoX, for example: brew install sox',
+      },
+    },
+    runtimeData: {
+      dataDir,
+      eventLogDir,
+    },
+    bootstrap: {
+      ok: missingBootstrap.length === 0,
+      dir: bootstrap.targetDir,
+      files: bootstrapNames,
+      missing: missingBootstrap,
+    },
+  };
+  console.log(JSON.stringify({
+    ready: checks.apiKey.ok
+      && checks.audio.recorder.ok
+      && checks.audio.player.ok
+      && checks.runtimeData.dataDir.writable
+      && checks.runtimeData.eventLogDir.writable
+      && checks.bootstrap.ok,
+    realtimeModel: config.realtimeModel,
+    backgroundModel: config.backgroundModel,
+    checks,
+  }, null, 2));
+}
+
 async function listReminders() {
   const { reminderStore } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(reminderStore.list(), null, 2));
@@ -619,6 +680,7 @@ function printUsage() {
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
+    '  npm run preflight         Check local readiness before starting voice.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -680,6 +742,8 @@ try {
     await bootstrapStatus();
   } else if (args[0] === '--audio') {
     await audioStatus();
+  } else if (args[0] === '--preflight') {
+    await preflight();
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

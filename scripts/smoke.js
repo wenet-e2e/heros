@@ -622,6 +622,34 @@ function testCliAudioCommand() {
   }
 }
 
+function testCliPreflightCommand() {
+  const dir = createTempDir('heros-cli-preflight-');
+  const result = spawnSync(process.execPath, ['src/cli.js', '--preflight'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      DASHSCOPE_API_KEY: 'test-key',
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli preflight smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const preflight = JSON.parse(result.stdout);
+  if (
+    typeof preflight.ready !== 'boolean'
+    || preflight.checks.apiKey.ok !== true
+    || typeof preflight.checks.audio.recorder.ok !== 'boolean'
+    || preflight.checks.runtimeData.dataDir.writable !== true
+    || preflight.checks.runtimeData.eventLogDir.writable !== true
+    || preflight.checks.bootstrap.ok !== true
+  ) {
+    throw new Error('cli preflight output smoke failed');
+  }
+}
+
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1576,6 +1604,7 @@ testCliErrorsCommand();
 testCliRouteCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
+testCliPreflightCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

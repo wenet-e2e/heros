@@ -24,6 +24,7 @@
     "route": "node src/cli.js --route",
     "bootstrap": "node src/cli.js --bootstrap",
     "audio": "node src/cli.js --audio",
+    "preflight": "node src/cli.js --preflight",
     "reminders": "node src/cli.js --reminders",
     "check-reminders": "node src/cli.js --check-reminders",
     "cancel-reminder": "node src/cli.js --cancel-reminder",

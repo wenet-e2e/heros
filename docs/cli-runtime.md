@@ -26,6 +26,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run bootstrap`: prints runtime agent bootstrap status.
 - `npm run audio`: checks local audio recorder/player command availability without network calls.
+- `npm run preflight`: checks local voice-loop readiness without network calls.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
@@ -98,6 +99,7 @@ Implemented:
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
+- Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Runtime status includes audio, turn, error, and background task summaries.
