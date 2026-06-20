@@ -49,3 +49,5 @@ Common overrides:
 - `HEROS_TIME_ZONE`
 - `HEROS_DATA_DIR`
 - `HEROS_EVENT_LOG_PATH`
+
+See `.env.example` for a local template.
