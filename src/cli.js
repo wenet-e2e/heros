@@ -706,7 +706,21 @@ async function phaseOneReview({ writeReport = false } = {}) {
   const preflightReport = await collectPreflight(runtime);
   const events = readEventLog(runtime.config.eventLogPath);
   const reminderRoute = runtime.taskRouter.shouldDelegate('明天九点提醒我喝水');
+  const updateReminderRoute = runtime.taskRouter.shouldDelegate('把喝水提醒改到明天十点');
+  const listRemindersRoute = runtime.taskRouter.shouldDelegate('查询一下提醒');
+  const nextReminderRoute = runtime.taskRouter.shouldDelegate('下一个提醒是什么？');
+  const cancelReminderRoute = runtime.taskRouter.shouldDelegate('取消喝水提醒');
+  const updateMemoryRoute = runtime.taskRouter.shouldDelegate('把记忆里短回答改成用户喜欢详细回答');
   const chatRoute = runtime.taskRouter.shouldDelegate('你怎么看这个观点？');
+  const routing = {
+    createReminderDelegatesToBackground: reminderRoute?.type === 'reminder',
+    updateReminderDelegatesToBackground: updateReminderRoute?.type === 'update_reminder',
+    listRemindersHandledLocally: listRemindersRoute?.type === 'list_reminders',
+    nextReminderHandledLocally: nextReminderRoute?.type === 'list_reminders' && nextReminderRoute.nextOnly === true,
+    cancelReminderHandledLocally: cancelReminderRoute?.type === 'cancel_reminder',
+    updateMemoryHandledLocally: updateMemoryRoute?.type === 'update_memory',
+    chatStaysRealtime: !chatRoute,
+  };
   const context = summarizeSharedContext(events, {
     bootstrapFiles: runtime.bootstrap.files,
     memories: runtime.memoryStore.list(),
@@ -716,16 +730,12 @@ async function phaseOneReview({ writeReport = false } = {}) {
     phase: 'phase_1_no_ui_cli',
     createdAt: new Date().toISOString(),
     ready: preflightReport.ready
-      && reminderRoute?.type === 'reminder'
-      && !chatRoute
+      && Object.values(routing).every(Boolean)
       && fs.existsSync(path.join(process.cwd(), 'README.md'))
       && fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
     checks: {
       preflight: preflightReport,
-      routing: {
-        reminderDelegatesToBackground: reminderRoute?.type === 'reminder',
-        chatStaysRealtime: !chatRoute,
-      },
+      routing,
       observability: {
         eventLogPath: runtime.config.eventLogPath,
         eventCount: events.length,

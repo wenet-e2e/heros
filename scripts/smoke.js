@@ -897,7 +897,12 @@ function testCliReviewCommand() {
   if (
     review.phase !== 'phase_1_no_ui_cli'
     || typeof review.ready !== 'boolean'
-    || review.checks.routing.reminderDelegatesToBackground !== true
+    || review.checks.routing.createReminderDelegatesToBackground !== true
+    || review.checks.routing.updateReminderDelegatesToBackground !== true
+    || review.checks.routing.listRemindersHandledLocally !== true
+    || review.checks.routing.nextReminderHandledLocally !== true
+    || review.checks.routing.cancelReminderHandledLocally !== true
+    || review.checks.routing.updateMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
     || review.checks.docs.readme !== true
     || review.checks.docs.systemDesign !== true

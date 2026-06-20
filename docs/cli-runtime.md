@@ -115,7 +115,7 @@ Implemented:
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
-- Headless Phase 1 review for local readiness, routing, observability, Shared Context, and docs.
+- Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
