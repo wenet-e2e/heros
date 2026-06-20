@@ -522,6 +522,28 @@ export class TaskRouter {
   handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'forget_memory' });
     const query = extractForgetMemoryQuery(text);
+    if (!query) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        turnId,
+        type: 'forget_memory',
+        status: 'needs_clarification',
+        result: { query },
+      });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '你想忘记哪条长期记忆？',
+        reason: 'missing_forget_memory_query',
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_needs_clarification' } });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'forget_memory_needs_clarification',
+        message: '你想忘记哪条长期记忆？',
+      };
+    }
     const matches = this.memoryStore.list().filter((memory) => memory.content.includes(query));
     if (matches.length === 0) {
       this.context.addBackgroundTask({

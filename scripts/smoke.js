@@ -1568,6 +1568,10 @@ function testTaskRouterForgetMemory() {
     memoryStore,
     backgroundAgent: null,
   });
+  const clarify = router.handleForgetMemory('忘记');
+  if (clarify.type !== 'forget_memory_needs_clarification' || memoryStore.list().length !== 1) {
+    throw new Error('empty forget memory query did not clarify');
+  }
   const result = router.handleForgetMemory('忘记安静的语音风格');
   if (result.type !== 'memory_deleted' || memoryStore.list().length !== 0) {
     throw new Error('task router forget memory smoke failed');
