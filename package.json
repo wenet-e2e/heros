@@ -15,6 +15,7 @@
     "cli:once": "node src/cli.js --once",
     "doctor": "node src/cli.js --doctor",
     "status": "node src/cli.js --status",
+    "client-state": "node src/cli.js --client-state",
     "events": "node src/cli.js --events",
     "events:follow": "node src/cli.js --events --follow",
     "event-summary": "node src/cli.js --event-summary",

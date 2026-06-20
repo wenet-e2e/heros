@@ -742,6 +742,29 @@ function testCliStatusOutput() {
   ) {
     throw new Error('cli status runtime state smoke failed');
   }
+  const clientStateResult = spawnSync(process.execPath, ['src/cli.js', '--client-state'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (clientStateResult.status !== 0) {
+    throw new Error(`cli client state smoke failed: ${clientStateResult.stderr || clientStateResult.stdout}`);
+  }
+  const clientState = JSON.parse(clientStateResult.stdout);
+  if (
+    clientState.phase !== 'phase_1_no_ui_cli'
+    || clientState.pendingClarificationCount !== 1
+    || clientState.nextReminder?.title !== '喝水'
+    || clientState.latestReview?.ready !== true
+    || clientState.latestVerification?.ok !== true
+    || clientState.announcements.completed !== 1
+  ) {
+    throw new Error('cli client state output smoke failed');
+  }
   if (status.turns.total !== 0 || status.errors.total !== 0) {
     throw new Error('cli status turn/error summary smoke failed');
   }
@@ -814,6 +837,7 @@ function testCliHelpOutput() {
   }
   if (
     !result.stdout.includes('routing boundary')
+    || !result.stdout.includes('npm run client-state')
     || !result.stdout.includes('npm run verification')
     || !result.stdout.includes('qwen3.5-omni-plus-realtime')
     || !result.stdout.includes('qwen3.7-plus')
@@ -1992,6 +2016,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.verification !== true
     || review.checks.commandSurface.doctor !== true
     || review.checks.commandSurface.status !== true
+    || review.checks.commandSurface.clientState !== true
     || review.checks.commandSurface.events !== true
     || review.checks.commandSurface.eventSummary !== true
     || review.checks.commandSurface.runtimeState !== true

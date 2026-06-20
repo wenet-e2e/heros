@@ -514,6 +514,52 @@ async function status() {
   }, null, 2));
 }
 
+async function clientState() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const { config, memoryStore, reminderStore } = runtime;
+  const events = readEventLog(config.eventLogPath);
+  const runtimeState = summarizeRuntimeState(events);
+  const reminders = reminderStore.list();
+  const scheduledReminders = reminders
+    .filter((reminder) => reminder.status === 'scheduled')
+    .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+  const pendingClarifications = runtimeState.pendingClarifications || [];
+
+  console.log(JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    state: runtimeState.state,
+    speaking: runtimeState.speaking,
+    inputAudio: runtimeState.inputAudio,
+    announcements: runtimeState.announcements,
+    backgroundRunning: runtimeState.backgroundRunning,
+    activeBackgroundTaskCount: runtimeState.activeBackgroundTaskCount,
+    pendingClarificationCount: runtimeState.pendingClarificationCount,
+    pendingClarifications: pendingClarifications.slice(0, 3).map((task) => ({
+      backgroundTaskId: task.backgroundTaskId,
+      taskType: task.taskType,
+      question: task.result?.question || null,
+      candidateCount: Array.isArray(task.result?.candidates) ? task.result.candidates.length : 0,
+    })),
+    nextReminder: scheduledReminders[0] ? {
+      id: scheduledReminders[0].id,
+      title: scheduledReminders[0].title,
+      remindAt: scheduledReminders[0].remindAt,
+    } : null,
+    memoryCount: memoryStore.list().length,
+    lastEventType: runtimeState.lastEventType,
+    lastEventAt: runtimeState.lastEventAt,
+    lastTurnId: runtimeState.lastTurnId,
+    lastBackgroundTask: runtimeState.lastBackgroundTask ? {
+      backgroundTaskId: runtimeState.lastBackgroundTask.backgroundTaskId,
+      taskType: runtimeState.lastBackgroundTask.taskType,
+      status: runtimeState.lastBackgroundTask.status,
+      updatedAt: runtimeState.lastBackgroundTask.updatedAt,
+    } : null,
+    latestReview: latestReviewEvent(events),
+    latestVerification: latestVerifyReportEvent(events),
+  }, null, 2));
+}
+
 async function verificationStatus() {
   const { config } = createRuntime({ requireApiKey: false, printEvents: false });
   const latestReport = latestVerifyReport(config.dataDir);
@@ -1245,6 +1291,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     cliOnce: Boolean(scripts['cli:once']),
     doctor: Boolean(scripts.doctor),
     status: Boolean(scripts.status),
+    clientState: Boolean(scripts['client-state']),
     events: Boolean(scripts.events),
     eventsFollow: Boolean(scripts['events:follow']),
     eventSummary: Boolean(scripts['event-summary']),
@@ -1739,6 +1786,7 @@ function printUsage() {
     '  npm run verify:report     Run full verification and write a local report artifact.',
     '  npm run verification      Print latest verification report/event status without network calls.',
     '  npm run status            Print local runtime status and routing boundary without network calls.',
+    '  npm run client-state      Print compact client-consumable runtime state.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',
     '  npm run events -- --type response.completed',
@@ -1808,6 +1856,8 @@ try {
     await doctor();
   } else if (args[0] === '--status') {
     await status();
+  } else if (args[0] === '--client-state') {
+    await clientState();
   } else if (args[0] === '--verification') {
     await verificationStatus();
   } else if (args[0] === '--events') {
