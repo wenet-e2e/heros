@@ -23,6 +23,7 @@
     "session-report": "node src/cli.js --session-report --write",
     "agent-context": "node src/cli.js --agent-context",
     "realtime-context": "node src/cli.js --realtime-context",
+    "context-health": "node src/cli.js --context-health",
     "runtime-state": "node src/cli.js --runtime-state",
     "context": "node src/cli.js --context",
     "turns": "node src/cli.js --turns",

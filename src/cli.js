@@ -651,16 +651,7 @@ async function agentContext(text) {
 
 async function realtimeContext() {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
-  const loop = new VoiceLoop({
-    agentBootstrap: runtime.agentBootstrap,
-    config: runtime.config,
-    realtime: {},
-    taskRouter: runtime.taskRouter,
-    context: runtime.context,
-    reminderScheduler: runtime.reminderScheduler,
-    playAudio: false,
-  });
-  const sessionConfig = loop.realtimeSessionConfig();
+  const { sessionConfig } = createRealtimePreview(runtime);
   console.log(JSON.stringify({
     model: runtime.config.realtimeModel,
     url: runtime.config.realtimeUrl,
@@ -670,6 +661,57 @@ async function realtimeContext() {
     inputAudioTranscription: sessionConfig.inputAudioTranscription,
     instructions: sessionConfig.instructions,
     sharedContext: runtime.context.snapshot(),
+  }, null, 2));
+}
+
+function createRealtimePreview(runtime) {
+  const loop = new VoiceLoop({
+    agentBootstrap: runtime.agentBootstrap,
+    config: runtime.config,
+    realtime: {},
+    taskRouter: runtime.taskRouter,
+    context: runtime.context,
+    reminderScheduler: runtime.reminderScheduler,
+    playAudio: false,
+  });
+  return {
+    loop,
+    sessionConfig: loop.realtimeSessionConfig(),
+  };
+}
+
+async function contextHealth() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const { sessionConfig } = createRealtimePreview(runtime);
+  const realtimeSharedContext = runtime.context.snapshot();
+  const agentContextPackage = runtime.taskRouter.buildContextPackage();
+  const checks = {
+    contextVersionMatches: realtimeSharedContext.contextVersion === agentContextPackage.sharedContext.contextVersion,
+    longTermMemoryMatches: realtimeSharedContext.longTermMemory.length === agentContextPackage.longTermMemory.total,
+    backgroundTasksAvailable: Array.isArray(agentContextPackage.sharedContext.backgroundTasks),
+    localTaskRouterBoundaryExposed: agentContextPackage.localTaskRouter.handledLocally.includes('cancel_reminder')
+      && agentContextPackage.localTaskRouter.handledLocally.includes('memory'),
+    realtimeInstructionsContainSharedContext: sessionConfig.instructions.includes('Shared Context JSON'),
+    realtimeInstructionsContainBootstrap: sessionConfig.instructions.includes('Agent Bootstrap:'),
+    realtimeTurnDetectionConfigured: Boolean(sessionConfig.turnDetection?.type),
+  };
+  console.log(JSON.stringify({
+    ready: Object.values(checks).every(Boolean),
+    realtime: {
+      model: runtime.config.realtimeModel,
+      contextVersion: realtimeSharedContext.contextVersion,
+      memoryCount: realtimeSharedContext.longTermMemory.length,
+      backgroundTaskCount: realtimeSharedContext.backgroundTasks.length,
+      turnDetection: sessionConfig.turnDetection?.type || null,
+    },
+    backgroundAgent: {
+      model: runtime.config.backgroundModel,
+      contextVersion: agentContextPackage.sharedContext.contextVersion,
+      memoryCount: agentContextPackage.longTermMemory.total,
+      backgroundTaskCount: agentContextPackage.sharedContext.backgroundTasks.length,
+      localTaskRouterHandledLocally: agentContextPackage.localTaskRouter.handledLocally,
+    },
+    checks,
   }, null, 2));
 }
 
@@ -1106,6 +1148,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     sessionReport: Boolean(scripts['session-report']),
     agentContext: Boolean(scripts['agent-context']),
     realtimeContext: Boolean(scripts['realtime-context']),
+    contextHealth: Boolean(scripts['context-health']),
     runtimeState: Boolean(scripts['runtime-state']),
     context: Boolean(scripts.context),
     turns: Boolean(scripts.turns),
@@ -1554,6 +1597,7 @@ function printUsage() {
     '  npm run session-report    Write a no-UI runtime session report artifact.',
     '  npm run agent-context -- <text>',
     '  npm run realtime-context   Preview realtime session context without network calls.',
+    '  npm run context-health     Compare realtime and background context surfaces.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -1635,6 +1679,8 @@ try {
     await agentContext(args.slice(1).join(' '));
   } else if (args[0] === '--realtime-context') {
     await realtimeContext();
+  } else if (args[0] === '--context-health') {
+    await contextHealth();
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
   } else if (args[0] === '--context') {

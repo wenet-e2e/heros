@@ -1541,6 +1541,44 @@ function testCliRealtimeContextCommand() {
   }
 }
 
+function testCliContextHealthCommand() {
+  const dir = createTempDir('heros-cli-context-health-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const bootstrap = ensureAgentBootstrap(dir);
+  const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
+  memoryStore.create('用户喜欢自然温暖的语音风格');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '你好',
+    turnId: 'turn_context_health_user',
+    contextVersion: 1,
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--context-health'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli context health smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const health = JSON.parse(result.stdout);
+  if (
+    health.ready !== true
+    || health.realtime.contextVersion !== health.backgroundAgent.contextVersion
+    || health.realtime.memoryCount !== 1
+    || health.backgroundAgent.memoryCount !== 1
+    || health.checks.localTaskRouterBoundaryExposed !== true
+    || health.checks.realtimeInstructionsContainSharedContext !== true
+  ) {
+    throw new Error('cli context health output smoke failed');
+  }
+}
+
 function testCliScenarioCommand() {
   const dir = createTempDir('heros-cli-scenario-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1818,6 +1856,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.sessionReport !== true
     || review.checks.commandSurface.agentContext !== true
     || review.checks.commandSurface.realtimeContext !== true
+    || review.checks.commandSurface.contextHealth !== true
     || review.checks.commandSurface.updateReminder !== true
     || review.checks.commandSurface.remember !== true
     || review.checks.commandSurface.updateMemory !== true
@@ -3304,6 +3343,7 @@ testCliTaskDetailCommand();
 testCliSessionReportCommand();
 testCliAgentContextCommand();
 testCliRealtimeContextCommand();
+testCliContextHealthCommand();
 testCliScenarioCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
