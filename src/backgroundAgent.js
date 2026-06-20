@@ -133,6 +133,7 @@ export class BackgroundAgent {
         };
       }
       emitEvent('tool_call.completed', { backgroundTaskId, turnId, toolName: 'create_reminder', result: reminder });
+      emitEvent('reminder.created', { backgroundTaskId, turnId, reminder });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: reminder });
       return {
         backgroundTaskId,

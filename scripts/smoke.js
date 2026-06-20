@@ -1139,6 +1139,45 @@ async function testBackgroundAgentLifecycleEvents() {
   configureEvents();
 }
 
+async function testBackgroundAgentReminderCreatedEvent() {
+  const dir = createTempDir('heros-agent-created-event-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const reminderStore = new ReminderStore(dir);
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text() {
+        return JSON.stringify({
+          action: 'create_reminder',
+          title: '喝水',
+          remindAt: new Date(Date.now() + 60000).toISOString(),
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  const result = await agent.handleTask({
+    backgroundTaskId: 'task_created_event',
+    turnId: 'turn_created_event',
+    userText: '提醒我喝水',
+    context: {},
+  });
+  const createdEvent = readEventLog(logPath).find((event) => event.type === 'reminder.created');
+  if (
+    result.type !== 'reminder_created'
+    || createdEvent?.backgroundTaskId !== 'task_created_event'
+    || createdEvent.turnId !== 'turn_created_event'
+    || createdEvent.reminder.id !== result.reminder.id
+  ) {
+    throw new Error('background agent reminder created event smoke failed');
+  }
+  configureEvents();
+}
+
 async function testBackgroundAgentAbortBeforeToolCall() {
   const dir = createTempDir('heros-agent-abort-');
   const reminderStore = new ReminderStore(dir);
@@ -1942,6 +1981,7 @@ testTaskRouterListMemory();
 await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 await testBackgroundAgentLifecycleEvents();
+await testBackgroundAgentReminderCreatedEvent();
 await testBackgroundAgentAbortBeforeToolCall();
 await testDashScopeExternalAbortReason();
 console.log('smoke ok');
