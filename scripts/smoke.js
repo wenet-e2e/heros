@@ -181,6 +181,25 @@ function testReminderScheduler() {
     remindAt: new Date(Date.now() + 60000).toISOString(),
     note: '',
   });
+  const originalFutureTime = future.remindAt;
+  refused = false;
+  try {
+    store.update(future.id, { remindAt: 'not-a-date' });
+  } catch {
+    refused = true;
+  }
+  if (!refused || store.list().find((item) => item.id === future.id)?.remindAt !== originalFutureTime) {
+    throw new Error('invalid reminder update time was not refused');
+  }
+  refused = false;
+  try {
+    store.update(future.id, { title: '' });
+  } catch {
+    refused = true;
+  }
+  if (!refused || store.list().find((item) => item.id === future.id)?.title !== 'future') {
+    throw new Error('empty reminder update title was not refused');
+  }
   const cancelled = store.cancel(future.id);
   if (cancelled.status !== 'cancelled') {
     throw new Error('reminder cancellation smoke failed');

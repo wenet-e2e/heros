@@ -59,9 +59,26 @@ export class ReminderStore {
     if (index === -1) {
       return null;
     }
+    const sanitizedPatch = { ...patch };
+    if (Object.hasOwn(sanitizedPatch, 'title')) {
+      const title = String(sanitizedPatch.title || '').trim();
+      if (!title) {
+        throw new Error('Reminder title is empty');
+      }
+      sanitizedPatch.title = title;
+    }
+    if (Object.hasOwn(sanitizedPatch, 'remindAt')) {
+      const remindAtMs = Date.parse(sanitizedPatch.remindAt);
+      if (!Number.isFinite(remindAtMs)) {
+        throw new Error(`Invalid reminder time: ${sanitizedPatch.remindAt}`);
+      }
+    }
+    if (Object.hasOwn(sanitizedPatch, 'note')) {
+      sanitizedPatch.note = String(sanitizedPatch.note || '').trim();
+    }
     reminders[index] = {
       ...reminders[index],
-      ...patch,
+      ...sanitizedPatch,
       updatedAt: new Date().toISOString(),
     };
     writeTextFileAtomic(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
