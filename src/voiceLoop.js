@@ -20,6 +20,7 @@ export class VoiceLoop {
     this.currentAssistantText = '';
     this.currentAssistantTurnId = null;
     this.backgroundTasks = new Set();
+    this.backgroundTaskControllers = new Set();
     this.unsubscribeReminderTrigger = null;
     this.state = 'idle';
     this.turnEpoch = 0;
@@ -156,6 +157,7 @@ export class VoiceLoop {
   async handleSpeechStarted() {
     this.turnEpoch += 1;
     emitEvent('conversation.epoch_changed', { turnEpoch: this.turnEpoch, reason: 'user_speech_started' });
+    this.cancelBackgroundTasks('user_speech_started');
     emitEvent('input_audio.started');
     if (!this.isResponding) {
       this.setState('listening', 'user_speech_started');
@@ -217,7 +219,9 @@ export class VoiceLoop {
     if (!this.isResponding && !this.isAnnouncing) {
       this.setState('background_running', 'background_task_started');
     }
-    const task = this.taskRouter.maybeHandle(transcript, { turnId }).then((result) => {
+    const controller = new AbortController();
+    this.backgroundTaskControllers.add(controller);
+    const task = this.taskRouter.maybeHandle(transcript, { turnId, signal: controller.signal }).then((result) => {
       this.syncRealtimeContext('background_task_finished');
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
@@ -232,11 +236,28 @@ export class VoiceLoop {
       emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
     }).finally(() => {
       this.backgroundTasks.delete(task);
+      this.backgroundTaskControllers.delete(controller);
       if (this.state === 'background_running') {
         this.setState('listening', 'background_task_finished');
       }
     });
     this.backgroundTasks.add(task);
+  }
+
+  cancelBackgroundTasks(reason) {
+    if (this.backgroundTaskControllers.size === 0) {
+      return;
+    }
+    for (const controller of this.backgroundTaskControllers) {
+      if (!controller.signal.aborted) {
+        controller.abort(reason);
+      }
+    }
+    emitEvent('background_task.cancel_requested', {
+      reason,
+      count: this.backgroundTaskControllers.size,
+      turnEpoch: this.turnEpoch,
+    });
   }
 
   enqueueAnnouncement(message, { backgroundTaskId, source = 'background_task', turnEpoch = this.turnEpoch } = {}) {

@@ -24,24 +24,59 @@ class BackgroundTaskTimeoutError extends Error {
   }
 }
 
-async function withTimeout(promiseFactory, timeoutMs) {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    return promiseFactory({});
+class BackgroundTaskCancelledError extends Error {
+  constructor(reason = 'cancelled') {
+    super(`Background task cancelled: ${reason}`);
+    this.name = 'BackgroundTaskCancelledError';
+    this.reason = reason;
   }
+}
+
+function cancellationErrorFromSignal(signal) {
+  const reason = signal?.reason;
+  if (reason instanceof Error) {
+    return reason;
+  }
+  return new BackgroundTaskCancelledError(reason || 'cancelled');
+}
+
+async function withTimeout(promiseFactory, timeoutMs, externalSignal) {
   const controller = new AbortController();
   let timeout;
+  let removeExternalAbort = () => {};
   try {
+    if (externalSignal?.aborted) {
+      throw cancellationErrorFromSignal(externalSignal);
+    }
+    let cancellation = new Promise(() => {});
+    if (externalSignal) {
+      cancellation = new Promise((_, reject) => {
+        const onAbort = () => {
+          const error = cancellationErrorFromSignal(externalSignal);
+          controller.abort(error);
+          reject(error);
+        };
+        externalSignal.addEventListener('abort', onAbort, { once: true });
+        removeExternalAbort = () => externalSignal.removeEventListener('abort', onAbort);
+      });
+    }
     return await Promise.race([
       promiseFactory({ signal: controller.signal }),
+      cancellation,
       new Promise((_, reject) => {
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+          return;
+        }
         timeout = setTimeout(() => {
-          controller.abort(new BackgroundTaskTimeoutError(timeoutMs));
-          reject(new BackgroundTaskTimeoutError(timeoutMs));
+          const error = new BackgroundTaskTimeoutError(timeoutMs);
+          controller.abort(error);
+          reject(error);
         }, timeoutMs);
       }),
     ]);
   } finally {
     clearTimeout(timeout);
+    removeExternalAbort();
   }
 }
 
@@ -92,7 +127,7 @@ export class TaskRouter {
     return null;
   }
 
-  async maybeHandle(text, { turnId } = {}) {
+  async maybeHandle(text, { turnId, signal } = {}) {
     const decision = this.shouldDelegate(text);
     if (!decision) {
       return null;
@@ -122,13 +157,13 @@ export class TaskRouter {
     }
     let result;
     try {
-      result = await withTimeout(({ signal }) => this.backgroundAgent.handleTask({
+      result = await withTimeout(({ signal: taskSignal }) => this.backgroundAgent.handleTask({
         backgroundTaskId,
         turnId,
         userText: text,
         context: this.context.snapshot(),
-        signal,
-      }), this.taskTimeoutMs);
+        signal: taskSignal,
+      }), this.taskTimeoutMs, signal);
     } catch (error) {
       if (error instanceof BackgroundTaskTimeoutError || error.name === 'BackgroundTaskTimeoutError') {
         result = {
@@ -144,6 +179,19 @@ export class TaskRouter {
           reason: 'timeout',
           timeoutMs: this.taskTimeoutMs,
         });
+      } else if (error instanceof BackgroundTaskCancelledError || error.name === 'BackgroundTaskCancelledError') {
+        result = {
+          backgroundTaskId,
+          turnId,
+          type: 'background_cancelled',
+          message: '',
+          error: error.message,
+        };
+        emitEvent('background_task.cancelled', {
+          backgroundTaskId,
+          turnId,
+          reason: error.reason || 'cancelled',
+        });
       } else {
         result = {
           backgroundTaskId,
@@ -156,7 +204,14 @@ export class TaskRouter {
       emitEvent('background_task.completed', {
         backgroundTaskId,
         turnId,
-        result: { action: result.type === 'background_timeout' ? 'timeout' : 'failed', error: error.message },
+        result: {
+          action: result.type === 'background_timeout'
+            ? 'timeout'
+            : result.type === 'background_cancelled'
+              ? 'cancelled'
+              : 'failed',
+          error: error.message,
+        },
       });
     }
     this.context.addBackgroundTask({

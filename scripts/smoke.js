@@ -275,6 +275,40 @@ async function testTaskRouterBackgroundTimeout() {
   }
 }
 
+async function testTaskRouterBackgroundCancellation() {
+  const context = new SharedContext();
+  const controller = new AbortController();
+  let aborted = false;
+  const router = new TaskRouter({
+    context,
+    memoryStore: null,
+    reminderStore: null,
+    taskTimeoutMs: 1000,
+    backgroundAgent: {
+      async handleTask({ signal }) {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+        }, { once: true });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { type: 'none', message: '' };
+      },
+    },
+  });
+  const handling = router.maybeHandle('明天九点提醒我喝水', {
+    turnId: 'turn_cancel',
+    signal: controller.signal,
+  });
+  controller.abort('user_speech_started');
+  const result = await handling;
+  if (result.type !== 'background_cancelled' || !aborted || result.message) {
+    throw new Error('task router background cancellation smoke failed');
+  }
+  const task = context.snapshot().backgroundTasks.at(-1);
+  if (task.status !== 'background_cancelled' || task.turnId !== 'turn_cancel') {
+    throw new Error('task router background cancellation context smoke failed');
+  }
+}
+
 function testTaskRouterForgetMemory() {
   const dir = createTempDir('heros-router-forget-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -471,6 +505,35 @@ async function testVoiceLoopBackgroundState() {
   }
 }
 
+async function testVoiceLoopBackgroundCancellation() {
+  let aborted = false;
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {},
+    taskRouter: {
+      async maybeHandle(_text, { signal }) {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+        }, { once: true });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { type: 'none', message: '' };
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.delegateTask('明天九点提醒我喝水', { turnEpoch: 0, turnId: 'turn_voice_cancel' });
+  if (loop.backgroundTaskControllers.size !== 1) {
+    throw new Error('voice loop did not track background task controller');
+  }
+  await loop.handleSpeechStarted();
+  await Promise.allSettled([...loop.backgroundTasks]);
+  if (!aborted || loop.backgroundTaskControllers.size !== 0) {
+    throw new Error('voice loop background cancellation smoke failed');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -559,10 +622,12 @@ testVoiceLoopAssistantTurnId();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();
+await testVoiceLoopBackgroundCancellation();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();
 await testTaskRouterBackgroundFailure();
 await testTaskRouterBackgroundTimeout();
+await testTaskRouterBackgroundCancellation();
 testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
