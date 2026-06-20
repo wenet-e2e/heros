@@ -385,6 +385,20 @@ function testAgentBootstrap() {
 
 function testCliStatusOutput() {
   const dir = createTempDir('heros-status-');
+  const reminderStore = new ReminderStore(dir);
+  const reminder = reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const reviewDir = path.join(dir, 'reviews');
+  fs.mkdirSync(reviewDir, { recursive: true });
+  const reviewPath = path.join(reviewDir, 'phase-1-review-smoke.json');
+  fs.writeFileSync(reviewPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    ready: true,
+    createdAt: '2026-06-21T00:00:00.000Z',
+  }, null, 2)}\n`);
   const result = spawnSync(process.execPath, ['src/cli.js', '--status'], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -405,8 +419,15 @@ function testCliStatusOutput() {
   if (status.backgroundTasks.total !== 0 || typeof status.backgroundTasks.byStatus !== 'object') {
     throw new Error('cli status background task summary smoke failed');
   }
-  if (status.reminders.dueScheduled !== 0 || status.reminders.nextScheduledAt !== null) {
+  if (
+    status.reminders.dueScheduled !== 0
+    || status.reminders.nextScheduledAt !== reminder.remindAt
+    || status.reminders.nextScheduled?.title !== '喝水'
+  ) {
     throw new Error('cli status reminder due summary smoke failed');
+  }
+  if (status.review.latestReport?.path !== reviewPath || status.review.latestReport.ready !== true) {
+    throw new Error('cli status review report smoke failed');
   }
   if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
     throw new Error('cli status runtime state smoke failed');

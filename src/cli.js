@@ -208,6 +208,41 @@ async function realtimeText(text) {
   }, null, 2));
 }
 
+function latestReviewReport(dataDir) {
+  const reviewDir = path.join(dataDir, 'reviews');
+  if (!fs.existsSync(reviewDir)) {
+    return null;
+  }
+  const reports = fs.readdirSync(reviewDir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => {
+      const reportPath = path.join(reviewDir, name);
+      return {
+        path: reportPath,
+        updatedAtMs: fs.statSync(reportPath).mtimeMs,
+      };
+    })
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+  if (reports.length === 0) {
+    return null;
+  }
+  const latest = reports[0];
+  try {
+    const report = JSON.parse(fs.readFileSync(latest.path, 'utf8'));
+    return {
+      path: latest.path,
+      phase: report.phase || null,
+      ready: typeof report.ready === 'boolean' ? report.ready : null,
+      createdAt: report.createdAt || null,
+    };
+  } catch (error) {
+    return {
+      path: latest.path,
+      error: error.message,
+    };
+  }
+}
+
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
@@ -224,6 +259,7 @@ async function status() {
   const scheduledReminders = reminders
     .filter((reminder) => reminder.status === 'scheduled')
     .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+  const nextScheduled = scheduledReminders[0] || null;
   const dueScheduled = scheduledReminders.filter((reminder) => Date.parse(reminder.remindAt) <= Date.now());
   const backgroundTasksByStatus = taskSummary.tasks.reduce((acc, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1;
@@ -248,7 +284,12 @@ async function status() {
       total: reminders.length,
       byStatus: remindersByStatus,
       dueScheduled: dueScheduled.length,
-      nextScheduledAt: scheduledReminders[0]?.remindAt || null,
+      nextScheduledAt: nextScheduled?.remindAt || null,
+      nextScheduled: nextScheduled ? {
+        id: nextScheduled.id,
+        title: nextScheduled.title,
+        remindAt: nextScheduled.remindAt,
+      } : null,
     },
     events: {
       total: eventSummary.total,
@@ -282,6 +323,9 @@ async function status() {
     },
     memories: {
       total: memoryStore.list().length,
+    },
+    review: {
+      latestReport: latestReviewReport(config.dataDir),
     },
   }, null, 2));
 }
