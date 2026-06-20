@@ -1,3 +1,5 @@
+import { redactSecrets } from './events.js';
+
 export class DashScopeClient {
   constructor({ apiKey, baseUrl, timeoutMs = 60000 }) {
     this.apiKey = apiKey;
@@ -39,7 +41,7 @@ export class DashScopeClient {
     }
 
     if (!response.ok) {
-      const text = await response.text();
+      const text = redactSecrets(await response.text());
       throw new Error(`DashScope request failed: ${response.status} ${response.statusText}\n${text}`);
     }
 
