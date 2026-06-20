@@ -133,6 +133,7 @@ Implemented:
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
 - Phase 1 review checks that the system design records the Local Task Router boundary.
 - Phase 1 review checks that the single audio outlet constraint is documented and mapped through the realtime announcement path.
+- Phase 1 review checks the interruption path for realtime response cancellation, Background Agent cancellation, and stale announcement skipping.
 - Phase 1 review covers bare and pending reminder cancellation routing, pending memory update routing, and pending memory deletion routing.
 - Phase 1 review also checks the Phase 1 CLI command surface for no-UI regression coverage.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.

@@ -1573,6 +1573,10 @@ function testCliReviewCommand() {
     || review.checks.singleAudioOutlet.systemDesignConstraint !== true
     || review.checks.singleAudioOutlet.backgroundAnnouncementsUseRealtimeOutlet !== true
     || review.checks.singleAudioOutlet.correlatesAnnouncementsToRealtimeResponses !== true
+    || review.checks.interruption.systemDesignConstraint !== true
+    || review.checks.interruption.cancelsBackgroundTasksOnSpeech !== true
+    || review.checks.interruption.interruptsRealtimeResponse !== true
+    || review.checks.interruption.skipsStaleAnnouncements !== true
     || review.checks.commandSurface.check !== true
     || review.checks.commandSurface.verify !== true
     || review.checks.commandSurface.doctor !== true

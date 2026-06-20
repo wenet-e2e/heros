@@ -965,6 +965,15 @@ async function phaseOneReview({ writeReport = false } = {}) {
     correlatesAnnouncementsToRealtimeResponses: voiceLoopText.includes('this.activeAnnouncement')
       && voiceLoopText.includes('backgroundTaskId: this.activeAnnouncement?.backgroundTaskId'),
   };
+  const interruption = {
+    systemDesignConstraint: systemDesignText.includes('打断优先'),
+    cancelsBackgroundTasksOnSpeech: voiceLoopText.includes("this.cancelBackgroundTasks('user_speech_started')")
+      && voiceLoopText.includes('background_task.cancel_requested'),
+    interruptsRealtimeResponse: voiceLoopText.includes('response.interrupted')
+      && voiceLoopText.includes('this.realtime.cancelResponse()'),
+    skipsStaleAnnouncements: voiceLoopText.includes('announcement.skipped')
+      && voiceLoopText.includes('stale_turn'),
+  };
   const review = {
     phase: 'phase_1_no_ui_cli',
     createdAt: new Date().toISOString(),
@@ -972,6 +981,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
       && Object.values(routing).every(Boolean)
       && Object.values(commandSurface).every(Boolean)
       && Object.values(singleAudioOutlet).every(Boolean)
+      && Object.values(interruption).every(Boolean)
       && Object.values(docs).every(Boolean),
     checks: {
       preflight: preflightReport,
@@ -997,6 +1007,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
         memories: context.longTermMemory.total,
       },
       singleAudioOutlet,
+      interruption,
       docs,
     },
   };
