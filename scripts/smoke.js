@@ -2048,6 +2048,35 @@ function testTaskRouterCancelReminder() {
   if (clarificationEvent?.reason !== 'missing_cancel_reminder_query') {
     throw new Error('cancel reminder clarification event smoke failed');
   }
+
+  const nextDir = createTempDir('heros-router-next-reminder-');
+  const nextStore = new ReminderStore(nextDir);
+  const earlier = nextStore.create({
+    title: '早提醒',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const later = nextStore.create({
+    title: '晚提醒',
+    remindAt: new Date(Date.now() + 120000).toISOString(),
+    note: '',
+  });
+  const nextRouter = new TaskRouter({
+    context: new SharedContext(),
+    reminderStore: nextStore,
+    memoryStore: null,
+    backgroundAgent: null,
+  });
+  const nextResult = nextRouter.handleCancelReminder('取消下一个提醒');
+  const nextItems = nextStore.list();
+  if (
+    nextResult.type !== 'reminder_cancelled'
+    || nextResult.reminder.id !== earlier.id
+    || nextItems.find((item) => item.id === earlier.id)?.status !== 'cancelled'
+    || nextItems.find((item) => item.id === later.id)?.status !== 'scheduled'
+  ) {
+    throw new Error('task router cancel next reminder smoke failed');
+  }
   configureEvents();
 }
 

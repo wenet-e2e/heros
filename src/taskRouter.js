@@ -106,6 +106,12 @@ function backgroundTaskStatus(result) {
   return result.type;
 }
 
+function scheduledReminders(reminderStore) {
+  return reminderStore.list()
+    .filter((reminder) => reminder.status === 'scheduled')
+    .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+}
+
 function emitNeedsClarification({ backgroundTaskId, turnId, question, reason, candidates }) {
   emitEvent('background_task.needs_clarification', {
     backgroundTaskId,
@@ -302,9 +308,7 @@ export class TaskRouter {
 
   handleListReminders({ backgroundTaskId = createBackgroundTaskId(), nextOnly = false, turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'list_reminders' });
-    const scheduled = this.reminderStore.list()
-      .filter((reminder) => reminder.status === 'scheduled')
-      .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+    const scheduled = scheduledReminders(this.reminderStore);
     this.context.addBackgroundTask({
       backgroundTaskId,
       turnId,
@@ -409,12 +413,15 @@ export class TaskRouter {
         message: '你想取消哪一个提醒？可以说一下提醒内容。',
       };
     }
-    const matches = this.reminderStore.list().filter((reminder) => {
-      if (reminder.status !== 'scheduled') {
-        return false;
-      }
-      return reminder.title.includes(query) || reminder.note?.includes(query);
-    });
+    const scheduled = scheduledReminders(this.reminderStore);
+    const matches = /^(下一个|最近|最近的|下条)$/.test(query)
+      ? scheduled.slice(0, 1)
+      : scheduled.filter((reminder) => {
+        if (reminder.status !== 'scheduled') {
+          return false;
+        }
+        return reminder.title.includes(query) || reminder.note?.includes(query);
+      });
     if (matches.length === 0) {
       this.context.addBackgroundTask({
         backgroundTaskId,

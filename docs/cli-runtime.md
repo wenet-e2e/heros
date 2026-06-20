@@ -103,7 +103,7 @@ Implemented:
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing and next-reminder query.
 - Background-agent reminder updates for natural-language schedule changes.
-- Explicit natural-language reminder cancellation when a single scheduled reminder matches.
+- Explicit natural-language reminder cancellation when a single scheduled reminder matches, including next-reminder cancellation.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Due reminder announcements include reminder IDs for event-log correlation.
 - Stale background announcements are skipped when the user starts a newer voice turn.
