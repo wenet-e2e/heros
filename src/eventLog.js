@@ -215,8 +215,11 @@ export function summarizeBackgroundTasks(events) {
       current.status = 'cancelled';
       current.reason = event.reason || current.reason;
     } else if (event.type === 'background_task.completed') {
-      current.status = statusFromCompletion(event.result);
-      current.result = event.result || null;
+      const nextStatus = statusFromCompletion(event.result);
+      current.status = nextStatus;
+      current.result = ['ambiguous', 'needs_clarification'].includes(nextStatus)
+        ? { ...(current.result || {}), ...(event.result || {}) }
+        : event.result || null;
     } else if (event.type === 'tool_call.failed') {
       current.status = 'tool_failed';
       current.result = {

@@ -270,6 +270,23 @@ function testBackgroundTaskSummary() {
     turnId: 'turn_summary_user',
     result: { action: 'create_reminder', reminderId: 'reminder_summary' },
   });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_clarify_summary',
+    turnId: 'turn_summary_user',
+    taskType: 'reminder',
+    model: 'fake',
+  });
+  emitEvent('background_task.needs_clarification', {
+    backgroundTaskId: 'task_clarify_summary',
+    turnId: 'turn_summary_user',
+    question: '什么时候提醒？',
+    reason: 'missing_time',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_clarify_summary',
+    turnId: 'turn_summary_user',
+    result: { action: 'reminder_needs_clarification' },
+  });
   emitEvent('response.completed', {
     backgroundTaskId: 'task_summary',
     turnId: 'turn_summary_assistant',
@@ -278,13 +295,16 @@ function testBackgroundTaskSummary() {
     text: '好的，已经创建提醒。',
   });
   const summary = summarizeBackgroundTasks(readEventLog(logPath));
-  const task = summary.tasks[0];
+  const task = summary.tasks.find((item) => item.backgroundTaskId === 'task_summary');
+  const clarifyTask = summary.tasks.find((item) => item.backgroundTaskId === 'task_clarify_summary');
   if (
-    summary.total !== 1
+    summary.total !== 2
     || task.status !== 'completed'
     || task.taskType !== 'reminder'
     || task.progress.action !== 'create_reminder'
     || task.responseTurnId !== 'turn_summary_assistant'
+    || clarifyTask.status !== 'needs_clarification'
+    || clarifyTask.result.question !== '什么时候提醒？'
   ) {
     throw new Error('background task summary smoke failed');
   }
@@ -471,6 +491,26 @@ function testCliStatusOutput() {
     ready: true,
     reportPath: reviewPath,
     createdAt: '2026-06-21T00:00:01.000Z',
+  })}\n${JSON.stringify({
+    type: 'background_task.started',
+    backgroundTaskId: 'task_status_clarify',
+    turnId: 'turn_status_clarify',
+    taskType: 'cancel_reminder',
+    model: 'local_task_router',
+    createdAt: '2026-06-21T00:00:02.000Z',
+  })}\n${JSON.stringify({
+    type: 'background_task.needs_clarification',
+    backgroundTaskId: 'task_status_clarify',
+    turnId: 'turn_status_clarify',
+    question: '你想取消哪一个提醒？',
+    reason: 'missing_cancel_reminder_query',
+    createdAt: '2026-06-21T00:00:03.000Z',
+  })}\n${JSON.stringify({
+    type: 'background_task.completed',
+    backgroundTaskId: 'task_status_clarify',
+    turnId: 'turn_status_clarify',
+    result: { action: 'cancel_reminder_needs_clarification' },
+    createdAt: '2026-06-21T00:00:04.000Z',
   })}\n`);
   const result = spawnSync(process.execPath, ['src/cli.js', '--status'], {
     cwd: process.cwd(),
@@ -489,7 +529,7 @@ function testCliStatusOutput() {
   if (status.backgroundTaskTimeoutMs !== 1234 || status.dataDir !== dir) {
     throw new Error('cli status config smoke failed');
   }
-  if (status.backgroundTasks.total !== 0 || typeof status.backgroundTasks.byStatus !== 'object') {
+  if (status.backgroundTasks.total !== 1 || status.backgroundTasks.byStatus.needs_clarification !== 1) {
     throw new Error('cli status background task summary smoke failed');
   }
   if (
@@ -512,7 +552,11 @@ function testCliStatusOutput() {
   if (status.review.latestEvent?.reportPath !== reviewPath || status.review.latestEvent.ready !== true) {
     throw new Error('cli status review event smoke failed');
   }
-  if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
+  if (
+    status.runtimeState.state !== 'idle'
+    || status.runtimeState.pendingClarificationCount !== 1
+    || status.runtimeState.pendingClarifications[0]?.question !== '你想取消哪一个提醒？'
+  ) {
     throw new Error('cli status runtime state smoke failed');
   }
   if (status.turns.total !== 0 || status.errors.total !== 0) {

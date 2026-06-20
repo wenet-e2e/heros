@@ -281,6 +281,7 @@ async function status() {
     return acc;
   }, {});
   const lastBackgroundTask = taskSummary.tasks[0] || null;
+  const pendingClarifications = taskSummary.tasks.filter((task) => ['ambiguous', 'needs_clarification'].includes(task.status));
   console.log(JSON.stringify({
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
@@ -338,6 +339,15 @@ async function status() {
       backgroundRunning: runtimeState.backgroundRunning,
       activeBackgroundTaskCount: runtimeState.activeBackgroundTaskCount,
       pendingClarificationCount: runtimeState.pendingClarificationCount,
+      pendingClarifications: pendingClarifications.slice(0, 5).map((task) => ({
+        backgroundTaskId: task.backgroundTaskId,
+        taskType: task.taskType,
+        turnId: task.turnId,
+        status: task.status,
+        question: task.result?.question || null,
+        candidateCount: Array.isArray(task.result?.candidates) ? task.result.candidates.length : 0,
+        updatedAt: task.updatedAt,
+      })),
     },
     memories: {
       total: memoryStore.list().length,
