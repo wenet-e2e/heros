@@ -228,13 +228,18 @@ export class DashScopeRealtimeClient extends EventEmitter {
     this.url.searchParams.set('model', model);
     this.model = model;
     this.ws = null;
+    this.closed = true;
   }
 
   async connect() {
+    this.closed = false;
     this.ws = new RawWebSocket(this.url.toString(), {
       Authorization: `Bearer ${this.apiKey}`,
     });
     this.ws.on('message', (text) => {
+      if (this.closed) {
+        return;
+      }
       let event;
       try {
         event = JSON.parse(text);
@@ -250,6 +255,9 @@ export class DashScopeRealtimeClient extends EventEmitter {
   }
 
   send(event) {
+    if (this.closed) {
+      throw new Error('Realtime client is closed');
+    }
     const payload = {
       event_id: createEventId(),
       ...event,
@@ -344,6 +352,7 @@ export class DashScopeRealtimeClient extends EventEmitter {
   }
 
   close() {
+    this.closed = true;
     this.ws?.close();
   }
 }

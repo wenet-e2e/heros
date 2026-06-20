@@ -31,6 +31,7 @@ Implemented:
 - Background reminder delegation through a shared TaskRouter.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Runtime `MEMORY.md` CRUD for long-term memory data.
 - Structured event logging to `events.ndjson`.
 

@@ -159,7 +159,6 @@ async function interactive() {
 async function voiceLoop({ playAudio = true, durationMs } = {}) {
   const runtime = createRuntime();
   const realtime = createRealtimeClient(runtime.config);
-  runtime.reminderScheduler.start();
   const loop = new VoiceLoop({
     config: runtime.config,
     realtime,

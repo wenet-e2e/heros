@@ -33,11 +33,18 @@ function testReminderScheduler() {
     note: 'test',
   });
   const scheduler = new ReminderScheduler({ reminderStore: store, pollMs: 1000 });
+  let triggeredByListener = false;
+  scheduler.onTriggered(() => {
+    triggeredByListener = true;
+  });
   scheduler.start();
   scheduler.stop();
   const item = store.list()[0];
   if (item.status !== 'triggered') {
     throw new Error('reminder scheduler smoke failed');
+  }
+  if (!triggeredByListener) {
+    throw new Error('reminder trigger listener smoke failed');
   }
 
   let refused = false;

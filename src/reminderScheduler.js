@@ -5,6 +5,12 @@ export class ReminderScheduler {
     this.reminderStore = reminderStore;
     this.pollMs = pollMs;
     this.timer = null;
+    this.triggerListeners = new Set();
+  }
+
+  onTriggered(listener) {
+    this.triggerListeners.add(listener);
+    return () => this.triggerListeners.delete(listener);
   }
 
   start() {
@@ -33,6 +39,13 @@ export class ReminderScheduler {
       console.log(`\nReminder: ${triggered.title} (${triggered.remindAt})`);
       if (triggered.note) {
         console.log(`Note: ${triggered.note}`);
+      }
+      for (const listener of this.triggerListeners) {
+        try {
+          listener(triggered);
+        } catch (error) {
+          emitEvent('error', { source: 'reminder.trigger.listener', message: error.message });
+        }
       }
     }
   }

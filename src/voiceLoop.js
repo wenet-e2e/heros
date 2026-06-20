@@ -17,6 +17,7 @@ export class VoiceLoop {
     this.announcementQueue = [];
     this.currentAssistantText = '';
     this.backgroundTasks = new Set();
+    this.unsubscribeReminderTrigger = null;
   }
 
   async start({ durationMs } = {}) {
@@ -37,6 +38,13 @@ export class VoiceLoop {
       },
     });
     await this.realtime.waitFor('session.updated', 15000);
+
+    if (this.reminderScheduler) {
+      this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
+        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`);
+      });
+      this.reminderScheduler.start();
+    }
 
     await this.player.start();
     this.recorder.on('data', (chunk) => this.realtime.appendAudio(chunk));
@@ -185,6 +193,9 @@ export class VoiceLoop {
         this.recorder.stop();
         this.player.stop();
         this.realtime.close();
+        this.unsubscribeReminderTrigger?.();
+        this.unsubscribeReminderTrigger = null;
+        this.reminderScheduler?.stop();
         if (this.backgroundTasks.size > 0) {
           await Promise.allSettled([...this.backgroundTasks]);
         }
