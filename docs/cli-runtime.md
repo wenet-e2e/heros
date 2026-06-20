@@ -126,7 +126,7 @@ Implemented:
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
-- Phase 1 review covers bare and pending reminder cancellation routing.
+- Phase 1 review covers bare and pending reminder cancellation routing plus pending memory update routing.
 - Phase 1 review also checks the key CLI command surface for no-UI regression coverage.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Error summary command reconstructed from structured runtime events.

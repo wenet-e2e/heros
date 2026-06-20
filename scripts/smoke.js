@@ -1254,6 +1254,7 @@ function testCliReviewCommand() {
     || review.checks.routing.cancelNextReminderHandledLocally !== true
     || review.checks.routing.pendingCancelReminderHandledLocally !== true
     || review.checks.routing.updateMemoryHandledLocally !== true
+    || review.checks.routing.pendingUpdateMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
     || review.checks.commandSurface.scenario !== true
     || review.checks.commandSurface.taskDetail !== true

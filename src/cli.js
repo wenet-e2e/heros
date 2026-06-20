@@ -805,6 +805,13 @@ async function phaseOneReview({ writeReport = false } = {}) {
     result: { action: 'cancel_reminder_needs_clarification' },
   });
   const pendingCancelReminderRoute = runtime.taskRouter.shouldDelegate('喝水');
+  runtime.context.addBackgroundTask({
+    backgroundTaskId: 'review_pending_update_memory',
+    type: 'update_memory',
+    status: 'needs_clarification',
+    result: { action: 'update_memory_needs_clarification' },
+  });
+  const pendingUpdateMemoryRoute = runtime.taskRouter.shouldDelegate('短回答改成用户喜欢详细回答');
   const routing = {
     createReminderDelegatesToBackground: reminderRoute?.type === 'reminder',
     updateReminderDelegatesToBackground: updateReminderRoute?.type === 'update_reminder',
@@ -817,6 +824,9 @@ async function phaseOneReview({ writeReport = false } = {}) {
       && pendingCancelReminderRoute.reason === 'pending_clarification_response'
       && pendingCancelReminderRoute.pendingBackgroundTaskId === 'review_pending_cancel_reminder',
     updateMemoryHandledLocally: updateMemoryRoute?.type === 'update_memory',
+    pendingUpdateMemoryHandledLocally: pendingUpdateMemoryRoute?.type === 'update_memory'
+      && pendingUpdateMemoryRoute.reason === 'pending_clarification_response'
+      && pendingUpdateMemoryRoute.pendingBackgroundTaskId === 'review_pending_update_memory',
     chatStaysRealtime: !chatRoute,
   };
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
