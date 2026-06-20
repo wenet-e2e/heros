@@ -774,6 +774,7 @@ function testCliStatusOutput() {
   const clientState = JSON.parse(clientStateResult.stdout);
   if (
     clientState.phase !== 'phase_1_no_ui_cli'
+    || clientState.schemaVersion !== 1
     || clientState.pendingClarificationCount !== 1
     || clientState.nextReminder?.title !== '喝水'
     || clientState.latestReview?.ready !== true
@@ -833,6 +834,7 @@ async function testCliClientStateFollowOutput() {
   const latest = snapshots.at(-1);
   if (
     snapshots[0].phase !== 'phase_1_no_ui_cli'
+    || snapshots[0].schemaVersion !== 1
     || latest.state !== 'listening'
     || latest.inputAudio.active !== true
     || latest.inputAudio.lastTurnEpoch !== 9

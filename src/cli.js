@@ -553,6 +553,7 @@ function buildClientStateSnapshot(runtime, events) {
 
   return {
     phase: 'phase_1_no_ui_cli',
+    schemaVersion: 1,
     state: runtimeState.state,
     speaking: runtimeState.speaking,
     inputAudio: runtimeState.inputAudio,

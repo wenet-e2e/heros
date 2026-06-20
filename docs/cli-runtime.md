@@ -174,6 +174,7 @@ Implemented:
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, verify report/event, session report/event, turn, error, and background task summaries.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Compact client state command previews the no-UI runtime state contract that a desktop client can consume later.
+- Compact client state output includes an explicit schema version for desktop client compatibility checks.
 - Compact client state follow mode streams the same state contract as NDJSON for later desktop client mapping.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
