@@ -19,6 +19,7 @@ import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
 import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
 import { getConfig } from '../src/config.js';
 import { CliInteractionModel } from '../src/interactionModel.js';
+import { DashScopeClient } from '../src/dashscope.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -477,6 +478,42 @@ async function testBackgroundAgentAbortBeforeToolCall() {
   }
   if (!cancelled || reminderStore.list().length !== 0) {
     throw new Error('background agent abort before tool call smoke failed');
+  }
+}
+
+async function testDashScopeExternalAbortReason() {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      reject(signal.reason || Object.assign(new Error('aborted'), { name: 'AbortError' }));
+    }, { once: true });
+  });
+  try {
+    const client = new DashScopeClient({
+      apiKey: 'test',
+      baseUrl: 'https://example.com',
+      timeoutMs: 1000,
+    });
+    const controller = new AbortController();
+    const error = new Error('cancelled externally');
+    error.name = 'BackgroundTaskCancelledError';
+    const request = client.text({
+      model: 'fake',
+      messages: [{ role: 'user', content: 'hi' }],
+      signal: controller.signal,
+    });
+    controller.abort(error);
+    let preserved = false;
+    try {
+      await request;
+    } catch (caught) {
+      preserved = caught === error && caught.name === 'BackgroundTaskCancelledError';
+    }
+    if (!preserved) {
+      throw new Error('dashscope external abort reason smoke failed');
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
   }
 }
 
@@ -1045,4 +1082,5 @@ await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 await testBackgroundAgentLifecycleEvents();
 await testBackgroundAgentAbortBeforeToolCall();
+await testDashScopeExternalAbortReason();
 console.log('smoke ok');

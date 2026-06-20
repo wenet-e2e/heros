@@ -27,7 +27,11 @@ export class DashScopeClient {
         signal.addEventListener('abort', onAbort, { once: true });
       }
     }
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeoutMs);
     let response;
     try {
       response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -40,8 +44,16 @@ export class DashScopeClient {
         signal: controller.signal,
       });
     } catch (error) {
+      if (signal?.aborted) {
+        if (signal.reason instanceof Error) {
+          throw signal.reason;
+        }
+        throw new Error(`DashScope request aborted: ${signal.reason || 'cancelled'}`);
+      }
       if (error.name === 'AbortError') {
-        throw new Error(`DashScope request timed out after ${this.timeoutMs}ms`);
+        throw new Error(timedOut
+          ? `DashScope request timed out after ${this.timeoutMs}ms`
+          : 'DashScope request aborted');
       }
       throw error;
     } finally {
