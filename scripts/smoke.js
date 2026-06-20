@@ -1503,6 +1503,44 @@ function testCliAgentContextCommand() {
   }
 }
 
+function testCliRealtimeContextCommand() {
+  const dir = createTempDir('heros-cli-realtime-context-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const bootstrap = ensureAgentBootstrap(dir);
+  const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
+  memoryStore.create('用户喜欢自然温暖的语音风格');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '你好',
+    turnId: 'turn_realtime_context_user',
+    contextVersion: 1,
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--realtime-context'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+      HEROS_REALTIME_MODEL: 'qwen3.5-omni-plus-realtime',
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli realtime context smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const preview = JSON.parse(result.stdout);
+  if (
+    preview.model !== 'qwen3.5-omni-plus-realtime'
+    || preview.turnDetection.type !== 'semantic_vad'
+    || !preview.instructions.includes('Shared Context JSON')
+    || preview.sharedContext.longTermMemory.length !== 1
+    || preview.sharedContext.turns[0]?.id !== 'turn_realtime_context_user'
+  ) {
+    throw new Error('cli realtime context output smoke failed');
+  }
+}
+
 function testCliScenarioCommand() {
   const dir = createTempDir('heros-cli-scenario-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1779,6 +1817,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.taskDetail !== true
     || review.checks.commandSurface.sessionReport !== true
     || review.checks.commandSurface.agentContext !== true
+    || review.checks.commandSurface.realtimeContext !== true
     || review.checks.commandSurface.updateReminder !== true
     || review.checks.commandSurface.remember !== true
     || review.checks.commandSurface.updateMemory !== true
@@ -3264,6 +3303,7 @@ testCliTaskCommand();
 testCliTaskDetailCommand();
 testCliSessionReportCommand();
 testCliAgentContextCommand();
+testCliRealtimeContextCommand();
 testCliScenarioCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();

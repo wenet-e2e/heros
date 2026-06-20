@@ -27,6 +27,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run session-report`: writes a no-UI runtime session report artifact with turns, timeline, tasks, errors, Shared Context, and runtime state.
 - `node src/cli.js --session-report --since <iso-or-ms>`: prints a filtered session report without writing an artifact.
 - `npm run agent-context -- <text>`: previews the routing decision and Background Agent context package without network calls.
+- `npm run realtime-context`: previews Qwen-Omni-Realtime session instructions and Shared Context without network calls.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
@@ -100,6 +101,7 @@ Implemented:
 - Pending clarification lookup uses the latest pending task in Shared Context so later non-pending task summaries do not hide it.
 - Runtime status and Shared Context summaries count only unresolved pending clarifications; a newer task of the same type supersedes older pending state.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
+- Realtime session context preview command for no-network interaction model debugging.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.
 - Background Agent emits `agent.started` and `agent.completed` lifecycle events around model decisions.

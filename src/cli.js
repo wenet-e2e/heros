@@ -649,6 +649,30 @@ async function agentContext(text) {
   }, null, 2));
 }
 
+async function realtimeContext() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const loop = new VoiceLoop({
+    agentBootstrap: runtime.agentBootstrap,
+    config: runtime.config,
+    realtime: {},
+    taskRouter: runtime.taskRouter,
+    context: runtime.context,
+    reminderScheduler: runtime.reminderScheduler,
+    playAudio: false,
+  });
+  const sessionConfig = loop.realtimeSessionConfig();
+  console.log(JSON.stringify({
+    model: runtime.config.realtimeModel,
+    url: runtime.config.realtimeUrl,
+    voice: sessionConfig.voice,
+    modalities: sessionConfig.modalities,
+    turnDetection: sessionConfig.turnDetection,
+    inputAudioTranscription: sessionConfig.inputAudioTranscription,
+    instructions: sessionConfig.instructions,
+    sharedContext: runtime.context.snapshot(),
+  }, null, 2));
+}
+
 function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
@@ -1081,6 +1105,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     taskDetail: Boolean(scripts['task-detail']),
     sessionReport: Boolean(scripts['session-report']),
     agentContext: Boolean(scripts['agent-context']),
+    realtimeContext: Boolean(scripts['realtime-context']),
     runtimeState: Boolean(scripts['runtime-state']),
     context: Boolean(scripts.context),
     turns: Boolean(scripts.turns),
@@ -1528,6 +1553,7 @@ function printUsage() {
     '  npm run task-detail -- <task_id>',
     '  npm run session-report    Write a no-UI runtime session report artifact.',
     '  npm run agent-context -- <text>',
+    '  npm run realtime-context   Preview realtime session context without network calls.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -1607,6 +1633,8 @@ try {
     });
   } else if (args[0] === '--agent-context') {
     await agentContext(args.slice(1).join(' '));
+  } else if (args[0] === '--realtime-context') {
+    await realtimeContext();
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
   } else if (args[0] === '--context') {
