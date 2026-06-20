@@ -245,6 +245,7 @@ async function voiceLoop({ playAudio = true, durationMs } = {}) {
   const runtime = createRuntime();
   const realtime = createRealtimeClient(runtime.config);
   const loop = new VoiceLoop({
+    agentBootstrap: runtime.agentBootstrap,
     config: runtime.config,
     realtime,
     taskRouter: runtime.taskRouter,

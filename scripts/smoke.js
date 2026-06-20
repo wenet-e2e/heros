@@ -275,6 +275,30 @@ function testStaleAnnouncementSkip() {
   configureEvents();
 }
 
+function testVoiceLoopRealtimeInstructions() {
+  const context = new SharedContext();
+  context.setLongTermMemory([{
+    id: 'memory_1',
+    content: '用户喜欢安静的语音风格',
+    updatedAt: new Date().toISOString(),
+  }]);
+  const loop = new VoiceLoop({
+    agentBootstrap: { 'SOUL.md': '# SOUL.md\n\nWarm voice.' },
+    config: {
+      realtimeInstructions: 'Base realtime instructions.',
+    },
+    realtime: {},
+    taskRouter: null,
+    context,
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  const instructions = loop.buildRealtimeInstructions();
+  if (!instructions.includes('Warm voice.') || !instructions.includes('用户喜欢安静的语音风格')) {
+    throw new Error('voice loop realtime instructions smoke failed');
+  }
+}
+
 async function testRealtimeConnectRetry() {
   let attempts = 0;
   const realtime = {
@@ -378,6 +402,7 @@ testAgentBootstrap();
 testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
+testVoiceLoopRealtimeInstructions();
 await testRealtimeConnectRetry();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();

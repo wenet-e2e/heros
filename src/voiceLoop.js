@@ -4,7 +4,8 @@ import { emitEvent } from './events.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 export class VoiceLoop {
-  constructor({ config, realtime, taskRouter, context, reminderScheduler, playAudio = true }) {
+  constructor({ agentBootstrap = {}, config, realtime, taskRouter, context, reminderScheduler, playAudio = true }) {
+    this.agentBootstrap = agentBootstrap;
     this.config = config;
     this.realtime = realtime;
     this.taskRouter = taskRouter;
@@ -23,6 +24,53 @@ export class VoiceLoop {
     this.turnEpoch = 0;
   }
 
+  buildRealtimeInstructions() {
+    const contextSnapshot = this.context.snapshot();
+    const sharedContext = {
+      contextVersion: contextSnapshot.contextVersion,
+      longTermMemory: contextSnapshot.longTermMemory,
+      backgroundTasks: contextSnapshot.backgroundTasks.slice(-5),
+    };
+    const bootstrap = [
+      this.agentBootstrap['AGENTS.md'],
+      this.agentBootstrap['SOUL.md'],
+      this.agentBootstrap['MEMORY.md'],
+    ].filter(Boolean).join('\n\n');
+    return [
+      this.config.realtimeInstructions,
+      bootstrap ? `Agent Bootstrap:\n${bootstrap}` : '',
+      `Shared Context JSON:\n${JSON.stringify(sharedContext, null, 2)}`,
+    ].filter(Boolean).join('\n\n');
+  }
+
+  realtimeSessionConfig() {
+    return {
+      modalities: ['text', 'audio'],
+      voice: this.config.realtimeVoice,
+      instructions: this.buildRealtimeInstructions(),
+      turnDetection: {
+        type: this.config.realtimeTurnDetection,
+        threshold: Number(this.config.realtimeVadThreshold),
+        prefix_padding_ms: Number(this.config.realtimeVadPrefixPaddingMs),
+        silence_duration_ms: Number(this.config.realtimeVadSilenceDurationMs),
+      },
+      inputAudioTranscription: {
+        model: this.config.realtimeInputTranscriptionModel,
+      },
+    };
+  }
+
+  syncRealtimeContext(reason) {
+    if (typeof this.realtime.updateSession !== 'function') {
+      return;
+    }
+    this.realtime.updateSession(this.realtimeSessionConfig());
+    emitEvent('realtime.context_sync_requested', {
+      reason,
+      contextVersion: this.context.version,
+    });
+  }
+
   setState(state, reason) {
     if (this.state === state) {
       return;
@@ -38,20 +86,7 @@ export class VoiceLoop {
       retries: this.config.realtimeConnectRetries,
       delayMs: this.config.realtimeConnectRetryDelayMs,
     });
-    this.realtime.updateSession({
-      modalities: ['text', 'audio'],
-      voice: this.config.realtimeVoice,
-      instructions: this.config.realtimeInstructions,
-      turnDetection: {
-        type: this.config.realtimeTurnDetection,
-        threshold: Number(this.config.realtimeVadThreshold),
-        prefix_padding_ms: Number(this.config.realtimeVadPrefixPaddingMs),
-        silence_duration_ms: Number(this.config.realtimeVadSilenceDurationMs),
-      },
-      inputAudioTranscription: {
-        model: this.config.realtimeInputTranscriptionModel,
-      },
-    });
+    this.realtime.updateSession(this.realtimeSessionConfig());
     await this.realtime.waitFor('session.updated', 15000);
 
     await this.player.start();
@@ -175,6 +210,7 @@ export class VoiceLoop {
       this.setState('background_running', 'background_task_started');
     }
     const task = this.taskRouter.maybeHandle(transcript).then((result) => {
+      this.syncRealtimeContext('background_task_finished');
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
         this.enqueueAnnouncement(result.message, {

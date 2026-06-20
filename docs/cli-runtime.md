@@ -44,6 +44,7 @@ Implemented:
 - Continuous VAD voice loop with microphone input and PCM audio output.
 - User interrupt handling by cancelling the active realtime response.
 - Shared Context updates from typed turns and realtime transcripts.
+- Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
