@@ -176,12 +176,17 @@ export class VoiceLoop {
       return;
     }
     console.log(`\nYou: ${transcript}`);
-    this.context.addTurn('user', transcript);
-    emitEvent('interaction.context_updated', { contextVersion: this.context.version, reason: 'user_transcript' });
+    const userTurn = this.context.addTurn('user', transcript);
+    emitEvent('interaction.context_updated', {
+      contextVersion: this.context.version,
+      reason: 'user_transcript',
+      turnId: userTurn.id,
+    });
     emitEvent('transcript.completed', {
       text: transcript,
       contextVersion: this.context.version,
       turnEpoch: this.turnEpoch,
+      turnId: userTurn.id,
     });
     if (this.taskRouter.shouldDelegate(transcript)) {
       this.delegateTask(transcript, { turnEpoch: this.turnEpoch });
@@ -199,8 +204,8 @@ export class VoiceLoop {
   handleAssistantDone(text) {
     const content = text || this.currentAssistantText;
     if (content.trim()) {
-      this.context.addTurn('assistant', content);
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      const assistantTurn = this.context.addTurn('assistant', content);
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version, turnId: assistantTurn.id });
     }
     process.stdout.write('\n');
   }

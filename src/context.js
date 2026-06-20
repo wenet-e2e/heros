@@ -1,4 +1,9 @@
+import crypto from 'node:crypto';
 import { redactSecrets } from './events.js';
+
+function createTurnId() {
+  return `turn_${crypto.randomUUID()}`;
+}
 
 export class SharedContext {
   constructor() {
@@ -10,15 +15,18 @@ export class SharedContext {
 
   addTurn(role, content) {
     this.version += 1;
-    this.turns.push({
+    const turn = {
+      id: createTurnId(),
       role,
       content: redactSecrets(content),
       createdAt: new Date().toISOString(),
       contextVersion: this.version,
-    });
+    };
+    this.turns.push(turn);
     if (this.turns.length > 30) {
       this.turns = this.turns.slice(-30);
     }
+    return turn;
   }
 
   addBackgroundTask(task) {

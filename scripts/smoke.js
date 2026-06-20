@@ -217,7 +217,10 @@ function testTaskRouterForgetMemory() {
 
 function testSharedContextRedaction() {
   const context = new SharedContext();
-  context.addTurn('user', 'Bearer secret-token');
+  const turn = context.addTurn('user', 'Bearer secret-token');
+  if (!turn.id?.startsWith('turn_')) {
+    throw new Error('shared context turn id smoke failed');
+  }
   if (context.snapshot().turns[0].content.includes('secret-token')) {
     throw new Error('shared context redaction smoke failed');
   }
