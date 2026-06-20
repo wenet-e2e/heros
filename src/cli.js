@@ -434,6 +434,17 @@ async function taskText(text) {
   }
 
   const result = await runtime.taskRouter.maybeHandle(text, { turnId: userTurn.id });
+  let responseTurn = null;
+  if (result?.message) {
+    responseTurn = runtime.context.addTurn('assistant', result.message);
+    emitEvent('response.completed', {
+      backgroundTaskId: result.backgroundTaskId,
+      source: result.source || routeTarget(decision),
+      sourceTurnId: userTurn.id,
+      text: result.message,
+      turnId: responseTurn.id,
+    });
+  }
   console.log(JSON.stringify({
     text,
     delegated: true,
@@ -441,6 +452,7 @@ async function taskText(text) {
     taskType: decision.type,
     reason: decision.reason,
     turnId: userTurn.id,
+    responseTurnId: responseTurn?.id || null,
     contextVersion: runtime.context.version,
     result,
   }, null, 2));

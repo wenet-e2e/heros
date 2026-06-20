@@ -669,6 +669,7 @@ function testCliTaskCommand() {
     !memoryTask.delegated
     || memoryTask.handledBy !== 'local_task_router'
     || memoryTask.taskType !== 'memory'
+    || !memoryTask.responseTurnId
     || memoryTask.result.type !== 'memory_created'
   ) {
     throw new Error('cli task memory output smoke failed');
@@ -676,6 +677,10 @@ function testCliTaskCommand() {
   const createdEvent = readEventLog(logPath).find((event) => event.type === 'memory.created');
   if (!createdEvent?.memory?.content.includes('安静')) {
     throw new Error('cli task memory event smoke failed');
+  }
+  const responseEvent = readEventLog(logPath).find((event) => event.type === 'response.completed');
+  if (responseEvent?.sourceTurnId !== memoryTask.turnId || responseEvent.turnId !== memoryTask.responseTurnId) {
+    throw new Error('cli task response event smoke failed');
   }
 
   const chatResult = spawnSync(process.execPath, ['src/cli.js', '--task', '你怎么看这个观点？'], {

@@ -122,6 +122,7 @@ Implemented:
 - Readable transcript command for quick no-UI conversation review.
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Headless delegated task runner for JSON verification without entering the interactive CLI.
+- Headless delegated task runner emits assistant response events for transcript replay.
 - Turn IDs on conversation turns and response/transcript events.
 - Typed CLI fallback emits transcript and response turn events for conversation replay.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
