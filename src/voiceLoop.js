@@ -338,6 +338,7 @@ export class VoiceLoop {
         }
         this.setState('stopping', 'shutdown');
         emitEvent('voice_loop.stopping');
+        this.cancelBackgroundTasks('shutdown');
         this.recorder.stop();
         this.player.stop();
         this.realtime.close();

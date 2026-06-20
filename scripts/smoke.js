@@ -534,6 +534,33 @@ async function testVoiceLoopBackgroundCancellation() {
   }
 }
 
+async function testVoiceLoopShutdownCancelsBackgroundTasks() {
+  let aborted = false;
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {
+      close() {},
+    },
+    taskRouter: {
+      async maybeHandle(_text, { signal }) {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+        }, { once: true });
+        await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+        return { type: 'background_cancelled', message: '' };
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.delegateTask('明天九点提醒我喝水', { turnEpoch: 0, turnId: 'turn_shutdown' });
+  await loop.waitForShutdown({ durationMs: 1 });
+  if (!aborted || loop.state !== 'stopped') {
+    throw new Error('voice loop shutdown cancellation smoke failed');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -623,6 +650,7 @@ await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();
 await testVoiceLoopBackgroundCancellation();
+await testVoiceLoopShutdownCancelsBackgroundTasks();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();
 await testTaskRouterBackgroundFailure();
