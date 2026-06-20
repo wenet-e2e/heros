@@ -553,6 +553,37 @@ function testCliTurnsCommand() {
   }
 }
 
+function testCliTranscriptCommand() {
+  const dir = createTempDir('heros-cli-transcript-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '你好',
+    turnId: 'turn_transcript_user',
+  });
+  emitEvent('response.completed', {
+    source: 'realtime_text',
+    text: '你好，我在。',
+    turnId: 'turn_transcript_assistant',
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--transcript'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli transcript smoke failed: ${result.stderr || result.stdout}`);
+  }
+  if (!result.stdout.includes('User') || !result.stdout.includes('HerOS (realtime_text)') || !result.stdout.includes('你好，我在。')) {
+    throw new Error('cli transcript output smoke failed');
+  }
+}
+
 function testCliErrorsCommand() {
   const dir = createTempDir('heros-cli-errors-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1702,6 +1733,7 @@ testCliRuntimeStateCommand();
 testSharedContextSummary();
 testCliContextCommand();
 testCliTurnsCommand();
+testCliTranscriptCommand();
 testCliErrorsCommand();
 testCliRouteCommand();
 testCliBootstrapCommand();

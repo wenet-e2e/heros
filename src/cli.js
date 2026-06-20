@@ -358,6 +358,22 @@ async function turnSummary({ count = 20 } = {}) {
   }, null, 2));
 }
 
+async function transcript({ count = 20 } = {}) {
+  const { config } = createRuntime({ requireApiKey: false, printEvents: false });
+  const turns = summarizeTurns(readEventLog(config.eventLogPath)).turns.slice(-count);
+  if (turns.length === 0) {
+    console.log('No transcript yet.');
+    return;
+  }
+  const lines = turns.map((turn) => {
+    const speaker = turn.role === 'user' ? 'User' : 'HerOS';
+    const source = turn.role === 'assistant' && turn.source ? ` (${turn.source})` : '';
+    const time = turn.createdAt ? ` [${turn.createdAt}]` : '';
+    return `${speaker}${source}${time}: ${turn.text || ''}`;
+  });
+  console.log(lines.join('\n'));
+}
+
 function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
@@ -807,6 +823,7 @@ function printUsage() {
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
+    '  npm run transcript        Print recent conversation turns as text.',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
@@ -868,6 +885,8 @@ try {
     await contextSummary();
   } else if (args[0] === '--turns') {
     await turnSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--transcript') {
+    await transcript({ count: getEventCount(args) });
   } else if (args[0] === '--route') {
     await routeText(args.slice(1).join(' '));
   } else if (args[0] === '--bootstrap') {
