@@ -1121,6 +1121,43 @@ function testCliScenarioCommand() {
   ) {
     throw new Error('cli pending cancel scenario output smoke failed');
   }
+
+  const forgetDir = createTempDir('heros-cli-scenario-forget-');
+  const forgetLogPath = path.join(forgetDir, 'events.ndjson');
+  const forgetResult = spawnSync(process.execPath, [
+    'src/cli.js',
+    '--scenario',
+    '记住用户喜欢短回答',
+    '忘记',
+    '短回答',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: forgetDir,
+      HEROS_EVENT_LOG_PATH: forgetLogPath,
+    },
+  });
+  if (forgetResult.status !== 0) {
+    throw new Error(`cli pending forget memory scenario smoke failed: ${forgetResult.stderr || forgetResult.stdout}`);
+  }
+  const forgetScenario = JSON.parse(forgetResult.stdout);
+  if (
+    forgetScenario.turns.length !== 3
+    || forgetScenario.turns[0].result?.type !== 'memory_created'
+    || forgetScenario.turns[1].result?.type !== 'forget_memory_needs_clarification'
+    || forgetScenario.turns[2].result?.type !== 'memory_deleted'
+    || forgetScenario.turns[2].reason !== 'pending_clarification_response'
+    || forgetScenario.turns[2].pendingBackgroundTaskId !== forgetScenario.turns[1].result.backgroundTaskId
+    || forgetScenario.backgroundTasks !== 3
+  ) {
+    throw new Error('cli pending forget memory scenario output smoke failed');
+  }
+  const forgetEvents = readEventLog(forgetLogPath);
+  if (!forgetEvents.some((event) => event.type === 'memory.deleted')) {
+    throw new Error('cli pending forget memory scenario event smoke failed');
+  }
 }
 
 function testCliBootstrapCommand() {
