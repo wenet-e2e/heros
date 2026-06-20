@@ -146,6 +146,31 @@ async function testBackgroundAgentInvalidReminder() {
   }
 }
 
+async function testBackgroundAgentPastReminder() {
+  const dir = createTempDir('heros-agent-past-');
+  const reminderStore = new ReminderStore(dir);
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text() {
+        return JSON.stringify({
+          action: 'create_reminder',
+          title: 'past',
+          remindAt: '2000-01-01T09:00:00+08:00',
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  const result = await agent.handleTask({ userText: '提醒我', context: {} });
+  if (result.type !== 'reminder_failed' || reminderStore.list().length !== 0) {
+    throw new Error('background agent past reminder smoke failed');
+  }
+}
+
 function testTaskRouterMemory() {
   const dir = createTempDir('heros-router-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -282,4 +307,5 @@ await testRealtimeConnectRetry();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();
+await testBackgroundAgentPastReminder();
 console.log('smoke ok');

@@ -86,6 +86,10 @@ export class BackgroundAgent {
     if (decision.action === 'create_reminder') {
       let reminder;
       try {
+        const remindAtMs = Date.parse(decision.remindAt);
+        if (Number.isFinite(remindAtMs) && remindAtMs <= Date.now()) {
+          throw new Error(`Reminder time is in the past: ${decision.remindAt}`);
+        }
         reminder = this.reminderStore.create({
           title: decision.title || userText,
           remindAt: decision.remindAt,
@@ -97,7 +101,9 @@ export class BackgroundAgent {
         return {
           backgroundTaskId,
           type: 'reminder_failed',
-          message: '提醒时间解析失败了，可以换一种更具体的说法再试一次。',
+          message: error.message.includes('past')
+            ? '这个提醒时间已经过去了，可以换一个未来的时间。'
+            : '提醒时间解析失败了，可以换一种更具体的说法再试一次。',
         };
       }
       emitEvent('tool_call.completed', { backgroundTaskId, toolName: 'create_reminder', result: reminder });
