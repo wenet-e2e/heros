@@ -402,6 +402,9 @@ function testCliStatusOutput() {
   if (status.backgroundTasks.total !== 0 || typeof status.backgroundTasks.byStatus !== 'object') {
     throw new Error('cli status background task summary smoke failed');
   }
+  if (status.reminders.dueScheduled !== 0 || status.reminders.nextScheduledAt !== null) {
+    throw new Error('cli status reminder due summary smoke failed');
+  }
   if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
     throw new Error('cli status runtime state smoke failed');
   }

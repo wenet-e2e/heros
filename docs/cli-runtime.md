@@ -104,7 +104,7 @@ Implemented:
 - Headless Phase 1 review for local readiness, routing, observability, Shared Context, and docs.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
-- Runtime status includes audio, turn, error, and background task summaries.
+- Runtime status includes audio, reminder due, turn, error, and background task summaries.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.

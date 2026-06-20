@@ -146,6 +146,10 @@ async function status() {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
   }, {});
+  const scheduledReminders = reminders
+    .filter((reminder) => reminder.status === 'scheduled')
+    .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+  const dueScheduled = scheduledReminders.filter((reminder) => Date.parse(reminder.remindAt) <= Date.now());
   const backgroundTasksByStatus = taskSummary.tasks.reduce((acc, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1;
     return acc;
@@ -168,6 +172,8 @@ async function status() {
     reminders: {
       total: reminders.length,
       byStatus: remindersByStatus,
+      dueScheduled: dueScheduled.length,
+      nextScheduledAt: scheduledReminders[0]?.remindAt || null,
     },
     events: {
       total: eventSummary.total,
