@@ -670,9 +670,11 @@ function testCliStatusOutput() {
     encoding: 'utf8',
     env: {
       ...process.env,
+      DASHSCOPE_API_KEY: 'smoke-key',
       HEROS_DATA_DIR: dir,
       HEROS_EVENT_LOG_PATH: logPath,
       HEROS_BACKGROUND_TASK_TIMEOUT_MS: '1234',
+      PATH: createFakeAudioPath(),
     },
   });
   if (result.status !== 0) {
@@ -728,6 +730,13 @@ function testCliStatusOutput() {
     || status.verify.latestEvent.stepCount !== 2
   ) {
     throw new Error('cli status verify report event smoke failed');
+  }
+  if (
+    status.gate.ready !== true
+    || status.gate.checks.reviewReportEventAligned !== true
+    || status.gate.checks.verifyReportEventAligned !== true
+  ) {
+    throw new Error('cli status gate summary smoke failed');
   }
   if (
     status.sessionReport.latestReport?.path !== sessionReportPath

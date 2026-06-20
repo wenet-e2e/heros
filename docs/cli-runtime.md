@@ -173,6 +173,7 @@ Implemented:
 - No-UI session report command writes milestone artifacts with event, turn, task, timeline, error, Shared Context, and runtime state summaries.
 - Session report creation events include a compact runtime state summary for milestone observability.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, verify report/event, session report/event, turn, error, and background task summaries.
+- Runtime status includes the Phase 1 gate summary for quick milestone checks.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Compact client state command previews the no-UI runtime state contract that a desktop client can consume later.
 - Compact client state output includes an explicit schema version for desktop client compatibility checks.

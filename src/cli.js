@@ -414,6 +414,42 @@ function verifyEventForReport(events, report) {
   } : null;
 }
 
+async function buildGateResult(runtime, events) {
+  const preflightReport = await collectPreflight(runtime);
+  const contextHealthReport = buildContextHealth(runtime);
+  const reviewReport = latestReviewReport(runtime.config.dataDir);
+  const reviewEvent = reviewEventForReport(events, reviewReport);
+  const verifyReport = latestVerifyReport(runtime.config.dataDir);
+  const verifyEvent = verifyEventForReport(events, verifyReport);
+  const checks = {
+    preflightReady: preflightReport.ready,
+    contextHealthReady: contextHealthReport.ready,
+    reviewReportReady: reviewReport?.ready === true,
+    reviewEventReady: reviewEvent?.ready === true,
+    reviewReportEventAligned: reviewReport && reviewEvent
+      ? reviewReport.path === reviewEvent.reportPath && reviewReport.ready === reviewEvent.ready
+      : false,
+    verifyReportOk: verifyReport?.ok === true,
+    verifyEventOk: verifyEvent?.ok === true,
+    verifyReportEventAligned: verifyReport && verifyEvent
+      ? verifyReport.path === verifyEvent.reportPath && verifyReport.ok === verifyEvent.ok
+      : false,
+  };
+  return {
+    phase: 'phase_1_no_ui_cli',
+    ready: Object.values(checks).every(Boolean),
+    checks,
+    review: {
+      latestReport: reviewReport,
+      latestEvent: reviewEvent,
+    },
+    verification: {
+      latestReport: verifyReport,
+      latestEvent: verifyEvent,
+    },
+  };
+}
+
 async function status() {
   const runtime = createRuntime({ requireApiKey: false });
   const { config, reminderStore, memoryStore, bootstrap } = runtime;
@@ -440,6 +476,7 @@ async function status() {
   const lastBackgroundTask = taskSummary.tasks[0] || null;
   const pendingClarifications = runtimeState.pendingClarifications || [];
   const contextHealthReport = buildContextHealth(runtime);
+  const gateReport = await buildGateResult(runtime, loggedEvents);
   console.log(JSON.stringify({
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
@@ -528,12 +565,16 @@ async function status() {
       total: memoryStore.list().length,
     },
     review: {
-      latestReport: latestReviewReport(config.dataDir),
-      latestEvent: latestReviewEvent(loggedEvents),
+      latestReport: gateReport.review.latestReport,
+      latestEvent: gateReport.review.latestEvent,
     },
     verify: {
-      latestReport: latestVerifyReport(config.dataDir),
-      latestEvent: latestVerifyReportEvent(loggedEvents),
+      latestReport: gateReport.verification.latestReport,
+      latestEvent: gateReport.verification.latestEvent,
+    },
+    gate: {
+      ready: gateReport.ready,
+      checks: gateReport.checks,
     },
     sessionReport: {
       latestReport: latestSessionReport(config.dataDir),
@@ -650,39 +691,7 @@ async function verificationStatus() {
 async function gate() {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
   const events = readEventLog(runtime.config.eventLogPath);
-  const preflightReport = await collectPreflight(runtime);
-  const contextHealthReport = buildContextHealth(runtime);
-  const reviewReport = latestReviewReport(runtime.config.dataDir);
-  const reviewEvent = reviewEventForReport(events, reviewReport);
-  const verifyReport = latestVerifyReport(runtime.config.dataDir);
-  const verifyEvent = verifyEventForReport(events, verifyReport);
-  const checks = {
-    preflightReady: preflightReport.ready,
-    contextHealthReady: contextHealthReport.ready,
-    reviewReportReady: reviewReport?.ready === true,
-    reviewEventReady: reviewEvent?.ready === true,
-    reviewReportEventAligned: reviewReport && reviewEvent
-      ? reviewReport.path === reviewEvent.reportPath && reviewReport.ready === reviewEvent.ready
-      : false,
-    verifyReportOk: verifyReport?.ok === true,
-    verifyEventOk: verifyEvent?.ok === true,
-    verifyReportEventAligned: verifyReport && verifyEvent
-      ? verifyReport.path === verifyEvent.reportPath && verifyReport.ok === verifyEvent.ok
-      : false,
-  };
-  const result = {
-    phase: 'phase_1_no_ui_cli',
-    ready: Object.values(checks).every(Boolean),
-    checks,
-    review: {
-      latestReport: reviewReport,
-      latestEvent: reviewEvent,
-    },
-    verification: {
-      latestReport: verifyReport,
-      latestEvent: verifyEvent,
-    },
-  };
+  const result = await buildGateResult(runtime, events);
   console.log(JSON.stringify(result, null, 2));
   if (!result.ready) {
     process.exitCode = 1;
