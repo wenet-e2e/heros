@@ -23,11 +23,14 @@ export function readEventLog(logPath) {
   return text.split(/\r?\n/).filter(Boolean).map((line, index) => parseEventLine(line, index + 1));
 }
 
-export function eventMatchesFilter(event, { backgroundTaskId, turnId, type } = {}) {
+export function eventMatchesFilter(event, { backgroundTaskId, sourceTurnId, turnId, type } = {}) {
   if (type && event.type !== type) {
     return false;
   }
   if (turnId && event.turnId !== turnId) {
+    return false;
+  }
+  if (sourceTurnId && event.sourceTurnId !== sourceTurnId && event.turnId !== sourceTurnId) {
     return false;
   }
   if (backgroundTaskId && event.backgroundTaskId !== backgroundTaskId) {
@@ -36,8 +39,8 @@ export function eventMatchesFilter(event, { backgroundTaskId, turnId, type } = {
   return true;
 }
 
-export function filterEvents(events, { backgroundTaskId, turnId, type } = {}) {
-  return events.filter((event) => eventMatchesFilter(event, { backgroundTaskId, turnId, type }));
+export function filterEvents(events, { backgroundTaskId, sourceTurnId, turnId, type } = {}) {
+  return events.filter((event) => eventMatchesFilter(event, { backgroundTaskId, sourceTurnId, turnId, type }));
 }
 
 export function summarizeEvents(events) {
@@ -144,13 +147,14 @@ export async function followEventLog(logPath, {
   onEvent,
   pollMs = 500,
   signal,
+  sourceTurnId,
   turnId,
   type,
 } = {}) {
   let offset = fromStart || !fs.existsSync(logPath) ? 0 : fs.statSync(logPath).size;
   let pending = '';
   let lineNumber = 0;
-  const filters = { backgroundTaskId, turnId, type };
+  const filters = { backgroundTaskId, sourceTurnId, turnId, type };
 
   function readNewEvents() {
     if (!fs.existsSync(logPath)) {

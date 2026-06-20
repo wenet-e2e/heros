@@ -14,6 +14,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run events:follow`: follows structured runtime events as they arrive.
 - `npm run events -- --type response.completed`: filters recent structured runtime events by type.
 - `npm run events -- --turn-id turn_xxx`: filters recent structured runtime events by turn.
+- `npm run events -- --source-turn-id turn_xxx`: filters recent structured runtime events by source turn.
 - `npm run events -- --background-task-id task_xxx`: filters recent structured runtime events by background task.
 - `npm run events:follow -- --type state.changed`: follows only matching structured runtime events.
 - `npm run event-summary`: summarizes structured runtime events by type.

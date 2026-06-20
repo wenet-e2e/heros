@@ -70,6 +70,11 @@ async function testEventLog() {
   if (malformed.type !== 'event_log.malformed' || malformed.lineNumber !== 3) {
     throw new Error('malformed event log smoke failed');
   }
+  emitEvent('smoke.source_turn', { sourceTurnId: 'turn_source' });
+  const sourceFiltered = filterEvents(readEventLog(logPath), { sourceTurnId: 'turn_source' });
+  if (sourceFiltered.length !== 1 || sourceFiltered[0].sourceTurnId !== 'turn_source') {
+    throw new Error('event source turn filter smoke failed');
+  }
 
   const controller = new AbortController();
   const followed = [];
