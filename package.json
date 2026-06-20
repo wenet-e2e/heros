@@ -1,0 +1,15 @@
+{
+  "name": "heros",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cli": "node src/cli.js",
+    "cli:once": "node src/cli.js --once",
+    "doctor": "node src/cli.js --doctor",
+    "talk": "node src/cli.js --talk"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

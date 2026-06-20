@@ -28,6 +28,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.heros/
 
 # crash logs
 crash.log
