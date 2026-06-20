@@ -9,6 +9,7 @@ import {
   likelyListMemory,
   likelyListReminders,
   likelyNextReminder,
+  likelyUpdateReminder,
   likelyMemory,
   likelyReminder,
 } from './intents.js';
@@ -126,6 +127,9 @@ export class TaskRouter {
   shouldDelegate(text) {
     if (likelyNextReminder(text)) {
       return { type: 'list_reminders', reason: 'explicit_next_reminder_request', nextOnly: true };
+    }
+    if (likelyUpdateReminder(text)) {
+      return { type: 'update_reminder', reason: 'explicit_update_reminder_request' };
     }
     if (likelyListReminders(text)) {
       return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };

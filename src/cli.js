@@ -423,7 +423,8 @@ function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
   }
-  return decision.type === 'reminder' ? 'background_agent' : 'local_task_router';
+  const localTaskTypes = new Set(['cancel_reminder', 'forget_memory', 'list_memory', 'list_reminders', 'memory']);
+  return localTaskTypes.has(decision.type) ? 'local_task_router' : 'background_agent';
 }
 
 async function routeText(text) {
@@ -473,7 +474,7 @@ async function taskText(text) {
     }, null, 2));
     return;
   }
-  if (decision.type === 'reminder' && !runtime.config.dashscopeApiKey) {
+  if (routeTarget(decision) === 'background_agent' && !runtime.config.dashscopeApiKey) {
     throw new Error('DASHSCOPE_API_KEY is required for background reminder tasks.');
   }
 

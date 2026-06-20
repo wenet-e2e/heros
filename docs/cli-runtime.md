@@ -101,6 +101,7 @@ Implemented:
 - Headless local reminder and memory mutations write structured events without polluting JSON output.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing and next-reminder query.
+- Background-agent reminder updates for natural-language schedule changes.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Due reminder announcements include reminder IDs for event-log correlation.

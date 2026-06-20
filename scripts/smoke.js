@@ -11,7 +11,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder } from '../src/intents.js';
+import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder, likelyUpdateReminder } from '../src/intents.js';
 import {
   filterEvents,
   followEventLog,
@@ -668,6 +668,19 @@ function testCliRouteCommand() {
     throw new Error('cli route reminder output smoke failed');
   }
 
+  const updateResult = spawnSync(process.execPath, ['src/cli.js', '--route', '把喝水提醒改到明天十点'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (updateResult.status !== 0) {
+    throw new Error(`cli route update reminder smoke failed: ${updateResult.stderr || updateResult.stdout}`);
+  }
+  const updateRoute = JSON.parse(updateResult.stdout);
+  if (!updateRoute.delegatesToBackground || updateRoute.handledBy !== 'background_agent' || updateRoute.taskType !== 'update_reminder') {
+    throw new Error('cli route update reminder output smoke failed');
+  }
+
   const chatResult = spawnSync(process.execPath, ['src/cli.js', '--route', '你怎么看这个观点？'], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -1191,6 +1204,60 @@ async function testBackgroundAgentReminderCreatedEvent() {
   configureEvents();
 }
 
+async function testBackgroundAgentReminderUpdatedEvent() {
+  const dir = createTempDir('heros-agent-updated-event-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const reminderStore = new ReminderStore(dir);
+  const original = reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const updatedAt = new Date(Date.now() + 120000).toISOString();
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text() {
+        return JSON.stringify({
+          action: 'update_reminder',
+          reminderId: original.id,
+          title: '',
+          remindAt: updatedAt,
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  const result = await agent.handleTask({
+    backgroundTaskId: 'task_updated_event',
+    turnId: 'turn_updated_event',
+    userText: '把喝水提醒改到两分钟后',
+    context: {
+      reminders: {
+        scheduled: [original],
+      },
+    },
+  });
+  const events = readEventLog(logPath);
+  const updatedEvent = events.find((event) => event.type === 'reminder.updated');
+  const toolEvent = events.find((event) => event.type === 'tool_call.completed');
+  if (
+    result.type !== 'reminder_updated'
+    || result.reminder.id !== original.id
+    || result.reminder.remindAt !== updatedAt
+    || updatedEvent?.backgroundTaskId !== 'task_updated_event'
+    || updatedEvent.turnId !== 'turn_updated_event'
+    || toolEvent?.toolName !== 'update_reminder'
+  ) {
+    throw new Error('background agent reminder updated event smoke failed');
+  }
+  configureEvents();
+}
+
 async function testBackgroundAgentAbortBeforeToolCall() {
   const dir = createTempDir('heros-agent-abort-');
   const reminderStore = new ReminderStore(dir);
@@ -1542,6 +1609,9 @@ function testIntentBoundaries() {
   }
   if (!likelyNextReminder('下一个提醒是什么？')) {
     throw new Error('next reminder intent smoke failed');
+  }
+  if (!likelyUpdateReminder('把喝水提醒改到明天十点')) {
+    throw new Error('update reminder intent smoke failed');
   }
   if (!likelyListMemory('你记得什么？')) {
     throw new Error('list memory intent smoke failed');
@@ -2009,6 +2079,7 @@ await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 await testBackgroundAgentLifecycleEvents();
 await testBackgroundAgentReminderCreatedEvent();
+await testBackgroundAgentReminderUpdatedEvent();
 await testBackgroundAgentAbortBeforeToolCall();
 await testDashScopeExternalAbortReason();
 console.log('smoke ok');
