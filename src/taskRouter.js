@@ -102,6 +102,16 @@ function backgroundTaskStatus(result) {
   return result.type;
 }
 
+function emitNeedsClarification({ backgroundTaskId, turnId, question, reason, candidates }) {
+  emitEvent('background_task.needs_clarification', {
+    backgroundTaskId,
+    turnId,
+    question,
+    reason,
+    candidates,
+  });
+}
+
 export class TaskRouter {
   constructor({ backgroundAgent, context, memoryStore, reminderStore, taskTimeoutMs = 60000, timeZone }) {
     this.backgroundAgent = backgroundAgent;
@@ -318,6 +328,12 @@ export class TaskRouter {
         status: 'needs_clarification',
         result: { query },
       });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '你想取消哪一个提醒？可以说一下提醒内容。',
+        reason: 'missing_cancel_reminder_query',
+      });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_needs_clarification' } });
       emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
@@ -355,6 +371,17 @@ export class TaskRouter {
         type: 'cancel_reminder',
         status: 'ambiguous',
         result: { query, count: matches.length },
+      });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '找到多个相关提醒，需要你说得更具体一点。',
+        reason: 'ambiguous_cancel_reminder_query',
+        candidates: matches.slice(0, 5).map((reminder) => ({
+          id: reminder.id,
+          title: reminder.title,
+          remindAt: reminder.remindAt,
+        })),
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
       emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
@@ -452,6 +479,16 @@ export class TaskRouter {
         type: 'forget_memory',
         status: 'ambiguous',
         result: { query, count: matches.length },
+      });
+      emitNeedsClarification({
+        backgroundTaskId,
+        turnId,
+        question: '找到多条相关记忆，需要你说得更具体一点。',
+        reason: 'ambiguous_forget_memory_query',
+        candidates: matches.slice(0, 5).map((memory) => ({
+          id: memory.id,
+          content: memory.content,
+        })),
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_ambiguous', query, count: matches.length } });
       emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });

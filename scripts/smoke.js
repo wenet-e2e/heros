@@ -997,6 +997,8 @@ async function testVoiceLoopShutdownCancelsBackgroundTasks() {
 
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
   const reminderStore = new ReminderStore(dir);
   const reminder = reminderStore.create({
     title: '喝水',
@@ -1024,6 +1026,11 @@ function testTaskRouterCancelReminder() {
   if (clarify.type !== 'cancel_reminder_needs_clarification') {
     throw new Error('empty cancel reminder query did not clarify');
   }
+  const clarificationEvent = readEventLog(logPath).find((event) => event.type === 'background_task.needs_clarification');
+  if (clarificationEvent?.reason !== 'missing_cancel_reminder_query') {
+    throw new Error('cancel reminder clarification event smoke failed');
+  }
+  configureEvents();
 }
 
 function testTaskRouterListReminders() {
