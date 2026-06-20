@@ -263,6 +263,7 @@ export class DashScopeRealtimeClient extends EventEmitter {
     voice = 'Ethan',
     instructions,
     turnDetection = null,
+    inputAudioTranscription,
     enableSearch = false,
   }) {
     const session = {
@@ -273,6 +274,9 @@ export class DashScopeRealtimeClient extends EventEmitter {
       instructions,
       turn_detection: turnDetection,
     };
+    if (inputAudioTranscription) {
+      session.input_audio_transcription = inputAudioTranscription;
+    }
     if (enableSearch) {
       session.enable_search = true;
       session.search_options = { enable_source: true };

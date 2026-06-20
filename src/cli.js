@@ -5,6 +5,7 @@ import readline from 'node:readline/promises';
 import process from 'node:process';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
+import { commandExists } from './audio.js';
 import { getConfig } from './config.js';
 import { DashScopeClient } from './dashscope.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
@@ -12,22 +13,19 @@ import { SharedContext } from './context.js';
 import { ReminderStore } from './reminders.js';
 import { BackgroundAgent } from './backgroundAgent.js';
 import { CliInteractionModel } from './interactionModel.js';
-
-const HEROS_INSTRUCTIONS = [
-  '你是 HerOS，一个受到电影《HER》启发的个人 AI。',
-  '你要像一个自然、温暖、聪明的长期伙伴一样对话，也要在需要时把复杂任务交给后台能力更强的 LLM/Agent。',
-  '实时语音层优先保持低延迟、可打断、自然简洁；复杂推理、长期任务、工具执行由后台模型完成。',
-  '默认使用中文，除非用户明确使用其他语言。',
-].join('\n');
+import { VoiceLoop } from './voiceLoop.js';
+import { ensureAgentBootstrap } from './bootstrap.js';
 
 function createRuntime() {
   const config = getConfig();
   const client = new DashScopeClient({
     apiKey: config.dashscopeApiKey,
     baseUrl: config.dashscopeBaseUrl,
+    timeoutMs: config.dashscopeRequestTimeoutMs,
   });
   const context = new SharedContext();
   const reminderStore = new ReminderStore(config.dataDir);
+  const bootstrap = ensureAgentBootstrap(config.dataDir);
   const backgroundAgent = new BackgroundAgent({
     client,
     model: config.backgroundModel,
@@ -40,7 +38,7 @@ function createRuntime() {
     backgroundAgent,
     context,
   });
-  return { config, client, interactionModel, reminderStore };
+  return { config, client, interactionModel, reminderStore, bootstrap };
 }
 
 function createRealtimeClient(config) {
@@ -48,13 +46,6 @@ function createRealtimeClient(config) {
     apiKey: config.dashscopeApiKey,
     url: config.realtimeUrl,
     model: config.realtimeModel,
-  });
-}
-
-function commandExists(command) {
-  return new Promise((resolve) => {
-    const child = spawn('which', [command], { stdio: 'ignore' });
-    child.on('close', (code) => resolve(code === 0));
   });
 }
 
@@ -69,22 +60,27 @@ async function checkRealtime(config) {
   realtime.updateSession({
     modalities: ['text', 'audio'],
     voice: config.realtimeVoice,
-    instructions: HEROS_INSTRUCTIONS,
+    instructions: config.realtimeInstructions,
     turnDetection: null,
+    inputAudioTranscription: {
+      model: config.realtimeInputTranscriptionModel,
+    },
   });
   await realtime.waitFor('session.updated', 15000);
   realtime.close();
 }
 
 async function doctor() {
-  const { config, client } = createRuntime();
+  const { config, client, bootstrap } = createRuntime();
   console.log(`DashScope base URL: ${config.dashscopeBaseUrl}`);
+  console.log(`DashScope request timeout: ${config.dashscopeRequestTimeoutMs}ms`);
   console.log(`Realtime URL: ${config.realtimeUrl}`);
   console.log(`Realtime model: ${config.realtimeModel}`);
   console.log(`Realtime voice: ${config.realtimeVoice}`);
   console.log(`Background model: ${config.backgroundModel}`);
   console.log(`Time zone: ${config.timeZone}`);
   console.log(`Data dir: ${config.dataDir}`);
+  console.log(`Agent bootstrap dir: ${bootstrap.targetDir}`);
   console.log('Checking realtime WebSocket session...');
   await checkRealtime(config);
   console.log('Realtime session OK.');
@@ -132,6 +128,19 @@ async function interactive() {
   rl.close();
 }
 
+async function voiceLoop({ playAudio = true } = {}) {
+  const runtime = createRuntime();
+  const realtime = createRealtimeClient(runtime.config);
+  const loop = new VoiceLoop({
+    config: runtime.config,
+    realtime,
+    backgroundAgent: runtime.interactionModel.backgroundAgent,
+    context: runtime.interactionModel.context,
+    playAudio,
+  });
+  await loop.start();
+}
+
 async function talkOnce({ playAudio = true } = {}) {
   const { config } = createRuntime();
   const hasRec = await commandExists('rec');
@@ -177,8 +186,11 @@ async function talkOnce({ playAudio = true } = {}) {
   realtime.updateSession({
     modalities: ['text', 'audio'],
     voice: config.realtimeVoice,
-    instructions: HEROS_INSTRUCTIONS,
+    instructions: config.realtimeInstructions,
     turnDetection: null,
+    inputAudioTranscription: {
+      model: config.realtimeInputTranscriptionModel,
+    },
   });
   await realtime.waitFor('session.updated', 15000);
 
@@ -222,6 +234,7 @@ function printUsage() {
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run cli               Start typed CLI fallback.',
+    '  npm run voice             Start continuous realtime voice loop.',
     '  npm run cli -- --talk     Record one voice turn with Qwen-Omni-Realtime.',
     '  npm run cli -- --once hi  Send one typed fallback turn.',
     '',
@@ -237,6 +250,8 @@ const args = process.argv.slice(2);
 try {
   if (args[0] === '--doctor') {
     await doctor();
+  } else if (args[0] === '--voice-loop') {
+    await voiceLoop({ playAudio: args[1] !== '--no-play' });
   } else if (args[0] === '--talk') {
     await talkOnce({ playAudio: args[1] !== '--no-play' });
   } else if (args[0] === '--help' || args[0] === '-h') {
