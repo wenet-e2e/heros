@@ -11,6 +11,7 @@ import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
 import { filterEvents, followEventLog, readEventLog, summarizeBackgroundTasks, summarizeEvents } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
+import { emitEvent } from './events.js';
 
 function createRealtimeClient(config) {
   return new DashScopeRealtimeClient({
@@ -70,6 +71,10 @@ async function checkRealtime(config) {
 
 async function doctor() {
   const { config, client, bootstrap } = createRuntime();
+  emitEvent('doctor.started', {
+    realtimeModel: config.realtimeModel,
+    backgroundModel: config.backgroundModel,
+  });
   console.log(`DashScope base URL: ${config.dashscopeBaseUrl}`);
   console.log(`DashScope request timeout: ${config.dashscopeRequestTimeoutMs}ms`);
   console.log(`Realtime URL: ${config.realtimeUrl}`);
@@ -87,18 +92,29 @@ async function doctor() {
   console.log(`Audio recorder available: ${await commandExists('rec')}`);
   console.log(`Audio player available: ${await commandExists('play')}`);
   console.log('Checking realtime WebSocket session...');
-  await checkRealtime(config);
-  console.log('Realtime session OK.');
-  console.log('Checking background LLM...');
-  const reply = await client.text({
-    model: config.backgroundModel,
-    temperature: 0.2,
-    messages: [
-      { role: 'system', content: '用一句中文短句回答。' },
-      { role: 'user', content: '介绍你自己。' },
-    ],
-  });
-  console.log(`Background LLM OK: ${reply}`);
+  try {
+    await checkRealtime(config);
+    emitEvent('doctor.realtime_ok', { model: config.realtimeModel });
+    console.log('Realtime session OK.');
+    console.log('Checking background LLM...');
+    const reply = await client.text({
+      model: config.backgroundModel,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: '用一句中文短句回答。' },
+        { role: 'user', content: '介绍你自己。' },
+      ],
+    });
+    emitEvent('doctor.background_ok', { model: config.backgroundModel });
+    emitEvent('doctor.completed', {
+      realtimeModel: config.realtimeModel,
+      backgroundModel: config.backgroundModel,
+    });
+    console.log(`Background LLM OK: ${reply}`);
+  } catch (error) {
+    emitEvent('doctor.failed', { message: error.message });
+    throw error;
+  }
 }
 
 async function once(text) {

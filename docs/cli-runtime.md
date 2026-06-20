@@ -53,6 +53,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 Implemented:
 
 - DashScope Realtime WebSocket session check.
+- Doctor emits structured started/ok/failed/completed events for connectivity checks.
 - Realtime connection retry events for transient WebSocket startup failures.
 - Continuous VAD voice loop with microphone input and PCM audio output.
 - User interrupt handling by cancelling the active realtime response.
