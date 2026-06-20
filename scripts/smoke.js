@@ -1125,6 +1125,9 @@ async function testTaskRouterTurnLink() {
 }
 
 async function testTaskRouterBackgroundFailure() {
+  const dir = createTempDir('heros-router-background-failure-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
   const context = new SharedContext();
   const router = new TaskRouter({
     context,
@@ -1144,6 +1147,11 @@ async function testTaskRouterBackgroundFailure() {
   if (task.status !== 'background_failed' || task.turnId !== 'turn_failure') {
     throw new Error('task router background failure context smoke failed');
   }
+  const errors = summarizeErrors(readEventLog(logPath));
+  if (errors.total !== 1 || errors.errors[0].type !== 'background_task.failed') {
+    throw new Error('task router background failure error event smoke failed');
+  }
+  configureEvents();
 }
 
 async function testTaskRouterBackgroundClarification() {

@@ -82,6 +82,7 @@ Implemented:
 - Background Agent emits `agent.started` and `agent.completed` lifecycle events around model decisions.
 - Background Agent emits `background_task.progress` after model decisions for CLI/UI progress mapping.
 - Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
+- Background Agent unexpected failures emit structured failed events for error summaries.
 - Background LLM requests preserve external cancellation reasons instead of collapsing them into request timeouts.
 - Background and local-router clarification results are tracked as `needs_clarification` events/context.
 - Background task result announcements through the same realtime audio outlet.

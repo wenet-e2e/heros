@@ -217,6 +217,11 @@ export class TaskRouter {
           message: '后台任务执行失败了，可以稍后再试一次。',
           error: error.message,
         };
+        emitEvent('background_task.failed', {
+          backgroundTaskId,
+          turnId,
+          message: error.message,
+        });
       }
       emitEvent('background_task.completed', {
         backgroundTaskId,
