@@ -9,7 +9,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run smoke:background`: network smoke test for Background Agent reminder creation and update in a temp data dir.
 - `npm run smoke:realtime`: network smoke test for realtime text injection and spoken transcript.
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
-- `npm run status`: prints local runtime status without network calls.
+- `npm run status`: prints local runtime status and local task routing boundary without network calls.
 - `npm run events`: prints recent structured runtime events.
 - `npm run events:follow`: follows structured runtime events as they arrive.
 - `npm run events -- --type response.completed`: filters recent structured runtime events by type.
@@ -135,7 +135,7 @@ Implemented:
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.
-- Runtime status includes audio, next reminder, review report/event, turn, error, and background task summaries.
+- Runtime status includes audio, next reminder, local task router boundary, review report/event, turn, error, and background task summaries.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Shared Context and Phase 1 review expose which deterministic task types are handled locally before Background Agent delegation.

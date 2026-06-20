@@ -493,6 +493,13 @@ function testCliStatusOutput() {
     throw new Error('cli status background task summary smoke failed');
   }
   if (
+    !status.localTaskRouter.handledLocally.includes('cancel_reminder')
+    || !status.localTaskRouter.handledLocally.includes('update_memory')
+    || !status.localTaskRouter.handledLocally.includes('forget_memory')
+  ) {
+    throw new Error('cli status local task router summary smoke failed');
+  }
+  if (
     status.reminders.dueScheduled !== 0
     || status.reminders.nextScheduledAt !== reminder.remindAt
     || status.reminders.nextScheduled?.title !== '喝水'

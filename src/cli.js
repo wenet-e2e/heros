@@ -327,6 +327,9 @@ async function status() {
       lastTaskStatus: lastBackgroundTask?.status || null,
       lastTaskUpdatedAt: lastBackgroundTask?.updatedAt || null,
     },
+    localTaskRouter: {
+      handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY,
+    },
     runtimeState: {
       state: runtimeState.state,
       reason: runtimeState.reason,
