@@ -17,6 +17,10 @@ export class ReminderStore {
   }
 
   create({ title, remindAt, note }) {
+    const reminderTitle = String(title || '').trim();
+    if (!reminderTitle) {
+      throw new Error('Reminder title is empty');
+    }
     const remindAtMs = Date.parse(remindAt);
     if (!Number.isFinite(remindAtMs)) {
       throw new Error(`Invalid reminder time: ${remindAt}`);
@@ -24,9 +28,9 @@ export class ReminderStore {
     const reminders = this.list();
     const reminder = {
       id: crypto.randomUUID(),
-      title,
+      title: reminderTitle,
       remindAt,
-      note: note || '',
+      note: String(note || '').trim(),
       status: 'scheduled',
       createdAt: new Date().toISOString(),
     };

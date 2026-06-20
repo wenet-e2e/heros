@@ -83,6 +83,15 @@ function testReminderScheduler() {
   if (!refused) {
     throw new Error('invalid reminder time was not refused');
   }
+  refused = false;
+  try {
+    store.create({ title: '', remindAt: new Date(Date.now() + 60000).toISOString(), note: '' });
+  } catch {
+    refused = true;
+  }
+  if (!refused) {
+    throw new Error('empty reminder title was not refused');
+  }
 
   const future = store.create({
     title: 'future',
