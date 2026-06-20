@@ -797,6 +797,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
   const bareCancelReminderRoute = runtime.taskRouter.shouldDelegate('取消提醒');
   const cancelNextReminderRoute = runtime.taskRouter.shouldDelegate('取消下一个提醒');
   const updateMemoryRoute = runtime.taskRouter.shouldDelegate('把记忆里短回答改成用户喜欢详细回答');
+  const bareForgetMemoryRoute = runtime.taskRouter.shouldDelegate('忘记');
   const chatRoute = runtime.taskRouter.shouldDelegate('你怎么看这个观点？');
   runtime.context.addBackgroundTask({
     backgroundTaskId: 'review_pending_cancel_reminder',
@@ -812,6 +813,13 @@ async function phaseOneReview({ writeReport = false } = {}) {
     result: { action: 'update_memory_needs_clarification' },
   });
   const pendingUpdateMemoryRoute = runtime.taskRouter.shouldDelegate('短回答改成用户喜欢详细回答');
+  runtime.context.addBackgroundTask({
+    backgroundTaskId: 'review_pending_forget_memory',
+    type: 'forget_memory',
+    status: 'needs_clarification',
+    result: { action: 'forget_memory_needs_clarification' },
+  });
+  const pendingForgetMemoryRoute = runtime.taskRouter.shouldDelegate('短回答');
   const routing = {
     createReminderDelegatesToBackground: reminderRoute?.type === 'reminder',
     updateReminderDelegatesToBackground: updateReminderRoute?.type === 'update_reminder',
@@ -827,6 +835,10 @@ async function phaseOneReview({ writeReport = false } = {}) {
     pendingUpdateMemoryHandledLocally: pendingUpdateMemoryRoute?.type === 'update_memory'
       && pendingUpdateMemoryRoute.reason === 'pending_clarification_response'
       && pendingUpdateMemoryRoute.pendingBackgroundTaskId === 'review_pending_update_memory',
+    bareForgetMemoryClarifiesLocally: bareForgetMemoryRoute?.type === 'forget_memory',
+    pendingForgetMemoryHandledLocally: pendingForgetMemoryRoute?.type === 'forget_memory'
+      && pendingForgetMemoryRoute.reason === 'pending_clarification_response'
+      && pendingForgetMemoryRoute.pendingBackgroundTaskId === 'review_pending_forget_memory',
     chatStaysRealtime: !chatRoute,
   };
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));

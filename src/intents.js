@@ -74,7 +74,8 @@ export function extractForgetMemoryQuery(text) {
 }
 
 export function likelyForgetMemory(text) {
-  return Boolean(extractForgetMemoryQuery(text));
+  const trimmed = text.trim();
+  return Boolean(extractForgetMemoryQuery(trimmed)) || /^(忘记|忘掉|删除记忆|不要记得)$/.test(trimmed);
 }
 
 export function extractCancelReminderQuery(text) {

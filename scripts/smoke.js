@@ -1255,6 +1255,8 @@ function testCliReviewCommand() {
     || review.checks.routing.pendingCancelReminderHandledLocally !== true
     || review.checks.routing.updateMemoryHandledLocally !== true
     || review.checks.routing.pendingUpdateMemoryHandledLocally !== true
+    || review.checks.routing.bareForgetMemoryClarifiesLocally !== true
+    || review.checks.routing.pendingForgetMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
     || review.checks.commandSurface.scenario !== true
     || review.checks.commandSurface.taskDetail !== true
@@ -1960,7 +1962,7 @@ async function testTaskRouterBackgroundContextPackage() {
   }
 }
 
-function testTaskRouterForgetMemory() {
+async function testTaskRouterForgetMemory() {
   const dir = createTempDir('heros-router-forget-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
   memoryStore.create('用户喜欢安静的语音风格');
@@ -1981,6 +1983,32 @@ function testTaskRouterForgetMemory() {
   }
   if (context.snapshot().longTermMemory.length !== 0) {
     throw new Error('task router forget memory context smoke failed');
+  }
+
+  const pendingDir = createTempDir('heros-router-pending-forget-memory-');
+  const pendingMemoryStore = new MemoryStore(path.join(pendingDir, 'MEMORY.md'));
+  pendingMemoryStore.create('用户喜欢短回答');
+  const pendingContext = new SharedContext();
+  pendingContext.setLongTermMemory(pendingMemoryStore.list());
+  const pendingRouter = new TaskRouter({
+    context: pendingContext,
+    memoryStore: pendingMemoryStore,
+    reminderStore: null,
+    backgroundAgent: null,
+  });
+  const pendingClarify = await pendingRouter.maybeHandle('忘记', { turnId: 'turn_forget_memory_pending' });
+  const pendingDecision = pendingRouter.shouldDelegate('短回答');
+  const pendingResult = await pendingRouter.maybeHandle('短回答', { turnId: 'turn_forget_memory_answer' });
+  if (
+    pendingClarify.type !== 'forget_memory_needs_clarification'
+    || pendingDecision?.type !== 'forget_memory'
+    || pendingDecision.reason !== 'pending_clarification_response'
+    || pendingDecision.pendingBackgroundTaskId !== pendingClarify.backgroundTaskId
+    || pendingResult.type !== 'memory_deleted'
+    || pendingMemoryStore.list().length !== 0
+    || pendingContext.snapshot().longTermMemory.length !== 0
+  ) {
+    throw new Error('task router pending forget memory smoke failed');
   }
 }
 
@@ -2129,6 +2157,9 @@ function testIntentBoundaries() {
   }
   if (!likelyForgetMemory('删除记忆用户喜欢安静的语音风格')) {
     throw new Error('delete memory intent smoke failed');
+  }
+  if (!likelyForgetMemory('忘记')) {
+    throw new Error('bare forget memory intent smoke failed');
   }
   if (likelyCancelReminder('删除记忆用户喜欢安静的语音风格')) {
     throw new Error('delete memory was misclassified as cancel reminder');
@@ -2673,7 +2704,7 @@ await testTaskRouterBackgroundClarification();
 await testTaskRouterBackgroundTimeout();
 await testTaskRouterBackgroundCancellation();
 await testTaskRouterBackgroundContextPackage();
-testTaskRouterForgetMemory();
+await testTaskRouterForgetMemory();
 await testTaskRouterUpdateMemory();
 await testTaskRouterCancelReminder();
 testTaskRouterListReminders();

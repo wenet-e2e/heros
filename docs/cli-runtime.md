@@ -116,7 +116,7 @@ Implemented:
 - Due reminder announcements include reminder IDs for event-log correlation.
 - Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing/update, and safe natural-language memory deletion.
-- Natural-language memory update can ask for missing details and continue from the follow-up utterance.
+- Natural-language memory update and deletion can ask for missing details and continue from the follow-up utterance.
 - Headless long-term memory CRUD commands.
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Headless agent bootstrap status command.
@@ -126,7 +126,7 @@ Implemented:
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
-- Phase 1 review covers bare and pending reminder cancellation routing plus pending memory update routing.
+- Phase 1 review covers bare and pending reminder cancellation routing, pending memory update routing, and pending memory deletion routing.
 - Phase 1 review also checks the key CLI command surface for no-UI regression coverage.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Error summary command reconstructed from structured runtime events.
