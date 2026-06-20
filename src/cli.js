@@ -62,6 +62,8 @@ async function doctor() {
   console.log(`Data dir: ${config.dataDir}`);
   console.log(`Event log path: ${config.eventLogPath}`);
   console.log(`Agent bootstrap dir: ${bootstrap.targetDir}`);
+  console.log(`Audio recorder available: ${await commandExists('rec')}`);
+  console.log(`Audio player available: ${await commandExists('play')}`);
   console.log('Checking realtime WebSocket session...');
   await checkRealtime(config);
   console.log('Realtime session OK.');
