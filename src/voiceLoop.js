@@ -148,6 +148,7 @@ export class VoiceLoop {
         this.isResponding = false;
         emitEvent('response.completed', {
           backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
+          sourceTurnId: this.activeAnnouncement?.turnId,
           source: this.activeAnnouncement?.source || 'realtime',
           turnId: this.currentAssistantTurnId,
         });
@@ -265,19 +266,20 @@ export class VoiceLoop {
     });
   }
 
-  enqueueAnnouncement(message, { backgroundTaskId, source = 'background_task', turnEpoch = this.turnEpoch } = {}) {
+  enqueueAnnouncement(message, { backgroundTaskId, source = 'background_task', turnEpoch = this.turnEpoch, turnId } = {}) {
     if (turnEpoch < this.turnEpoch) {
       emitEvent('announcement.skipped', {
         backgroundTaskId,
         source,
         reason: 'stale_turn',
         turnEpoch,
+        turnId,
         currentTurnEpoch: this.turnEpoch,
       });
       return;
     }
-    this.announcementQueue.push({ message, backgroundTaskId, source, turnEpoch });
-    emitEvent('announcement.queued', { backgroundTaskId, source, text: message, turnEpoch });
+    this.announcementQueue.push({ message, backgroundTaskId, source, turnEpoch, turnId });
+    emitEvent('announcement.queued', { backgroundTaskId, source, text: message, turnEpoch, turnId });
     this.drainAnnouncements();
   }
 
@@ -292,6 +294,7 @@ export class VoiceLoop {
         source: announcement.source,
         reason: 'stale_turn',
         turnEpoch: announcement.turnEpoch,
+        turnId: announcement.turnId,
         currentTurnEpoch: this.turnEpoch,
       });
       this.drainAnnouncements();
@@ -305,6 +308,7 @@ export class VoiceLoop {
       text: announcement.message,
       outlet: 'realtime',
       turnEpoch: announcement.turnEpoch,
+      turnId: announcement.turnId,
     });
     try {
       this.realtime.createUserTextMessage([
@@ -319,6 +323,7 @@ export class VoiceLoop {
         source: announcement.source,
         outlet: 'realtime',
         turnEpoch: announcement.turnEpoch,
+        turnId: announcement.turnId,
       });
     } catch (error) {
       emitEvent('announcement.failed', {
@@ -327,6 +332,7 @@ export class VoiceLoop {
         outlet: 'realtime',
         message: error.message,
         turnEpoch: announcement.turnEpoch,
+        turnId: announcement.turnId,
       });
     } finally {
       this.isAnnouncing = false;

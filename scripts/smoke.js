@@ -789,10 +789,16 @@ function testStaleAnnouncementSkip() {
   loop.enqueueAnnouncement('old result', {
     backgroundTaskId: 'task_old',
     turnEpoch: 1,
+    turnId: 'turn_old',
   });
   const events = readEventLog(logPath);
   const skipped = events.find((event) => event.type === 'announcement.skipped');
-  if (!skipped || skipped.reason !== 'stale_turn' || skipped.backgroundTaskId !== 'task_old') {
+  if (
+    !skipped
+    || skipped.reason !== 'stale_turn'
+    || skipped.backgroundTaskId !== 'task_old'
+    || skipped.turnId !== 'turn_old'
+  ) {
     throw new Error('stale announcement skip smoke failed');
   }
   configureEvents();
@@ -854,11 +860,16 @@ function testVoiceLoopAnnouncementResponseCorrelation() {
   loop.activeAnnouncement = {
     backgroundTaskId: 'task_announcement',
     source: 'background_task',
+    turnId: 'turn_user_source',
   };
   loop.currentAssistantTurnId = 'turn_announcement';
   realtime.emit('event', { type: 'response.done' });
   const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
-  if (completed?.backgroundTaskId !== 'task_announcement' || completed.source !== 'background_task') {
+  if (
+    completed?.backgroundTaskId !== 'task_announcement'
+    || completed.source !== 'background_task'
+    || completed.sourceTurnId !== 'turn_user_source'
+  ) {
     throw new Error('voice loop announcement response correlation smoke failed');
   }
   configureEvents();
