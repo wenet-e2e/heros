@@ -375,6 +375,9 @@ function testCliStatusOutput() {
   if (status.turns.total !== 0 || status.errors.total !== 0) {
     throw new Error('cli status turn/error summary smoke failed');
   }
+  if (typeof status.audio.recorderAvailable !== 'boolean' || typeof status.audio.playerAvailable !== 'boolean') {
+    throw new Error('cli status audio summary smoke failed');
+  }
 }
 
 function testCliRuntimeStateCommand() {

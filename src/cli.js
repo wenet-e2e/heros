@@ -160,6 +160,10 @@ async function status() {
     eventLogPath: config.eventLogPath,
     bootstrapDir: bootstrap.targetDir,
     bootstrapFiles: bootstrap.files.length,
+    audio: {
+      recorderAvailable: await commandExists('rec'),
+      playerAvailable: await commandExists('play'),
+    },
     reminders: {
       total: reminders.length,
       byStatus: remindersByStatus,
