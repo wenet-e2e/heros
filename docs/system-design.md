@@ -130,6 +130,7 @@ Realtime Interaction Model 负责判断是否需要委托后台能力：
 - 保存 Interaction Model 与 Background LLM/Agent 都可访问的上下文。
 - 内容包括当前轮语音转写、用户目标、打断状态、后台任务状态、工具结果和必要长期记忆摘要。
 - Background LLM/Agent 接收的是 rich context package，而不是孤立 query。
+- rich context package 包含 Local Task Router 的本地处理能力边界，避免后台模型重复处理确定性本地任务。
 - 不额外引入独立 ASR/NLU/TTS 管线；文本和结构化事件只是 Interaction Model 的派生上下文。
 
 ### 5.4 Background LLM/Agent 模块

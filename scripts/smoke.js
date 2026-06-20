@@ -2064,6 +2064,8 @@ async function testTaskRouterBackgroundContextPackage() {
     || receivedContext.reminders.totalScheduled !== 1
     || receivedContext.reminders.scheduled[0].title !== '喝水'
     || receivedContext.longTermMemory.total !== 1
+    || !receivedContext.localTaskRouter.handledLocally.includes('cancel_reminder')
+    || !receivedContext.localTaskRouter.handledLocally.includes('update_memory')
     || !receivedContext.sharedContext
   ) {
     throw new Error('task router background context package smoke failed');

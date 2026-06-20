@@ -221,6 +221,16 @@ export class TaskRouter {
       runtime: {
         timeZone: this.timeZone,
       },
+      localTaskRouter: {
+        handledLocally: [
+          'cancel_reminder',
+          'forget_memory',
+          'list_memory',
+          'list_reminders',
+          'memory',
+          'update_memory',
+        ],
+      },
       sharedContext,
       pendingClarification,
       reminders: {
