@@ -674,6 +674,35 @@ function testConfigNumberFallback() {
   }
 }
 
+function testEnvExampleCoverage() {
+  const text = fs.readFileSync('.env.example', 'utf8');
+  const expected = [
+    'DASHSCOPE_API_KEY',
+    'DASHSCOPE_BASE_URL',
+    'DASHSCOPE_REQUEST_TIMEOUT_MS',
+    'HEROS_REALTIME_URL',
+    'HEROS_REALTIME_MODEL',
+    'HEROS_REALTIME_VOICE',
+    'HEROS_REALTIME_INPUT_TRANSCRIPTION_MODEL',
+    'HEROS_REALTIME_TURN_DETECTION',
+    'HEROS_REALTIME_VAD_THRESHOLD',
+    'HEROS_REALTIME_VAD_PREFIX_PADDING_MS',
+    'HEROS_REALTIME_VAD_SILENCE_DURATION_MS',
+    'HEROS_REALTIME_CONNECT_RETRIES',
+    'HEROS_REALTIME_CONNECT_RETRY_DELAY_MS',
+    'HEROS_BACKGROUND_MODEL',
+    'HEROS_BACKGROUND_TASK_TIMEOUT_MS',
+    'HEROS_TIME_ZONE',
+    'HEROS_DATA_DIR',
+    'HEROS_EVENT_LOG_PATH',
+    'HEROS_REMINDER_POLL_MS',
+  ];
+  const missing = expected.filter((name) => !new RegExp(`^${name}=`, 'm').test(text));
+  if (missing.length > 0) {
+    throw new Error(`env example missing keys: ${missing.join(', ')}`);
+  }
+}
+
 async function testBackgroundAgentInvalidReminder() {
   const dir = createTempDir('heros-agent-');
   const reminderStore = new ReminderStore(dir);
@@ -1446,6 +1475,7 @@ testCliBootstrapCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();
+testEnvExampleCoverage();
 testSharedContextRedaction();
 await testCliBackgroundResponseCorrelation();
 testIntentBoundaries();
