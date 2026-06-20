@@ -1524,6 +1524,9 @@ function testIntentBoundaries() {
   if (!likelyListReminders('我有哪些提醒？')) {
     throw new Error('list reminders intent smoke failed');
   }
+  if (!likelyListReminders('查询一下提醒') || !likelyListReminders('下一个提醒是什么？')) {
+    throw new Error('natural list reminders intent smoke failed');
+  }
   if (!likelyListMemory('你记得什么？')) {
     throw new Error('list memory intent smoke failed');
   }
