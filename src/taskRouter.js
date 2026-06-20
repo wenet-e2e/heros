@@ -61,14 +61,26 @@ export class TaskRouter {
       return reminder.title.includes(query) || reminder.note?.includes(query);
     });
     if (matches.length === 0) {
+      this.context.addBackgroundTask({
+        type: 'cancel_reminder',
+        status: 'not_found',
+        result: { query },
+      });
       emitEvent('background_task.completed', { result: { action: 'cancel_reminder_not_found', query } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         type: 'cancel_reminder_not_found',
         message: `没有找到可取消的提醒：${query}`,
       };
     }
     if (matches.length > 1) {
+      this.context.addBackgroundTask({
+        type: 'cancel_reminder',
+        status: 'ambiguous',
+        result: { query, count: matches.length },
+      });
       emitEvent('background_task.completed', { result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         type: 'cancel_reminder_ambiguous',
         message: `找到 ${matches.length} 个相关提醒，需要你说得更具体一点。`,
@@ -96,6 +108,11 @@ export class TaskRouter {
     try {
       const memory = this.memoryStore.create(content);
       const memories = this.memoryStore.list();
+      this.context.addBackgroundTask({
+        type: 'memory',
+        status: 'created',
+        result: memory,
+      });
       this.context.setLongTermMemory(memories);
       emitEvent('memory.created', { memory });
       emitEvent('background_task.completed', { result: { action: 'memory_created', memoryId: memory.id } });
@@ -106,8 +123,14 @@ export class TaskRouter {
         message: `我记住了：${memory.content}`,
       };
     } catch (error) {
+      this.context.addBackgroundTask({
+        type: 'memory',
+        status: 'failed',
+        result: { error: error.message },
+      });
       emitEvent('memory.failed', { message: error.message });
       emitEvent('background_task.completed', { result: { action: 'memory_failed', error: error.message } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         type: 'memory_failed',
         message: '这条内容我不能安全地写入长期记忆。',

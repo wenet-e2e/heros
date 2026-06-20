@@ -140,6 +140,9 @@ function testTaskRouterMemory() {
   if (context.snapshot().longTermMemory.length !== 1) {
     throw new Error('task router memory context smoke failed');
   }
+  if (context.snapshot().backgroundTasks.length !== 1) {
+    throw new Error('task router memory background task smoke failed');
+  }
 }
 
 function testTaskRouterCancelReminder() {
