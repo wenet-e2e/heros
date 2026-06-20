@@ -279,6 +279,9 @@ function testIntentBoundaries() {
   if (likelyReminder('这个点子不错')) {
     throw new Error('plain idea statement was misclassified as reminder');
   }
+  if (likelyReminder('明天下午天气怎么样？')) {
+    throw new Error('daytime question was misclassified as reminder');
+  }
   if (!likelyReminder('明天上午九点提醒我喝水')) {
     throw new Error('reminder intent smoke failed');
   }
