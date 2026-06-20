@@ -13,6 +13,12 @@ export class CliInteractionModel {
     emitEvent('input_audio.completed', { mode: 'cli_text' });
     const userTurn = this.context.addTurn('user', userText);
     emitEvent('interaction.context_updated', { contextVersion: this.context.version, turnId: userTurn.id });
+    emitEvent('transcript.completed', {
+      mode: 'cli_text',
+      text: userText,
+      contextVersion: this.context.version,
+      turnId: userTurn.id,
+    });
 
     const result = await this.taskRouter.maybeHandle(userText, { turnId: userTurn.id });
     if (result) {
@@ -21,6 +27,7 @@ export class CliInteractionModel {
         emitEvent('response.completed', {
           backgroundTaskId: result.backgroundTaskId,
           source: result.source || 'background_agent',
+          sourceTurnId: userTurn.id,
           text: result.message,
           turnId: assistantTurn.id,
         });
@@ -63,6 +70,7 @@ export class CliInteractionModel {
     emitEvent('response.completed', {
       source: 'cli_fallback',
       model: this.model,
+      sourceTurnId: userTurn.id,
       text: content,
       turnId: assistantTurn.id,
     });

@@ -312,6 +312,38 @@ function testTurnSummary() {
   configureEvents();
 }
 
+async function testCliInteractionTurns() {
+  const dir = createTempDir('heros-cli-interaction-turns-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const interaction = new CliInteractionModel({
+    context: new SharedContext(),
+    model: 'fake',
+    taskRouter: {
+      async maybeHandle() {
+        return null;
+      },
+    },
+    client: {
+      async text() {
+        return '你好，我在。';
+      },
+    },
+  });
+  await interaction.respond('你好');
+  const summary = summarizeTurns(readEventLog(logPath));
+  if (
+    summary.total !== 2
+    || summary.turns[0].role !== 'user'
+    || summary.turns[0].text !== '你好'
+    || summary.turns[1].role !== 'assistant'
+    || summary.turns[1].sourceTurnId !== summary.turns[0].turnId
+  ) {
+    throw new Error('cli interaction turns smoke failed');
+  }
+  configureEvents();
+}
+
 function testErrorSummary() {
   const dir = createTempDir('heros-error-summary-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1659,6 +1691,7 @@ testMemoryStore();
 testBackgroundTaskSummary();
 testRuntimeStateSummary();
 testTurnSummary();
+await testCliInteractionTurns();
 testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();

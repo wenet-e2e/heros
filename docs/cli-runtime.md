@@ -110,6 +110,7 @@ Implemented:
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Turn IDs on conversation turns and response/transcript events.
+- Typed CLI fallback emits transcript and response turn events for conversation replay.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
 - Realtime announcement response events include their background task source, ID, and source turn.
 - Background task correlation IDs and triggering turn IDs across request, execution, tool call, and completion events.
