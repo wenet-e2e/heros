@@ -634,6 +634,21 @@ async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId
   console.log(JSON.stringify(report, null, 2));
 }
 
+async function agentContext(text) {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const inputText = text.trim();
+  const decision = inputText ? runtime.taskRouter.shouldDelegate(inputText) : null;
+  console.log(JSON.stringify({
+    text: inputText || null,
+    delegatesToBackground: Boolean(decision),
+    handledBy: decision ? routeTarget(decision) : null,
+    taskType: decision?.type || null,
+    reason: decision?.reason || null,
+    pendingBackgroundTaskId: decision?.pendingBackgroundTaskId || null,
+    context: runtime.taskRouter.buildContextPackage(),
+  }, null, 2));
+}
+
 function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
@@ -1065,6 +1080,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     tasks: Boolean(scripts.tasks),
     taskDetail: Boolean(scripts['task-detail']),
     sessionReport: Boolean(scripts['session-report']),
+    agentContext: Boolean(scripts['agent-context']),
     runtimeState: Boolean(scripts['runtime-state']),
     context: Boolean(scripts.context),
     turns: Boolean(scripts.turns),
@@ -1511,6 +1527,7 @@ function printUsage() {
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run task-detail -- <task_id>',
     '  npm run session-report    Write a no-UI runtime session report artifact.',
+    '  npm run agent-context -- <text>',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -1588,6 +1605,8 @@ try {
       writeReport: args.includes('--write'),
       ...getEventFilters(args),
     });
+  } else if (args[0] === '--agent-context') {
+    await agentContext(args.slice(1).join(' '));
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
   } else if (args[0] === '--context') {

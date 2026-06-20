@@ -26,6 +26,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run task-detail -- <task_id>`: prints one background task's related turns and event timeline.
 - `npm run session-report`: writes a no-UI runtime session report artifact with turns, timeline, tasks, errors, Shared Context, and runtime state.
 - `node src/cli.js --session-report --since <iso-or-ms>`: prints a filtered session report without writing an artifact.
+- `npm run agent-context -- <text>`: previews the routing decision and Background Agent context package without network calls.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
@@ -91,6 +92,7 @@ Implemented:
 - Voice loop shutdown cancels active Background Agent delegations before waiting for cleanup.
 - Background Agent checks cancellation before tool execution so interrupted tasks cannot create stale reminders.
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
+- Background Agent context package preview command for no-network routing and prompt-context debugging.
 - Shared Context summaries expose the Local Task Router capability boundary used before Background Agent delegation.
 - Shared Context updates from typed turns and realtime transcripts.
 - Runtime startup hydrates recent Shared Context turns and background tasks from the event log.

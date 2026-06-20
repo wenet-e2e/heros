@@ -1464,6 +1464,45 @@ function testCliSessionReportCommand() {
   }
 }
 
+function testCliAgentContextCommand() {
+  const dir = createTempDir('heros-cli-agent-context-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const reminderStore = new ReminderStore(dir);
+  reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '保持状态',
+  });
+  const bootstrap = ensureAgentBootstrap(dir);
+  const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
+  memoryStore.create('用户喜欢自然温暖的语音风格');
+  const result = spawnSync(process.execPath, ['src/cli.js', '--agent-context', '明天九点提醒我检查进度'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+      HEROS_TIME_ZONE: 'Asia/Shanghai',
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli agent context smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const preview = JSON.parse(result.stdout);
+  if (
+    preview.delegatesToBackground !== true
+    || preview.handledBy !== 'background_agent'
+    || preview.taskType !== 'reminder'
+    || preview.context.runtime.timeZone !== 'Asia/Shanghai'
+    || preview.context.reminders.totalScheduled !== 1
+    || preview.context.longTermMemory.total !== 1
+    || !preview.context.localTaskRouter.handledLocally.includes('cancel_reminder')
+  ) {
+    throw new Error('cli agent context output smoke failed');
+  }
+}
+
 function testCliScenarioCommand() {
   const dir = createTempDir('heros-cli-scenario-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1739,6 +1778,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.cancelReminder !== true
     || review.checks.commandSurface.taskDetail !== true
     || review.checks.commandSurface.sessionReport !== true
+    || review.checks.commandSurface.agentContext !== true
     || review.checks.commandSurface.updateReminder !== true
     || review.checks.commandSurface.remember !== true
     || review.checks.commandSurface.updateMemory !== true
@@ -3223,6 +3263,7 @@ testCliRouteCommand();
 testCliTaskCommand();
 testCliTaskDetailCommand();
 testCliSessionReportCommand();
+testCliAgentContextCommand();
 testCliScenarioCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
