@@ -86,6 +86,13 @@ async function testEventLog() {
   if (sourceFiltered.length !== 1 || sourceFiltered[0].sourceTurnId !== 'turn_source') {
     throw new Error('event source turn filter smoke failed');
   }
+  const since = new Date(Date.now() + 10).toISOString();
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  emitEvent('smoke.since', { turnId: 'turn_since' });
+  const sinceFiltered = filterEvents(readEventLog(logPath), { since });
+  if (sinceFiltered.length !== 1 || sinceFiltered[0].turnId !== 'turn_since') {
+    throw new Error('event since filter smoke failed');
+  }
 
   const controller = new AbortController();
   const followed = [];

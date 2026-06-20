@@ -16,6 +16,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run events -- --turn-id turn_xxx`: filters recent structured runtime events by turn.
 - `npm run events -- --source-turn-id turn_xxx`: filters recent structured runtime events by source turn.
 - `npm run events -- --background-task-id task_xxx`: filters recent structured runtime events by background task.
+- `npm run events -- --since <iso-or-ms>`: filters recent structured runtime events by creation time.
 - `npm run events:follow -- --type state.changed`: follows only matching structured runtime events.
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run errors`: summarizes recent structured error events.
@@ -111,7 +112,7 @@ Implemented:
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Headless agent bootstrap status command.
 - Structured event logging to `events.ndjson`.
-- Event log filtering and summary commands for CLI debugging and later UI state mapping.
+- Event log filtering, including time-window filtering, and summary commands for CLI debugging and later UI state mapping.
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.

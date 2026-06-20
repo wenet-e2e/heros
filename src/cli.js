@@ -330,7 +330,7 @@ async function status() {
   }, null, 2));
 }
 
-async function events({ backgroundTaskId, count = 20, follow = false, fromStart = false, pollMs = 500, sourceTurnId, turnId, type } = {}) {
+async function events({ backgroundTaskId, count = 20, follow = false, fromStart = false, pollMs = 500, since, sourceTurnId, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
   if (follow) {
     console.log(`Following event log: ${config.eventLogPath}`);
@@ -338,6 +338,7 @@ async function events({ backgroundTaskId, count = 20, follow = false, fromStart 
       backgroundTaskId,
       fromStart,
       pollMs,
+      since,
       sourceTurnId,
       turnId,
       type,
@@ -352,7 +353,7 @@ async function events({ backgroundTaskId, count = 20, follow = false, fromStart 
     console.log('No event log yet.');
     return;
   }
-  for (const event of filterEvents(allEvents, { backgroundTaskId, sourceTurnId, turnId, type }).slice(-count)) {
+  for (const event of filterEvents(allEvents, { backgroundTaskId, since, sourceTurnId, turnId, type }).slice(-count)) {
     console.log(JSON.stringify(event));
   }
 }
@@ -1052,6 +1053,7 @@ function printUsage() {
     '  npm run events -- --turn-id turn_xxx',
     '  npm run events -- --source-turn-id turn_xxx',
     '  npm run events -- --background-task-id task_xxx',
+    '  npm run events -- --since 2026-06-20T12:00:00Z',
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run errors            Summarize recent error events.',
     '  npm run tasks             Summarize background tasks from event logs.',
@@ -1108,6 +1110,7 @@ try {
       fromStart: args.includes('--from-start'),
       pollMs: getPositiveNumberArg(args, '--poll-ms', 500),
       type: getArgValue(args, '--type'),
+      since: getArgValue(args, '--since'),
       turnId: getArgValue(args, '--turn-id'),
       sourceTurnId: getArgValue(args, '--source-turn-id'),
       backgroundTaskId: getArgValue(args, '--background-task-id'),
