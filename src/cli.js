@@ -9,7 +9,7 @@ import { commandExists } from './audio.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
-import { filterEvents, followEventLog, readEventLog, summarizeEvents } from './eventLog.js';
+import { filterEvents, followEventLog, readEventLog, summarizeBackgroundTasks, summarizeEvents } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 function createRealtimeClient(config) {
@@ -169,6 +169,15 @@ async function events({ backgroundTaskId, count = 20, follow = false, fromStart 
 async function eventSummary() {
   const { config } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(summarizeEvents(readEventLog(config.eventLogPath)), null, 2));
+}
+
+async function taskSummary({ count = 20 } = {}) {
+  const { config } = createRuntime({ requireApiKey: false });
+  const summary = summarizeBackgroundTasks(readEventLog(config.eventLogPath));
+  console.log(JSON.stringify({
+    ...summary,
+    tasks: summary.tasks.slice(0, count),
+  }, null, 2));
 }
 
 function printInteractiveHelp() {
@@ -388,6 +397,7 @@ function printUsage() {
     '  npm run events -- --turn-id turn_xxx',
     '  npm run events -- --background-task-id task_xxx',
     '  npm run event-summary     Summarize structured runtime events.',
+    '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
@@ -425,6 +435,8 @@ try {
     });
   } else if (args[0] === '--event-summary') {
     await eventSummary();
+  } else if (args[0] === '--tasks') {
+    await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });

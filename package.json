@@ -16,6 +16,7 @@
     "events": "node src/cli.js --events",
     "events:follow": "node src/cli.js --events --follow",
     "event-summary": "node src/cli.js --event-summary",
+    "tasks": "node src/cli.js --tasks",
     "talk": "node src/cli.js --talk",
     "voice": "node src/cli.js --voice-loop"
   },

@@ -12,7 +12,7 @@ import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
 import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
-import { filterEvents, followEventLog, readEventLog, summarizeEvents } from '../src/eventLog.js';
+import { filterEvents, followEventLog, readEventLog, summarizeBackgroundTasks, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
@@ -162,6 +162,52 @@ function testMemoryStore() {
   if (!refused) {
     throw new Error('memory secret refusal smoke failed');
   }
+}
+
+function testBackgroundTaskSummary() {
+  const dir = createTempDir('heros-task-summary-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('background_task.requested', {
+    backgroundTaskId: 'task_summary',
+    turnId: 'turn_summary_user',
+    taskType: 'reminder',
+    reason: 'likely_reminder',
+  });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_summary',
+    turnId: 'turn_summary_user',
+    taskType: 'reminder',
+    model: 'fake',
+  });
+  emitEvent('background_task.progress', {
+    backgroundTaskId: 'task_summary',
+    turnId: 'turn_summary_user',
+    stage: 'agent_decision',
+    action: 'create_reminder',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_summary',
+    turnId: 'turn_summary_user',
+    result: { action: 'create_reminder', reminderId: 'reminder_summary' },
+  });
+  emitEvent('response.completed', {
+    backgroundTaskId: 'task_summary',
+    turnId: 'turn_summary_assistant',
+    source: 'background_agent',
+  });
+  const summary = summarizeBackgroundTasks(readEventLog(logPath));
+  const task = summary.tasks[0];
+  if (
+    summary.total !== 1
+    || task.status !== 'completed'
+    || task.taskType !== 'reminder'
+    || task.progress.action !== 'create_reminder'
+    || task.responseTurnId !== 'turn_summary_assistant'
+  ) {
+    throw new Error('background task summary smoke failed');
+  }
+  configureEvents();
 }
 
 function testAgentBootstrap() {
@@ -866,6 +912,7 @@ function testTaskRouterListMemory() {
 await testEventLog();
 testReminderScheduler();
 testMemoryStore();
+testBackgroundTaskSummary();
 testAgentBootstrap();
 testCliStatusOutput();
 testConfigNumberFallback();

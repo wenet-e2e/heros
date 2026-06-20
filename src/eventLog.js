@@ -54,6 +54,90 @@ export function summarizeEvents(events) {
   };
 }
 
+function statusFromCompletion(result) {
+  if (result?.action === 'timeout') {
+    return 'timeout';
+  }
+  if (result?.action === 'cancelled') {
+    return 'cancelled';
+  }
+  if (result?.action === 'failed') {
+    return 'failed';
+  }
+  return 'completed';
+}
+
+export function summarizeBackgroundTasks(events) {
+  const tasks = new Map();
+  for (const event of events) {
+    if (!event.backgroundTaskId) {
+      continue;
+    }
+    const current = tasks.get(event.backgroundTaskId) || {
+      backgroundTaskId: event.backgroundTaskId,
+      taskType: null,
+      turnId: null,
+      status: 'observed',
+      model: null,
+      reason: null,
+      progress: null,
+      result: null,
+      startedAt: null,
+      updatedAt: null,
+      lastEventType: null,
+      responseTurnId: null,
+      responseSource: null,
+    };
+
+    current.turnId ||= event.turnId || null;
+    current.taskType ||= event.taskType || null;
+    current.updatedAt = event.createdAt || current.updatedAt;
+    current.lastEventType = event.type;
+
+    if (event.type === 'background_task.requested') {
+      current.status = 'requested';
+      current.reason = event.reason || current.reason;
+    } else if (event.type === 'background_task.started') {
+      current.status = 'running';
+      current.startedAt = event.createdAt || current.startedAt;
+      current.model = event.model || current.model;
+    } else if (event.type === 'background_task.progress') {
+      current.status = 'running';
+      current.progress = {
+        stage: event.stage || null,
+        action: event.action || null,
+      };
+    } else if (event.type === 'background_task.cancelled') {
+      current.status = 'cancelled';
+      current.reason = event.reason || current.reason;
+    } else if (event.type === 'background_task.completed') {
+      current.status = statusFromCompletion(event.result);
+      current.result = event.result || null;
+    } else if (event.type === 'tool_call.failed') {
+      current.status = 'tool_failed';
+      current.result = {
+        action: 'tool_failed',
+        toolName: event.toolName || null,
+        error: event.message || null,
+      };
+    } else if (event.type === 'response.completed') {
+      current.responseTurnId = event.turnId || current.responseTurnId;
+      current.responseSource = event.source || current.responseSource;
+    }
+
+    tasks.set(event.backgroundTaskId, current);
+  }
+
+  return {
+    total: tasks.size,
+    tasks: [...tasks.values()].sort((a, b) => {
+      const aTime = Date.parse(a.updatedAt || a.startedAt || 0);
+      const bTime = Date.parse(b.updatedAt || b.startedAt || 0);
+      return bTime - aTime;
+    }),
+  };
+}
+
 export async function followEventLog(logPath, {
   backgroundTaskId,
   fromStart = false,
