@@ -11,7 +11,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
+import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder } from '../src/intents.js';
 import {
   filterEvents,
   followEventLog,
@@ -1540,6 +1540,9 @@ function testIntentBoundaries() {
   if (!likelyListReminders('查询一下提醒') || !likelyListReminders('下一个提醒是什么？')) {
     throw new Error('natural list reminders intent smoke failed');
   }
+  if (!likelyNextReminder('下一个提醒是什么？')) {
+    throw new Error('next reminder intent smoke failed');
+  }
   if (!likelyListMemory('你记得什么？')) {
     throw new Error('list memory intent smoke failed');
   }
@@ -1923,6 +1926,10 @@ function testTaskRouterListReminders() {
   }
   if (context.snapshot().backgroundTasks.at(-1).type !== 'list_reminders') {
     throw new Error('task router list reminders context smoke failed');
+  }
+  const next = router.handleListReminders({ nextOnly: true });
+  if (next.type !== 'next_reminder_listed' || next.reminders.length !== 1 || !next.message.includes('下一个提醒')) {
+    throw new Error('task router next reminder smoke failed');
   }
 }
 

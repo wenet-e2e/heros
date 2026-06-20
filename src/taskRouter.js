@@ -8,6 +8,7 @@ import {
   likelyForgetMemory,
   likelyListMemory,
   likelyListReminders,
+  likelyNextReminder,
   likelyMemory,
   likelyReminder,
 } from './intents.js';
@@ -123,6 +124,9 @@ export class TaskRouter {
   }
 
   shouldDelegate(text) {
+    if (likelyNextReminder(text)) {
+      return { type: 'list_reminders', reason: 'explicit_next_reminder_request', nextOnly: true };
+    }
     if (likelyListReminders(text)) {
       return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };
     }
@@ -204,7 +208,7 @@ export class TaskRouter {
       return { ...this.handleCancelReminder(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'list_reminders') {
-      return { ...this.handleListReminders({ backgroundTaskId, turnId }), source: 'local_task_router' };
+      return { ...this.handleListReminders({ backgroundTaskId, nextOnly: decision.nextOnly, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'list_memory') {
       return { ...this.handleListMemory({ backgroundTaskId, turnId }), source: 'local_task_router' };
@@ -284,7 +288,7 @@ export class TaskRouter {
     return { ...result, source: 'background_agent' };
   }
 
-  handleListReminders({ backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+  handleListReminders({ backgroundTaskId = createBackgroundTaskId(), nextOnly = false, turnId } = {}) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'list_reminders' });
     const scheduled = this.reminderStore.list()
       .filter((reminder) => reminder.status === 'scheduled')
@@ -294,12 +298,12 @@ export class TaskRouter {
       turnId,
       type: 'list_reminders',
       status: 'completed',
-      result: { count: scheduled.length },
+      result: { count: scheduled.length, nextOnly },
     });
     emitEvent('background_task.completed', {
       backgroundTaskId,
       turnId,
-      result: { action: 'list_reminders', count: scheduled.length },
+      result: { action: 'list_reminders', count: scheduled.length, nextOnly },
     });
     emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
 
@@ -309,6 +313,15 @@ export class TaskRouter {
         type: 'reminders_listed',
         reminders: scheduled,
         message: '现在没有待触发的提醒。',
+      };
+    }
+    if (nextOnly) {
+      const next = scheduled[0];
+      return {
+        backgroundTaskId,
+        type: 'next_reminder_listed',
+        reminders: [next],
+        message: `下一个提醒是：${next.title}，${formatReminderTime(next.remindAt, this.timeZone)}`,
       };
     }
     const summary = scheduled.slice(0, 5)

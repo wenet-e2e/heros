@@ -1,3 +1,7 @@
+export function likelyNextReminder(text) {
+  return /下一个.*(提醒|闹钟)|最近.*(提醒|闹钟)/.test(text);
+}
+
 export function likelyListReminders(text) {
   return /提醒列表|我的提醒|有哪些.*(提醒|闹钟)|查看.*(提醒|闹钟)|查询.*(提醒|闹钟)|列出.*(提醒|闹钟)|下一个.*(提醒|闹钟)|最近.*(提醒|闹钟)/.test(text);
 }
