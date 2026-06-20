@@ -37,7 +37,7 @@ export class BackgroundAgent {
     this.timeZone = timeZone;
   }
 
-  async handleTask({ userText, context, backgroundTaskId, turnId }) {
+  async handleTask({ userText, context, backgroundTaskId, turnId, signal }) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: this.model });
 
     const now = new Date();
@@ -79,6 +79,7 @@ export class BackgroundAgent {
         { role: 'user', content: JSON.stringify({ userText, context }, null, 2) },
       ],
       responseFormat: { type: 'json_object' },
+      signal,
     });
 
     const decision = extractJson(content);

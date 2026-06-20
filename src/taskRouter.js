@@ -16,6 +16,35 @@ function createBackgroundTaskId() {
   return `task_${crypto.randomUUID()}`;
 }
 
+class BackgroundTaskTimeoutError extends Error {
+  constructor(timeoutMs) {
+    super(`Background task timed out after ${timeoutMs}ms`);
+    this.name = 'BackgroundTaskTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+async function withTimeout(promiseFactory, timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promiseFactory({});
+  }
+  const controller = new AbortController();
+  let timeout;
+  try {
+    return await Promise.race([
+      promiseFactory({ signal: controller.signal }),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => {
+          controller.abort(new BackgroundTaskTimeoutError(timeoutMs));
+          reject(new BackgroundTaskTimeoutError(timeoutMs));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function formatReminderTime(isoString, timeZone) {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -32,11 +61,12 @@ function formatReminderTime(isoString, timeZone) {
 }
 
 export class TaskRouter {
-  constructor({ backgroundAgent, context, memoryStore, reminderStore, timeZone }) {
+  constructor({ backgroundAgent, context, memoryStore, reminderStore, taskTimeoutMs = 60000, timeZone }) {
     this.backgroundAgent = backgroundAgent;
     this.context = context;
     this.memoryStore = memoryStore;
     this.reminderStore = reminderStore;
+    this.taskTimeoutMs = taskTimeoutMs;
     this.timeZone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 
@@ -92,24 +122,41 @@ export class TaskRouter {
     }
     let result;
     try {
-      result = await this.backgroundAgent.handleTask({
+      result = await withTimeout(({ signal }) => this.backgroundAgent.handleTask({
         backgroundTaskId,
         turnId,
         userText: text,
         context: this.context.snapshot(),
-      });
+        signal,
+      }), this.taskTimeoutMs);
     } catch (error) {
-      result = {
-        backgroundTaskId,
-        turnId,
-        type: 'background_failed',
-        message: '后台任务执行失败了，可以稍后再试一次。',
-        error: error.message,
-      };
+      if (error instanceof BackgroundTaskTimeoutError || error.name === 'BackgroundTaskTimeoutError') {
+        result = {
+          backgroundTaskId,
+          turnId,
+          type: 'background_timeout',
+          message: '后台任务执行超时了，我先停下这次任务，可以稍后重试。',
+          error: error.message,
+        };
+        emitEvent('background_task.cancelled', {
+          backgroundTaskId,
+          turnId,
+          reason: 'timeout',
+          timeoutMs: this.taskTimeoutMs,
+        });
+      } else {
+        result = {
+          backgroundTaskId,
+          turnId,
+          type: 'background_failed',
+          message: '后台任务执行失败了，可以稍后再试一次。',
+          error: error.message,
+        };
+      }
       emitEvent('background_task.completed', {
         backgroundTaskId,
         turnId,
-        result: { action: 'failed', error: error.message },
+        result: { action: result.type === 'background_timeout' ? 'timeout' : 'failed', error: error.message },
       });
     }
     this.context.addBackgroundTask({

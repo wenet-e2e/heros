@@ -7,7 +7,7 @@ export class DashScopeClient {
     this.timeoutMs = timeoutMs;
   }
 
-  async chatCompletion({ model, messages, temperature = 0.5, responseFormat, stream = false }) {
+  async chatCompletion({ model, messages, temperature = 0.5, responseFormat, stream = false, signal }) {
     const body = {
       model,
       messages,
@@ -19,6 +19,14 @@ export class DashScopeClient {
     }
 
     const controller = new AbortController();
+    const onAbort = () => controller.abort(signal.reason);
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort(signal.reason);
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     let response;
     try {
@@ -38,6 +46,9 @@ export class DashScopeClient {
       throw error;
     } finally {
       clearTimeout(timeout);
+      if (signal) {
+        signal.removeEventListener('abort', onAbort);
+      }
     }
 
     if (!response.ok) {
@@ -52,8 +63,8 @@ export class DashScopeClient {
     return response.json();
   }
 
-  async text({ model, messages, temperature = 0.5, responseFormat }) {
-    const json = await this.chatCompletion({ model, messages, temperature, responseFormat });
+  async text({ model, messages, temperature = 0.5, responseFormat, signal }) {
+    const json = await this.chatCompletion({ model, messages, temperature, responseFormat, signal });
     return json?.choices?.[0]?.message?.content ?? '';
   }
 }

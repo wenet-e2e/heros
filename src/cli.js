@@ -376,6 +376,7 @@ function printUsage() {
     '  HEROS_REALTIME_TURN_DETECTION Default semantic_vad.',
     '  HEROS_REALTIME_CONNECT_RETRIES Default 2.',
     '  HEROS_BACKGROUND_MODEL    Default qwen3.7-plus.',
+    '  HEROS_BACKGROUND_TASK_TIMEOUT_MS Default 60000.',
     '  HEROS_TIME_ZONE           Default system time zone.',
     '  HEROS_REMINDER_POLL_MS    Default 30000.',
     '  HEROS_EVENT_LOG_PATH      Default .heros/events.ndjson.',

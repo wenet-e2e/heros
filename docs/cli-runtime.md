@@ -47,6 +47,7 @@ Implemented:
 - Shared Context updates from typed turns and realtime transcripts.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
+- Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
 - Natural-language scheduled reminder listing.
@@ -75,6 +76,7 @@ Common overrides:
 - `HEROS_REALTIME_CONNECT_RETRIES` (default `2`)
 - `HEROS_REALTIME_CONNECT_RETRY_DELAY_MS` (default `500`)
 - `HEROS_BACKGROUND_MODEL`
+- `HEROS_BACKGROUND_TASK_TIMEOUT_MS` (default `60000`)
 - `HEROS_TIME_ZONE`
 - `HEROS_DATA_DIR`
 - `HEROS_EVENT_LOG_PATH`

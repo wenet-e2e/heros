@@ -60,6 +60,7 @@ export function getConfig({ requireApiKey = true } = {}) {
     realtimeConnectRetries: Number(process.env.HEROS_REALTIME_CONNECT_RETRIES || '2'),
     realtimeConnectRetryDelayMs: Number(process.env.HEROS_REALTIME_CONNECT_RETRY_DELAY_MS || '500'),
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
+    backgroundTaskTimeoutMs: Number(process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS || '60000'),
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
     reminderPollMs: Number(process.env.HEROS_REMINDER_POLL_MS || '30000'),
     dataDir: process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'),
