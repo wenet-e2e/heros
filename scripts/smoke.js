@@ -17,6 +17,7 @@ import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
 import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
 import { getConfig } from '../src/config.js';
+import { CliInteractionModel } from '../src/interactionModel.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -419,6 +420,33 @@ function testSharedContextRedaction() {
   }
 }
 
+async function testCliBackgroundResponseCorrelation() {
+  const dir = createTempDir('heros-cli-correlation-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const context = new SharedContext();
+  const model = new CliInteractionModel({
+    client: null,
+    model: 'fake',
+    context,
+    taskRouter: {
+      async maybeHandle() {
+        return {
+          backgroundTaskId: 'task_response',
+          message: '已创建提醒：喝水',
+          source: 'background_agent',
+        };
+      },
+    },
+  });
+  await model.respond('明天九点提醒我喝水');
+  const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
+  if (completed?.backgroundTaskId !== 'task_response') {
+    throw new Error('cli background response correlation smoke failed');
+  }
+  configureEvents();
+}
+
 function testIntentBoundaries() {
   if (likelyReminder('你记得我喜欢什么语音风格吗？')) {
     throw new Error('memory question was misclassified as reminder');
@@ -723,6 +751,7 @@ testAgentBootstrap();
 testCliStatusOutput();
 testConfigNumberFallback();
 testSharedContextRedaction();
+await testCliBackgroundResponseCorrelation();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
