@@ -20,6 +20,7 @@ import {
   summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
+  summarizeSharedContext,
   summarizeTurns,
 } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
@@ -406,6 +407,82 @@ function testCliRuntimeStateCommand() {
   const state = JSON.parse(result.stdout);
   if (state.state !== 'speaking' || !state.speaking || state.lastTurnId !== 'turn_cli_runtime_state') {
     throw new Error('cli runtime state output smoke failed');
+  }
+}
+
+function testSharedContextSummary() {
+  const events = [
+    {
+      type: 'transcript.completed',
+      text: '记住我喜欢短回答',
+      turnId: 'turn_context_summary',
+      contextVersion: 3,
+      createdAt: '2026-06-21T00:00:00.000Z',
+    },
+  ];
+  const summary = summarizeSharedContext(events, {
+    bootstrapFiles: ['/tmp/AGENTS.md'],
+    memories: [{ id: 'memory_1', content: '用户喜欢短回答', updatedAt: '2026-06-21T00:00:00.000Z' }],
+    reminders: [],
+  });
+  if (
+    summary.contextVersion !== 3
+    || summary.turns.total !== 1
+    || summary.longTermMemory.total !== 1
+    || summary.bootstrap.files[0] !== 'AGENTS.md'
+  ) {
+    throw new Error('shared context summary smoke failed');
+  }
+}
+
+function testCliContextCommand() {
+  const dir = createTempDir('heros-cli-context-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const bootstrap = ensureAgentBootstrap(dir);
+  const reminderStore = new ReminderStore(dir);
+  const memoryStore = new MemoryStore(bootstrap.files.find((filePath) => filePath.endsWith('MEMORY.md')));
+  const reminder = reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const memory = memoryStore.create('用户喜欢短回答');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '明天九点提醒我喝水',
+    turnId: 'turn_context_user',
+    contextVersion: 7,
+  });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_context',
+    turnId: 'turn_context_user',
+    taskType: 'reminder',
+    model: 'fake',
+  });
+  configureEvents();
+
+  const result = spawnSync(process.execPath, ['src/cli.js', '--context'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli context smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const context = JSON.parse(result.stdout);
+  if (
+    context.contextVersion !== 7
+    || context.turns.total !== 1
+    || context.backgroundTasks.active[0].backgroundTaskId !== 'task_context'
+    || context.reminders.nextScheduled.id !== reminder.id
+    || context.longTermMemory.items[0].id !== memory.id
+    || !context.bootstrap.files.includes('AGENTS.md')
+  ) {
+    throw new Error('cli context output smoke failed');
   }
 }
 
@@ -1492,6 +1569,8 @@ testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();
 testCliRuntimeStateCommand();
+testSharedContextSummary();
+testCliContextCommand();
 testCliTurnsCommand();
 testCliErrorsCommand();
 testCliRouteCommand();

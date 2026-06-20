@@ -17,6 +17,7 @@ import {
   summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
+  summarizeSharedContext,
   summarizeTurns,
 } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
@@ -257,6 +258,15 @@ async function taskSummary({ count = 20 } = {}) {
 async function runtimeState() {
   const { config } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(summarizeRuntimeState(readEventLog(config.eventLogPath)), null, 2));
+}
+
+async function contextSummary() {
+  const { bootstrap, config, memoryStore, reminderStore } = createRuntime({ requireApiKey: false, printEvents: false });
+  console.log(JSON.stringify(summarizeSharedContext(readEventLog(config.eventLogPath), {
+    bootstrapFiles: bootstrap.files,
+    memories: memoryStore.list(),
+    reminders: reminderStore.list(),
+  }), null, 2));
 }
 
 async function turnSummary({ count = 20 } = {}) {
@@ -604,6 +614,7 @@ function printUsage() {
     '  npm run errors            Summarize recent error events.',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
+    '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
@@ -659,6 +670,8 @@ try {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
+  } else if (args[0] === '--context') {
+    await contextSummary();
   } else if (args[0] === '--turns') {
     await turnSummary({ count: getEventCount(args) });
   } else if (args[0] === '--route') {

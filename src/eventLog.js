@@ -279,6 +279,51 @@ export function summarizeRuntimeState(events) {
   };
 }
 
+export function summarizeSharedContext(events, { bootstrapFiles = [], memories = [], reminders = [] } = {}) {
+  const turnSummary = summarizeTurns(events);
+  const taskSummary = summarizeBackgroundTasks(events);
+  const runtimeState = summarizeRuntimeState(events);
+  const contextVersion = events.reduce((max, event) => (
+    Number.isFinite(event.contextVersion) ? Math.max(max, event.contextVersion) : max
+  ), 0);
+  const scheduledReminders = reminders
+    .filter((reminder) => reminder.status === 'scheduled')
+    .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+  const activeBackgroundTasks = taskSummary.tasks.filter((task) => ['requested', 'running'].includes(task.status));
+  const pendingClarifications = taskSummary.tasks.filter((task) => task.status === 'needs_clarification');
+
+  return {
+    contextVersion,
+    runtimeState,
+    turns: {
+      total: turnSummary.total,
+      recent: turnSummary.turns.slice(-10),
+    },
+    backgroundTasks: {
+      total: taskSummary.total,
+      active: activeBackgroundTasks,
+      pendingClarifications,
+      recent: taskSummary.tasks.slice(0, 10),
+    },
+    reminders: {
+      total: reminders.length,
+      scheduled: scheduledReminders.length,
+      nextScheduled: scheduledReminders[0] || null,
+    },
+    longTermMemory: {
+      total: memories.length,
+      items: memories.map((memory) => ({
+        id: memory.id,
+        content: memory.content,
+        updatedAt: memory.updatedAt,
+      })),
+    },
+    bootstrap: {
+      files: bootstrapFiles.map((filePath) => filePath.split(/[\\/]/).at(-1)),
+    },
+  };
+}
+
 export async function followEventLog(logPath, {
   backgroundTaskId,
   fromStart = false,

@@ -21,6 +21,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run errors`: summarizes recent structured error events.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
+- `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run bootstrap`: prints runtime agent bootstrap status.
@@ -101,6 +102,7 @@ Implemented:
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Runtime status includes audio, turn, error, and background task summaries.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
+- Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Turn IDs on conversation turns and response/transcript events.
