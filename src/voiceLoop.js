@@ -17,7 +17,7 @@ export class VoiceLoop {
     this.backgroundTasks = new Set();
   }
 
-  async start() {
+  async start({ durationMs } = {}) {
     this.attachRealtimeEvents();
     await this.realtime.connect();
     this.realtime.updateSession({
@@ -47,7 +47,7 @@ export class VoiceLoop {
     });
     console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');
 
-    await this.waitForShutdown();
+    await this.waitForShutdown({ durationMs });
   }
 
   attachRealtimeEvents() {
@@ -139,10 +139,14 @@ export class VoiceLoop {
     this.backgroundTasks.add(task);
   }
 
-  waitForShutdown() {
+  waitForShutdown({ durationMs } = {}) {
     return new Promise((resolve) => {
+      let timer = null;
       const shutdown = async () => {
         process.off('SIGINT', shutdown);
+        if (timer) {
+          clearTimeout(timer);
+        }
         emitEvent('voice_loop.stopping');
         this.recorder.stop();
         this.player.stop();
@@ -154,6 +158,9 @@ export class VoiceLoop {
         resolve();
       };
       process.on('SIGINT', shutdown);
+      if (durationMs) {
+        timer = setTimeout(shutdown, durationMs);
+      }
     });
   }
 }

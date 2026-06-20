@@ -18,6 +18,14 @@ function createRealtimeClient(config) {
   });
 }
 
+function getArgValue(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) {
+    return null;
+  }
+  return args[index + 1] || null;
+}
+
 async function checkRealtime(config) {
   const realtime = createRealtimeClient(config);
   const logSessionEvent = (event) => {
@@ -148,7 +156,7 @@ async function interactive() {
   }
 }
 
-async function voiceLoop({ playAudio = true } = {}) {
+async function voiceLoop({ playAudio = true, durationMs } = {}) {
   const runtime = createRuntime();
   const realtime = createRealtimeClient(runtime.config);
   runtime.reminderScheduler.start();
@@ -161,7 +169,7 @@ async function voiceLoop({ playAudio = true } = {}) {
     playAudio,
   });
   try {
-    await loop.start();
+    await loop.start({ durationMs });
   } finally {
     runtime.reminderScheduler.stop();
   }
@@ -262,6 +270,7 @@ function printUsage() {
     '  npm run status            Print local runtime status without network calls.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
+    '  npm run voice -- --duration-ms 3000',
     '  npm run cli -- --talk     Record one voice turn with Qwen-Omni-Realtime.',
     '  npm run cli -- --once hi  Send one typed fallback turn.',
     '',
@@ -282,7 +291,8 @@ try {
   } else if (args[0] === '--status') {
     await status();
   } else if (args[0] === '--voice-loop') {
-    await voiceLoop({ playAudio: args[1] !== '--no-play' });
+    const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
+    await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });
   } else if (args[0] === '--talk') {
     await talkOnce({ playAudio: args[1] !== '--no-play' });
   } else if (args[0] === '--help' || args[0] === '-h') {
