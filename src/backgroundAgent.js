@@ -36,8 +36,8 @@ export class BackgroundAgent {
     this.timeZone = timeZone;
   }
 
-  async handleTask({ userText, context }) {
-    emitEvent('background_task.started', { model: this.model });
+  async handleTask({ userText, context, backgroundTaskId }) {
+    emitEvent('background_task.started', { backgroundTaskId, model: this.model });
 
     const now = new Date();
     const localNow = new Intl.DateTimeFormat('zh-CN', {
@@ -85,16 +85,18 @@ export class BackgroundAgent {
           note: decision.note || '',
         });
       } catch (error) {
-        emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
-        emitEvent('background_task.completed', { result: { action: 'failed', error: error.message } });
+        emitEvent('tool_call.failed', { backgroundTaskId, toolName: 'create_reminder', message: error.message });
+        emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'failed', error: error.message } });
         return {
+          backgroundTaskId,
           type: 'reminder_failed',
           message: '提醒时间解析失败了，可以换一种更具体的说法再试一次。',
         };
       }
-      emitEvent('tool_call.completed', { toolName: 'create_reminder', result: reminder });
-      emitEvent('background_task.completed', { result: reminder });
+      emitEvent('tool_call.completed', { backgroundTaskId, toolName: 'create_reminder', result: reminder });
+      emitEvent('background_task.completed', { backgroundTaskId, result: reminder });
       return {
+        backgroundTaskId,
         type: 'reminder_created',
         reminder,
         message: `已创建提醒：${reminder.title}，时间：${formatLocalTime(reminder.remindAt, this.timeZone)}`,
@@ -102,15 +104,18 @@ export class BackgroundAgent {
     }
 
     if (decision.action === 'clarify') {
-      emitEvent('background_task.needs_clarification', { question: decision.clarifyingQuestion });
+      emitEvent('background_task.needs_clarification', { backgroundTaskId, question: decision.clarifyingQuestion });
+      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'clarify' } });
       return {
+        backgroundTaskId,
         type: 'clarify',
         message: decision.clarifyingQuestion || '这个提醒的时间还不够明确，可以再说一下具体时间吗？',
       };
     }
 
-    emitEvent('background_task.completed', { result: { action: 'none' } });
+    emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'none' } });
     return {
+      backgroundTaskId,
       type: 'none',
       message: '',
     };

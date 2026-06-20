@@ -147,6 +147,9 @@ function testTaskRouterMemory() {
   if (result.type !== 'memory_created' || memoryStore.list().length !== 1) {
     throw new Error('task router memory smoke failed');
   }
+  if (!result.backgroundTaskId || !result.backgroundTaskId.startsWith('task_')) {
+    throw new Error('task router memory background task id smoke failed');
+  }
   if (context.snapshot().longTermMemory.length !== 1) {
     throw new Error('task router memory context smoke failed');
   }
@@ -190,6 +193,9 @@ function testTaskRouterCancelReminder() {
   const result = router.handleCancelReminder('取消喝水提醒');
   if (result.type !== 'reminder_cancelled') {
     throw new Error('task router cancel reminder smoke failed');
+  }
+  if (!result.backgroundTaskId || !context.snapshot().backgroundTasks.at(-1).backgroundTaskId) {
+    throw new Error('task router cancel reminder background task id smoke failed');
   }
   if (reminderStore.list().find((item) => item.id === reminder.id)?.status !== 'cancelled') {
     throw new Error('task router cancel reminder did not persist');

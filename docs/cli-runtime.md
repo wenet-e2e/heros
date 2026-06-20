@@ -51,6 +51,7 @@ Implemented:
 - Runtime `MEMORY.md` CRUD and explicit natural-language memory requests.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
+- Background task correlation IDs across request, execution, tool call, and completion events.
 - Basic secret redaction before structured events are printed/persisted or written into Shared Context.
 - Voice loop state transitions as `state.changed` events for later desktop UI mapping.
 
