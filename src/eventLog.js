@@ -493,6 +493,42 @@ function summarizeInputAudio(events) {
   });
 }
 
+function summarizeAnnouncements(events) {
+  return events.reduce((summary, event) => {
+    if (!event.type?.startsWith?.('announcement.')) {
+      return summary;
+    }
+    const status = event.type.split('.').at(-1);
+    return {
+      total: summary.total + 1,
+      queued: summary.queued + (status === 'queued' ? 1 : 0),
+      completed: summary.completed + (status === 'completed' ? 1 : 0),
+      failed: summary.failed + (status === 'failed' ? 1 : 0),
+      skipped: summary.skipped + (status === 'skipped' ? 1 : 0),
+      active: status === 'started' ? true : status === 'completed' || status === 'failed' ? false : summary.active,
+      lastStatus: status,
+      lastAt: event.createdAt || summary.lastAt,
+      lastSource: event.source || summary.lastSource,
+      lastBackgroundTaskId: event.backgroundTaskId || summary.lastBackgroundTaskId,
+      lastReminderId: event.reminderId || summary.lastReminderId,
+      lastTurnEpoch: Number.isFinite(event.turnEpoch) ? event.turnEpoch : summary.lastTurnEpoch,
+    };
+  }, {
+    total: 0,
+    queued: 0,
+    completed: 0,
+    failed: 0,
+    skipped: 0,
+    active: false,
+    lastStatus: null,
+    lastAt: null,
+    lastSource: null,
+    lastBackgroundTaskId: null,
+    lastReminderId: null,
+    lastTurnEpoch: null,
+  });
+}
+
 export function summarizeRuntimeState(events) {
   const backgroundTasks = summarizeBackgroundTasks(events);
   const activeBackgroundTasks = backgroundTasks.tasks.filter((task) => ['requested', 'running'].includes(task.status));
@@ -513,6 +549,7 @@ export function summarizeRuntimeState(events) {
     updatedAt: state.updatedAt,
     speaking: state.state === 'speaking',
     inputAudio: summarizeInputAudio(events),
+    announcements: summarizeAnnouncements(events),
     backgroundRunning: activeBackgroundTasks.length > 0,
     activeBackgroundTaskCount: activeBackgroundTasks.length,
     pendingClarificationCount: pendingClarifications.length,

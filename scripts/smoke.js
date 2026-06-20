@@ -337,6 +337,18 @@ function testRuntimeStateSummary() {
   });
   emitEvent('input_audio.started', { turnEpoch: 7 });
   emitEvent('input_audio.completed', { turnEpoch: 7 });
+  emitEvent('announcement.queued', {
+    backgroundTaskId: 'task_runtime_state',
+    source: 'background_task',
+    text: '好的',
+    turnEpoch: 7,
+  });
+  emitEvent('announcement.completed', {
+    backgroundTaskId: 'task_runtime_state',
+    source: 'background_task',
+    outlet: 'realtime',
+    turnEpoch: 7,
+  });
   emitEvent('transcript.completed', {
     text: '提醒我喝水',
     turnId: 'turn_runtime_state',
@@ -375,6 +387,8 @@ function testRuntimeStateSummary() {
     || summary.pendingClarificationCount !== 2
     || summary.inputAudio.lastTurnEpoch !== 7
     || summary.inputAudio.active !== false
+    || summary.announcements.completed !== 1
+    || summary.announcements.lastBackgroundTaskId !== 'task_runtime_state'
     || summary.lastTurnId !== 'turn_runtime_state'
     || !['ambiguous', 'needs_clarification'].includes(summary.lastBackgroundTask.status)
   ) {
@@ -600,6 +614,20 @@ function testCliStatusOutput() {
     turnEpoch: 3,
     createdAt: '2026-06-21T00:00:01.950Z',
   })}\n${JSON.stringify({
+    type: 'announcement.queued',
+    backgroundTaskId: 'task_status_clarify',
+    source: 'background_task',
+    text: '需要澄清',
+    turnEpoch: 3,
+    createdAt: '2026-06-21T00:00:01.970Z',
+  })}\n${JSON.stringify({
+    type: 'announcement.completed',
+    backgroundTaskId: 'task_status_clarify',
+    source: 'background_task',
+    outlet: 'realtime',
+    turnEpoch: 3,
+    createdAt: '2026-06-21T00:00:01.980Z',
+  })}\n${JSON.stringify({
     type: 'background_task.started',
     backgroundTaskId: 'task_status_clarify',
     turnId: 'turn_status_clarify',
@@ -706,6 +734,8 @@ function testCliStatusOutput() {
     || status.runtimeState.lastEventType !== 'background_task.completed'
     || status.runtimeState.inputAudio.lastTurnEpoch !== 3
     || status.runtimeState.inputAudio.active !== false
+    || status.runtimeState.announcements.completed !== 1
+    || status.runtimeState.announcements.lastBackgroundTaskId !== 'task_status_clarify'
     || status.runtimeState.lastTurnId !== 'turn_status_clarify'
     || status.runtimeState.lastBackgroundTask?.backgroundTaskId !== 'task_status_clarify'
     || status.runtimeState.lastBackgroundTask?.taskType !== 'cancel_reminder'
