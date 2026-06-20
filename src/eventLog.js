@@ -163,6 +163,34 @@ function statusFromCompletion(result) {
   return 'completed';
 }
 
+const PENDING_CLARIFICATION_TASK_TYPES = new Set([
+  'cancel_reminder',
+  'forget_memory',
+  'reminder',
+  'update_memory',
+  'update_reminder',
+]);
+const PENDING_CLARIFICATION_STATUSES = new Set(['ambiguous', 'needs_clarification']);
+
+function unresolvedPendingClarifications(tasks) {
+  const newerTaskTypes = new Set();
+  const pending = [];
+  for (const task of tasks) {
+    const taskType = task.taskType || task.type || null;
+    if (
+      PENDING_CLARIFICATION_STATUSES.has(task.status)
+      && PENDING_CLARIFICATION_TASK_TYPES.has(taskType)
+      && !newerTaskTypes.has(taskType)
+    ) {
+      pending.push(task);
+    }
+    if (taskType) {
+      newerTaskTypes.add(taskType);
+    }
+  }
+  return pending;
+}
+
 export function summarizeBackgroundTasks(events) {
   const tasks = new Map();
   for (const event of events) {
@@ -327,7 +355,7 @@ function stateFromEvent(fallback, event) {
 export function summarizeRuntimeState(events) {
   const backgroundTasks = summarizeBackgroundTasks(events);
   const activeBackgroundTasks = backgroundTasks.tasks.filter((task) => ['requested', 'running'].includes(task.status));
-  const pendingClarifications = backgroundTasks.tasks.filter((task) => ['ambiguous', 'needs_clarification'].includes(task.status));
+  const pendingClarifications = unresolvedPendingClarifications(backgroundTasks.tasks);
   const state = events.reduce(stateFromEvent, {
     state: 'idle',
     previousState: null,
@@ -346,6 +374,7 @@ export function summarizeRuntimeState(events) {
     backgroundRunning: activeBackgroundTasks.length > 0,
     activeBackgroundTaskCount: activeBackgroundTasks.length,
     pendingClarificationCount: pendingClarifications.length,
+    pendingClarifications,
     lastEventType: lastEvent?.type || null,
     lastEventAt: lastEvent?.createdAt || null,
     lastTurnId: lastTurnEvent?.turnId || lastTurnEvent?.sourceTurnId || null,
@@ -367,7 +396,7 @@ export function summarizeSharedContext(
     .filter((reminder) => reminder.status === 'scheduled')
     .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
   const activeBackgroundTasks = taskSummary.tasks.filter((task) => ['requested', 'running'].includes(task.status));
-  const pendingClarifications = taskSummary.tasks.filter((task) => task.status === 'needs_clarification');
+  const pendingClarifications = unresolvedPendingClarifications(taskSummary.tasks);
 
   return {
     contextVersion,

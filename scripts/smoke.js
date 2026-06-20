@@ -354,6 +354,12 @@ function testRuntimeStateSummary() {
     turnId: 'turn_runtime_state',
     result: { action: 'clarify' },
   });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_runtime_state_ambiguous',
+    turnId: 'turn_runtime_state',
+    taskType: 'cancel_reminder',
+    model: 'fake',
+  });
   emitEvent('background_task.completed', {
     backgroundTaskId: 'task_runtime_state_ambiguous',
     turnId: 'turn_runtime_state',
@@ -1143,6 +1149,15 @@ function testCliTaskCommand() {
     throw new Error(`cli task pending cancel cleared route smoke failed: ${routeAfterCancelResult.stderr || routeAfterCancelResult.stdout}`);
   }
   const routeAfterCancel = JSON.parse(routeAfterCancelResult.stdout);
+  const statusAfterCancelResult = spawnSync(process.execPath, ['src/cli.js', '--status'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (statusAfterCancelResult.status !== 0) {
+    throw new Error(`cli task pending cancel cleared status smoke failed: ${statusAfterCancelResult.stderr || statusAfterCancelResult.stdout}`);
+  }
+  const statusAfterCancel = JSON.parse(statusAfterCancelResult.stdout);
   const reminderAfterCancel = reminderStore.list().find((item) => item.id === reminder.id);
   if (
     pendingCancelTask.result?.type !== 'cancel_reminder_needs_clarification'
@@ -1150,6 +1165,7 @@ function testCliTaskCommand() {
     || resolvedCancelTask.reason !== 'pending_clarification_response'
     || resolvedCancelTask.pendingBackgroundTaskId !== pendingCancelTask.result.backgroundTaskId
     || routeAfterCancel.delegatesToBackground !== false
+    || statusAfterCancel.runtimeState.pendingClarificationCount !== 0
     || reminderAfterCancel?.status !== 'cancelled'
   ) {
     throw new Error('cli task pending cancel cross-process smoke failed');

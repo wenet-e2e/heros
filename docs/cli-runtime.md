@@ -90,6 +90,7 @@ Implemented:
 - Runtime startup hydrates recent Shared Context turns and background tasks from the event log.
 - Runtime startup preserves pending clarification state reconstructed from local task event logs.
 - Pending clarification lookup uses the latest pending task in Shared Context so later non-pending task summaries do not hide it.
+- Runtime status and Shared Context summaries count only unresolved pending clarifications; a newer task of the same type supersedes older pending state.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.

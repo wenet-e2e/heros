@@ -281,7 +281,7 @@ async function status() {
     return acc;
   }, {});
   const lastBackgroundTask = taskSummary.tasks[0] || null;
-  const pendingClarifications = taskSummary.tasks.filter((task) => ['ambiguous', 'needs_clarification'].includes(task.status));
+  const pendingClarifications = runtimeState.pendingClarifications || [];
   console.log(JSON.stringify({
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
