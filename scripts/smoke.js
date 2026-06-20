@@ -1915,6 +1915,9 @@ function testIntentBoundaries() {
   if (likelyReminder('明天下午天气怎么样？')) {
     throw new Error('daytime question was misclassified as reminder');
   }
+  if (likelyReminder('明天九点')) {
+    throw new Error('bare time was misclassified as reminder without pending clarification');
+  }
   if (!likelyReminder('明天上午九点提醒我喝水')) {
     throw new Error('reminder intent smoke failed');
   }
