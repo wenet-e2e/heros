@@ -567,6 +567,27 @@ function testCliStatusOutput() {
   }
 }
 
+function testCliHelpOutput() {
+  const result = spawnSync(process.execPath, ['src/cli.js', '--help'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: createTempDir('heros-cli-help-'),
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli help smoke failed: ${result.stderr || result.stdout}`);
+  }
+  if (
+    !result.stdout.includes('routing boundary')
+    || !result.stdout.includes('qwen3.5-omni-plus-realtime')
+    || !result.stdout.includes('qwen3.7-plus')
+  ) {
+    throw new Error('cli help output smoke failed');
+  }
+}
+
 function testCliRuntimeStateCommand() {
   const dir = createTempDir('heros-cli-runtime-state-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -2866,6 +2887,7 @@ await testCliInteractionTurns();
 testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();
+testCliHelpOutput();
 testCliRuntimeStateCommand();
 testSharedContextSummary();
 testSharedContextHydration();

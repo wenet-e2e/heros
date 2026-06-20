@@ -1294,7 +1294,7 @@ function printUsage() {
     '',
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
-    '  npm run status            Print local runtime status without network calls.',
+    '  npm run status            Print local runtime status and routing boundary without network calls.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',
     '  npm run events -- --type response.completed',
