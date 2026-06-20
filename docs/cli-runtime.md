@@ -140,6 +140,7 @@ Implemented:
 - Error summary command reconstructed from structured runtime events.
 - Normalized runtime timeline command reconstructed from structured runtime events.
 - Timeline command supports the same turn, background task, event type, and time-window filters as raw event inspection.
+- Timeline summaries resolve task types across events with the same background task ID, so completed and announcement entries keep task context.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, turn, error, and background task summaries.

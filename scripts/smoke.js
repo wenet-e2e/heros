@@ -398,6 +398,11 @@ function testTimelineSummary() {
     taskType: 'reminder',
     model: 'fake',
   });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_timeline',
+    turnId: 'turn_timeline',
+    result: { action: 'create_reminder' },
+  });
   emitEvent('announcement.queued', {
     backgroundTaskId: 'task_timeline',
     turnId: 'turn_timeline',
@@ -406,12 +411,14 @@ function testTimelineSummary() {
   });
   const summary = summarizeTimeline(readEventLog(logPath));
   if (
-    summary.total !== 4
+    summary.total !== 5
     || summary.entries[0].kind !== 'state'
     || summary.entries[1].kind !== 'user_turn'
     || summary.entries[2].kind !== 'background_task'
-    || summary.entries[3].kind !== 'announcement'
-    || summary.entries[3].backgroundTaskId !== 'task_timeline'
+    || summary.entries[3].taskType !== 'reminder'
+    || summary.entries[4].kind !== 'announcement'
+    || summary.entries[4].backgroundTaskId !== 'task_timeline'
+    || summary.entries[4].taskType !== 'reminder'
   ) {
     throw new Error('timeline summary smoke failed');
   }

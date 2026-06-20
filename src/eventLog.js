@@ -144,12 +144,14 @@ export function summarizeErrors(events) {
   };
 }
 
-function timelineEntry(event) {
+function timelineEntry(event, taskTypesById = new Map()) {
+  const taskType = event.taskType || (event.backgroundTaskId ? taskTypesById.get(event.backgroundTaskId) : null) || null;
   const base = {
     at: event.createdAt || null,
     eventType: event.type,
     turnId: event.turnId || event.sourceTurnId || null,
     backgroundTaskId: event.backgroundTaskId || null,
+    taskType,
   };
   if (event.type === 'state.changed') {
     return {
@@ -181,7 +183,6 @@ function timelineEntry(event) {
     return {
       ...base,
       kind: 'background_task',
-      taskType: event.taskType || null,
       status: event.type.split('.').at(-1),
       reason: event.reason || null,
       action: event.action || event.result?.action || null,
@@ -239,7 +240,13 @@ function timelineEntry(event) {
 }
 
 export function summarizeTimeline(events) {
-  const entries = events.map(timelineEntry).filter(Boolean);
+  const taskTypesById = new Map();
+  for (const event of events) {
+    if (event.backgroundTaskId && event.taskType) {
+      taskTypesById.set(event.backgroundTaskId, event.taskType);
+    }
+  }
+  const entries = events.map((event) => timelineEntry(event, taskTypesById)).filter(Boolean);
   return {
     total: entries.length,
     entries,
