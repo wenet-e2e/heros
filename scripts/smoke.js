@@ -14,6 +14,7 @@ import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js'
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
+import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -362,6 +363,25 @@ async function testRealtimeConnectRetry() {
   }
 }
 
+async function testRealtimeWaitForClose() {
+  const realtime = new DashScopeRealtimeClient({
+    apiKey: 'test',
+    url: 'wss://example.com/realtime',
+    model: 'fake',
+  });
+  const waiting = realtime.waitFor('session.updated', 1000);
+  realtime.emit('close');
+  let rejected = false;
+  try {
+    await waiting;
+  } catch (error) {
+    rejected = error.message.includes('closed');
+  }
+  if (!rejected) {
+    throw new Error('realtime waitFor close smoke failed');
+  }
+}
+
 async function testVoiceLoopBackgroundState() {
   const loop = new VoiceLoop({
     config: {},
@@ -452,6 +472,7 @@ testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
 await testRealtimeConnectRetry();
+await testRealtimeWaitForClose();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();

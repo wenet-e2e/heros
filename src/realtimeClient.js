@@ -350,11 +350,17 @@ export class DashScopeRealtimeClient extends EventEmitter {
           reject(new Error(event.error?.message || JSON.stringify(event)));
         }
       };
+      const onClose = () => {
+        cleanup();
+        reject(new Error(`Realtime connection closed while waiting for event: ${wanted.join(', ')}`));
+      };
       const cleanup = () => {
         clearTimeout(timeout);
         this.off('event', onEvent);
+        this.off('close', onClose);
       };
       this.on('event', onEvent);
+      this.once('close', onClose);
     });
   }
 
