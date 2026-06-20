@@ -18,6 +18,16 @@ export class VoiceLoop {
     this.currentAssistantText = '';
     this.backgroundTasks = new Set();
     this.unsubscribeReminderTrigger = null;
+    this.state = 'idle';
+  }
+
+  setState(state, reason) {
+    if (this.state === state) {
+      return;
+    }
+    const previousState = this.state;
+    this.state = state;
+    emitEvent('state.changed', { previousState, state, reason });
   }
 
   async start({ durationMs } = {}) {
@@ -55,6 +65,7 @@ export class VoiceLoop {
       backgroundModel: this.config.backgroundModel,
       turnDetection: 'server_vad',
     });
+    this.setState('listening', 'voice_loop_started');
     console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');
 
     await this.waitForShutdown({ durationMs });
@@ -73,6 +84,7 @@ export class VoiceLoop {
       } else if (event.type === 'response.created') {
         this.isResponding = true;
         this.currentAssistantText = '';
+        this.setState('speaking', 'response_created');
         emitEvent('response.started', { source: 'realtime' });
       } else if (event.type === 'response.audio_transcript.delta' || event.type === 'response.text.delta') {
         this.handleAssistantDelta(event.delta || '');
@@ -83,6 +95,7 @@ export class VoiceLoop {
       } else if (event.type === 'response.done') {
         this.isResponding = false;
         emitEvent('response.completed', { source: 'realtime' });
+        this.setState('listening', 'response_done');
         this.drainAnnouncements();
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
@@ -93,8 +106,10 @@ export class VoiceLoop {
   async handleSpeechStarted() {
     emitEvent('input_audio.started');
     if (!this.isResponding) {
+      this.setState('listening', 'user_speech_started');
       return;
     }
+    this.setState('interrupted', 'user_speech_started');
     emitEvent('response.interrupted', { reason: 'user_speech_started' });
     try {
       this.realtime.cancelResponse();
@@ -103,6 +118,7 @@ export class VoiceLoop {
     }
     await this.player.interrupt();
     this.isResponding = false;
+    this.setState('listening', 'response_interrupted');
   }
 
   handleUserTranscript(transcript) {
@@ -189,6 +205,7 @@ export class VoiceLoop {
         if (timer) {
           clearTimeout(timer);
         }
+        this.setState('stopping', 'shutdown');
         emitEvent('voice_loop.stopping');
         this.recorder.stop();
         this.player.stop();
@@ -200,6 +217,7 @@ export class VoiceLoop {
           await Promise.allSettled([...this.backgroundTasks]);
         }
         emitEvent('voice_loop.stopped');
+        this.setState('stopped', 'shutdown_complete');
         resolve();
       };
       process.on('SIGINT', shutdown);

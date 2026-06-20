@@ -34,6 +34,7 @@ Implemented:
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Runtime `MEMORY.md` CRUD for long-term memory data.
 - Structured event logging to `events.ndjson`.
+- Voice loop state transitions as `state.changed` events for later desktop UI mapping.
 
 ## Environment
 
