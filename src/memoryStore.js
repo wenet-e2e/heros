@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 const START = '<!-- HEROS_MEMORY_DATA_START -->';
 const END = '<!-- HEROS_MEMORY_DATA_END -->';
 const EMPTY_BLOCK = `${START}\n\`\`\`json\n[]\n\`\`\`\n${END}`;
-const SECRET_PATTERN = /(api[_-]?key|token|password|secret|passwd|密钥|密码|令牌)/i;
+const SECRET_PATTERN = /(api[_-]?key|token|password|secret|passwd|bearer\s+|密钥|密码|令牌)/i;
 
 function parseJsonBlock(markdown) {
   const start = markdown.indexOf(START);

@@ -90,7 +90,7 @@ function testMemoryStore() {
 
   let refused = false;
   try {
-    store.create('api_key=abc');
+    store.create('Bearer abc');
   } catch {
     refused = true;
   }
