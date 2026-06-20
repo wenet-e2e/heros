@@ -144,6 +144,7 @@ Implemented:
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, turn, error, and background task summaries.
+- Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Shared Context and Phase 1 review expose which deterministic task types are handled locally before Background Agent delegation.

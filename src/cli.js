@@ -349,6 +349,15 @@ async function status() {
         candidateCount: Array.isArray(task.result?.candidates) ? task.result.candidates.length : 0,
         updatedAt: task.updatedAt,
       })),
+      lastEventType: runtimeState.lastEventType,
+      lastEventAt: runtimeState.lastEventAt,
+      lastTurnId: runtimeState.lastTurnId,
+      lastBackgroundTask: runtimeState.lastBackgroundTask ? {
+        backgroundTaskId: runtimeState.lastBackgroundTask.backgroundTaskId,
+        taskType: runtimeState.lastBackgroundTask.taskType,
+        status: runtimeState.lastBackgroundTask.status,
+        updatedAt: runtimeState.lastBackgroundTask.updatedAt,
+      } : null,
     },
     memories: {
       total: memoryStore.list().length,

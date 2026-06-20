@@ -610,6 +610,10 @@ function testCliStatusOutput() {
     status.runtimeState.state !== 'idle'
     || status.runtimeState.pendingClarificationCount !== 1
     || status.runtimeState.pendingClarifications[0]?.question !== '你想取消哪一个提醒？'
+    || status.runtimeState.lastEventType !== 'background_task.completed'
+    || status.runtimeState.lastTurnId !== 'turn_status_clarify'
+    || status.runtimeState.lastBackgroundTask?.backgroundTaskId !== 'task_status_clarify'
+    || status.runtimeState.lastBackgroundTask?.taskType !== 'cancel_reminder'
   ) {
     throw new Error('cli status runtime state smoke failed');
   }
