@@ -98,6 +98,7 @@ async function status() {
     return acc;
   }, {});
   console.log(JSON.stringify({
+    apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
     backgroundModel: config.backgroundModel,
     timeZone: config.timeZone,
