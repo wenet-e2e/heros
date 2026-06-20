@@ -372,6 +372,9 @@ function testCliStatusOutput() {
   if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
     throw new Error('cli status runtime state smoke failed');
   }
+  if (status.turns.total !== 0 || status.errors.total !== 0) {
+    throw new Error('cli status turn/error summary smoke failed');
+  }
 }
 
 function testCliRuntimeStateCommand() {

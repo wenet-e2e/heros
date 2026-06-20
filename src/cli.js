@@ -139,6 +139,8 @@ async function status() {
   const eventSummary = summarizeEvents(loggedEvents);
   const taskSummary = summarizeBackgroundTasks(loggedEvents);
   const runtimeState = summarizeRuntimeState(loggedEvents);
+  const errorSummary = summarizeErrors(loggedEvents);
+  const turnSummary = summarizeTurns(loggedEvents);
   const remindersByStatus = reminders.reduce((acc, reminder) => {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
@@ -166,6 +168,16 @@ async function status() {
       total: eventSummary.total,
       lastEventType: eventSummary.lastEventType,
       lastEventAt: eventSummary.lastEventAt,
+    },
+    turns: {
+      total: turnSummary.total,
+      lastTurnId: turnSummary.turns.at(-1)?.turnId || null,
+      lastTurnAt: turnSummary.turns.at(-1)?.createdAt || null,
+    },
+    errors: {
+      total: errorSummary.total,
+      lastErrorType: errorSummary.errors.at(-1)?.type || null,
+      lastErrorAt: errorSummary.errors.at(-1)?.createdAt || null,
     },
     backgroundTasks: {
       total: taskSummary.total,

@@ -97,7 +97,7 @@ Implemented:
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
-- Runtime status includes background task status counts reconstructed from event logs.
+- Runtime status includes turn, error, and background task summaries reconstructed from event logs.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Headless routing check for realtime-direct vs task delegation decisions.
