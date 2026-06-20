@@ -280,6 +280,67 @@ function testCliReminderCommands() {
   }
 }
 
+function testCliMemoryCommands() {
+  const dir = createTempDir('heros-cli-memory-');
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+  };
+
+  const rememberResult = spawnSync(process.execPath, ['src/cli.js', '--remember', '用户喜欢安静的语音风格'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (rememberResult.status !== 0) {
+    throw new Error(`cli remember smoke failed: ${rememberResult.stderr || rememberResult.stdout}`);
+  }
+  const memory = JSON.parse(rememberResult.stdout);
+  if (!memory.id || !memory.content.includes('安静')) {
+    throw new Error('cli remember output smoke failed');
+  }
+
+  const updateResult = spawnSync(process.execPath, ['src/cli.js', '--update-memory', memory.id, '用户喜欢安静但有温度的语音风格'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (updateResult.status !== 0) {
+    throw new Error(`cli update memory smoke failed: ${updateResult.stderr || updateResult.stdout}`);
+  }
+  const updated = JSON.parse(updateResult.stdout);
+  if (!updated.content.includes('温度')) {
+    throw new Error('cli update memory output smoke failed');
+  }
+
+  const listResult = spawnSync(process.execPath, ['src/cli.js', '--memories'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (listResult.status !== 0) {
+    throw new Error(`cli memories smoke failed: ${listResult.stderr || listResult.stdout}`);
+  }
+  const memories = JSON.parse(listResult.stdout);
+  if (memories.length !== 1 || memories[0].id !== memory.id) {
+    throw new Error('cli memories list smoke failed');
+  }
+
+  const forgetResult = spawnSync(process.execPath, ['src/cli.js', '--forget-memory', memory.id], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (forgetResult.status !== 0) {
+    throw new Error(`cli forget memory smoke failed: ${forgetResult.stderr || forgetResult.stdout}`);
+  }
+  const forgotten = JSON.parse(forgetResult.stdout);
+  if (!forgotten.deleted) {
+    throw new Error('cli forget memory output smoke failed');
+  }
+}
+
 function testConfigNumberFallback() {
   const previous = process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS;
   process.env.HEROS_BACKGROUND_TASK_TIMEOUT_MS = 'not-a-number';
@@ -956,6 +1017,7 @@ testBackgroundTaskSummary();
 testAgentBootstrap();
 testCliStatusOutput();
 testCliReminderCommands();
+testCliMemoryCommands();
 testConfigNumberFallback();
 testSharedContextRedaction();
 await testCliBackgroundResponseCorrelation();

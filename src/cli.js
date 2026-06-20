@@ -197,6 +197,42 @@ async function cancelReminder(id) {
   console.log(JSON.stringify(reminder, null, 2));
 }
 
+async function listMemories() {
+  const { memoryStore } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(memoryStore.list(), null, 2));
+}
+
+async function remember(content) {
+  if (!content.trim()) {
+    throw new Error('Usage: npm run remember -- <content>');
+  }
+  const { memoryStore } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(memoryStore.create(content), null, 2));
+}
+
+async function updateMemory(id, content) {
+  if (!id || !content.trim()) {
+    throw new Error('Usage: npm run update-memory -- <id> <content>');
+  }
+  const { memoryStore } = createRuntime({ requireApiKey: false });
+  const memory = memoryStore.update(id, content);
+  if (!memory) {
+    throw new Error(`Memory not found: ${id}`);
+  }
+  console.log(JSON.stringify(memory, null, 2));
+}
+
+async function forgetMemory(id) {
+  if (!id) {
+    throw new Error('Usage: npm run forget-memory -- <id>');
+  }
+  const { memoryStore } = createRuntime({ requireApiKey: false });
+  if (!memoryStore.delete(id)) {
+    throw new Error(`Memory not found: ${id}`);
+  }
+  console.log(JSON.stringify({ deleted: true, id }, null, 2));
+}
+
 function printInteractiveHelp() {
   console.log([
     'Commands:',
@@ -417,6 +453,10 @@ function printUsage() {
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run cancel-reminder -- <id>',
+    '  npm run memories          List long-term memories without network calls.',
+    '  npm run remember -- <content>',
+    '  npm run update-memory -- <id> <content>',
+    '  npm run forget-memory -- <id>',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
@@ -460,6 +500,14 @@ try {
     await listReminders();
   } else if (args[0] === '--cancel-reminder') {
     await cancelReminder(args[1]);
+  } else if (args[0] === '--memories') {
+    await listMemories();
+  } else if (args[0] === '--remember') {
+    await remember(args.slice(1).join(' '));
+  } else if (args[0] === '--update-memory') {
+    await updateMemory(args[1], args.slice(2).join(' '));
+  } else if (args[0] === '--forget-memory') {
+    await forgetMemory(args[1]);
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });

@@ -20,6 +20,10 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
+- `npm run memories`: lists long-term memories without network calls.
+- `npm run remember -- <content>`: creates one long-term memory without network calls.
+- `npm run update-memory -- <id> <content>`: updates one long-term memory without network calls.
+- `npm run forget-memory -- <id>`: deletes one long-term memory without network calls.
 - `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
 - `npm run voice -- --no-play --duration-ms 3000`: starts a short no-play voice loop smoke.
 - `npm run talk`: records one manual voice turn for focused realtime debugging.
@@ -72,6 +76,7 @@ Implemented:
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing, and safe natural-language memory deletion.
+- Headless long-term memory CRUD commands.
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
