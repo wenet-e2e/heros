@@ -179,9 +179,13 @@ async function interactive() {
         continue;
       }
       if (text.startsWith('/remember ')) {
-        const memory = memoryStore.create(text.slice('/remember '.length));
-        interactionModel.context.setLongTermMemory(memoryStore.list());
-        console.log(`Remembered: ${memory.id}`);
+        try {
+          const memory = memoryStore.create(text.slice('/remember '.length));
+          interactionModel.context.setLongTermMemory(memoryStore.list());
+          console.log(`Remembered: ${memory.id}`);
+        } catch (error) {
+          console.log(`Memory error: ${error.message}`);
+        }
         continue;
       }
       if (text.startsWith('/forget ')) {
@@ -197,9 +201,13 @@ async function interactive() {
           console.log('Usage: /update-memory <id> <content>');
           continue;
         }
-        const memory = memoryStore.update(rest.slice(0, space), rest.slice(space + 1));
-        interactionModel.context.setLongTermMemory(memoryStore.list());
-        console.log(memory ? `Updated: ${memory.id}` : 'Memory not found.');
+        try {
+          const memory = memoryStore.update(rest.slice(0, space), rest.slice(space + 1));
+          interactionModel.context.setLongTermMemory(memoryStore.list());
+          console.log(memory ? `Updated: ${memory.id}` : 'Memory not found.');
+        } catch (error) {
+          console.log(`Memory error: ${error.message}`);
+        }
         continue;
       }
       try {
