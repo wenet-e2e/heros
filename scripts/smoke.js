@@ -909,6 +909,7 @@ function testCliReviewCommand() {
     || review.checks.routing.listRemindersHandledLocally !== true
     || review.checks.routing.nextReminderHandledLocally !== true
     || review.checks.routing.cancelReminderHandledLocally !== true
+    || review.checks.routing.cancelNextReminderHandledLocally !== true
     || review.checks.routing.updateMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
     || review.checks.docs.readme !== true

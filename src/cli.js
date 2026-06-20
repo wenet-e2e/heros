@@ -711,6 +711,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
   const listRemindersRoute = runtime.taskRouter.shouldDelegate('查询一下提醒');
   const nextReminderRoute = runtime.taskRouter.shouldDelegate('下一个提醒是什么？');
   const cancelReminderRoute = runtime.taskRouter.shouldDelegate('取消喝水提醒');
+  const cancelNextReminderRoute = runtime.taskRouter.shouldDelegate('取消下一个提醒');
   const updateMemoryRoute = runtime.taskRouter.shouldDelegate('把记忆里短回答改成用户喜欢详细回答');
   const chatRoute = runtime.taskRouter.shouldDelegate('你怎么看这个观点？');
   const routing = {
@@ -719,6 +720,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     listRemindersHandledLocally: listRemindersRoute?.type === 'list_reminders',
     nextReminderHandledLocally: nextReminderRoute?.type === 'list_reminders' && nextReminderRoute.nextOnly === true,
     cancelReminderHandledLocally: cancelReminderRoute?.type === 'cancel_reminder',
+    cancelNextReminderHandledLocally: cancelNextReminderRoute?.type === 'cancel_reminder',
     updateMemoryHandledLocally: updateMemoryRoute?.type === 'update_memory',
     chatStaysRealtime: !chatRoute,
   };

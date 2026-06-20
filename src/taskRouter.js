@@ -133,6 +133,9 @@ export class TaskRouter {
   }
 
   shouldDelegate(text) {
+    if (likelyCancelReminder(text)) {
+      return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
+    }
     if (likelyNextReminder(text)) {
       return { type: 'list_reminders', reason: 'explicit_next_reminder_request', nextOnly: true };
     }
@@ -153,9 +156,6 @@ export class TaskRouter {
     }
     if (likelyForgetMemory(text)) {
       return { type: 'forget_memory', reason: 'explicit_forget_memory_request' };
-    }
-    if (likelyCancelReminder(text)) {
-      return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
     }
     if (likelyReminder(text)) {
       return { type: 'reminder', reason: 'likely_reminder' };
