@@ -463,6 +463,36 @@ function stateFromEvent(fallback, event) {
   return fallback;
 }
 
+function summarizeInputAudio(events) {
+  return events.reduce((summary, event) => {
+    if (event.type === 'input_audio.started') {
+      return {
+        active: true,
+        lastStartedAt: event.createdAt || summary.lastStartedAt,
+        lastCompletedAt: summary.lastCompletedAt,
+        lastTurnEpoch: Number.isFinite(event.turnEpoch) ? event.turnEpoch : summary.lastTurnEpoch,
+        lastMode: event.mode || summary.lastMode,
+      };
+    }
+    if (event.type === 'input_audio.completed') {
+      return {
+        active: false,
+        lastStartedAt: summary.lastStartedAt,
+        lastCompletedAt: event.createdAt || summary.lastCompletedAt,
+        lastTurnEpoch: Number.isFinite(event.turnEpoch) ? event.turnEpoch : summary.lastTurnEpoch,
+        lastMode: event.mode || summary.lastMode,
+      };
+    }
+    return summary;
+  }, {
+    active: false,
+    lastStartedAt: null,
+    lastCompletedAt: null,
+    lastTurnEpoch: null,
+    lastMode: null,
+  });
+}
+
 export function summarizeRuntimeState(events) {
   const backgroundTasks = summarizeBackgroundTasks(events);
   const activeBackgroundTasks = backgroundTasks.tasks.filter((task) => ['requested', 'running'].includes(task.status));
@@ -482,6 +512,7 @@ export function summarizeRuntimeState(events) {
     reason: state.reason,
     updatedAt: state.updatedAt,
     speaking: state.state === 'speaking',
+    inputAudio: summarizeInputAudio(events),
     backgroundRunning: activeBackgroundTasks.length > 0,
     activeBackgroundTaskCount: activeBackgroundTasks.length,
     pendingClarificationCount: pendingClarifications.length,

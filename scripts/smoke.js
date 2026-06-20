@@ -335,6 +335,8 @@ function testRuntimeStateSummary() {
     state: 'listening',
     reason: 'smoke_start',
   });
+  emitEvent('input_audio.started', { turnEpoch: 7 });
+  emitEvent('input_audio.completed', { turnEpoch: 7 });
   emitEvent('transcript.completed', {
     text: '提醒我喝水',
     turnId: 'turn_runtime_state',
@@ -371,6 +373,8 @@ function testRuntimeStateSummary() {
   if (
     summary.state !== 'idle'
     || summary.pendingClarificationCount !== 2
+    || summary.inputAudio.lastTurnEpoch !== 7
+    || summary.inputAudio.active !== false
     || summary.lastTurnId !== 'turn_runtime_state'
     || !['ambiguous', 'needs_clarification'].includes(summary.lastBackgroundTask.status)
   ) {
@@ -588,6 +592,14 @@ function testCliStatusOutput() {
     failedStep: null,
     createdAt: '2026-06-21T00:00:01.750Z',
   })}\n${JSON.stringify({
+    type: 'input_audio.started',
+    turnEpoch: 3,
+    createdAt: '2026-06-21T00:00:01.900Z',
+  })}\n${JSON.stringify({
+    type: 'input_audio.completed',
+    turnEpoch: 3,
+    createdAt: '2026-06-21T00:00:01.950Z',
+  })}\n${JSON.stringify({
     type: 'background_task.started',
     backgroundTaskId: 'task_status_clarify',
     turnId: 'turn_status_clarify',
@@ -692,6 +704,8 @@ function testCliStatusOutput() {
     || status.runtimeState.pendingClarificationCount !== 1
     || status.runtimeState.pendingClarifications[0]?.question !== '你想取消哪一个提醒？'
     || status.runtimeState.lastEventType !== 'background_task.completed'
+    || status.runtimeState.inputAudio.lastTurnEpoch !== 3
+    || status.runtimeState.inputAudio.active !== false
     || status.runtimeState.lastTurnId !== 'turn_status_clarify'
     || status.runtimeState.lastBackgroundTask?.backgroundTaskId !== 'task_status_clarify'
     || status.runtimeState.lastBackgroundTask?.taskType !== 'cancel_reminder'

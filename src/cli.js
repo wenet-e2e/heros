@@ -472,6 +472,7 @@ async function status() {
       reason: runtimeState.reason,
       updatedAt: runtimeState.updatedAt,
       speaking: runtimeState.speaking,
+      inputAudio: runtimeState.inputAudio,
       backgroundRunning: runtimeState.backgroundRunning,
       activeBackgroundTaskCount: runtimeState.activeBackgroundTaskCount,
       pendingClarificationCount: runtimeState.pendingClarificationCount,

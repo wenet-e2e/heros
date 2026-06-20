@@ -189,6 +189,7 @@ Implemented:
 - Voice loop state transitions, including `background_running`, as `state.changed` events for later desktop UI mapping.
 - Key `state.changed` events carry turn metadata so background-running, interruption, and response-done states can be correlated with conversation turns.
 - Voice-loop `input_audio.started` and `input_audio.completed` events carry `turnEpoch` metadata for input correlation.
+- Runtime state/status exposes the latest input audio summary for no-UI and later desktop state mapping.
 - Voice loop startup failures emit structured failure and `error` state events before cleanup.
 
 ## Environment
