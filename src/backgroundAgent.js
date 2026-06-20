@@ -53,6 +53,7 @@ export class BackgroundAgent {
 
   async handleTask({ userText, context, backgroundTaskId, turnId, signal }) {
     emitEvent('background_task.started', { backgroundTaskId, turnId, model: this.model });
+    emitEvent('agent.started', { backgroundTaskId, turnId, model: this.model });
 
     const now = new Date();
     const localNow = new Intl.DateTimeFormat('zh-CN', {
@@ -99,6 +100,7 @@ export class BackgroundAgent {
     throwIfAborted(signal);
     const decision = extractJson(content);
     throwIfAborted(signal);
+    emitEvent('agent.completed', { backgroundTaskId, turnId, model: this.model, action: decision.action });
 
     if (decision.action === 'create_reminder') {
       let reminder;
