@@ -6,6 +6,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 
 - `npm run check`: syntax checks and local smoke tests.
 - `npm run verify`: full local + DashScope verification.
+- `npm run smoke:background`: network smoke test for Background Agent reminder creation in a temp data dir.
 - `npm run smoke:realtime`: network smoke test for realtime text injection and spoken transcript.
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
 - `npm run status`: prints local runtime status without network calls.
@@ -49,6 +50,7 @@ Implemented:
 - Shared Context updates from typed turns and realtime transcripts.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
+- Background Agent reminder creation is covered by a temp-dir network smoke.
 - Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
 - Background clarification results are tracked as `needs_clarification` in Shared Context.
 - Background task result announcements through the same realtime audio outlet.
