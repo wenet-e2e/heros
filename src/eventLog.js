@@ -4,8 +4,21 @@ export function readEventLog(logPath) {
   if (!fs.existsSync(logPath)) {
     return [];
   }
-  const lines = fs.readFileSync(logPath, 'utf8').trim().split(/\r?\n/).filter(Boolean);
-  return lines.map((line) => JSON.parse(line));
+  const text = fs.readFileSync(logPath, 'utf8').trim();
+  if (!text) {
+    return [];
+  }
+  return text.split(/\r?\n/).filter(Boolean).map((line, index) => {
+    try {
+      return JSON.parse(line);
+    } catch (error) {
+      return {
+        type: 'event_log.malformed',
+        lineNumber: index + 1,
+        message: error.message,
+      };
+    }
+  });
 }
 
 export function filterEvents(events, { type } = {}) {

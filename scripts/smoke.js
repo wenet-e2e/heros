@@ -42,6 +42,11 @@ function testEventLog() {
   if (filtered.length !== 1 || filtered[0].type !== 'smoke.secret_redaction') {
     throw new Error('event filter smoke failed');
   }
+  fs.appendFileSync(logPath, 'not-json\n');
+  const malformed = readEventLog(logPath).at(-1);
+  if (malformed.type !== 'event_log.malformed' || malformed.lineNumber !== 3) {
+    throw new Error('malformed event log smoke failed');
+  }
   configureEvents();
 }
 
