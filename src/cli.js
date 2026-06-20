@@ -680,8 +680,7 @@ function createRealtimePreview(runtime) {
   };
 }
 
-async function contextHealth() {
-  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+function buildContextHealth(runtime) {
   const { sessionConfig } = createRealtimePreview(runtime);
   const realtimeSharedContext = runtime.context.snapshot();
   const agentContextPackage = runtime.taskRouter.buildContextPackage();
@@ -695,7 +694,7 @@ async function contextHealth() {
     realtimeInstructionsContainBootstrap: sessionConfig.instructions.includes('Agent Bootstrap:'),
     realtimeTurnDetectionConfigured: Boolean(sessionConfig.turnDetection?.type),
   };
-  console.log(JSON.stringify({
+  return {
     ready: Object.values(checks).every(Boolean),
     realtime: {
       model: runtime.config.realtimeModel,
@@ -712,7 +711,12 @@ async function contextHealth() {
       localTaskRouterHandledLocally: agentContextPackage.localTaskRouter.handledLocally,
     },
     checks,
-  }, null, 2));
+  };
+}
+
+async function contextHealth() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  console.log(JSON.stringify(buildContextHealth(runtime), null, 2));
 }
 
 function routeTarget(decision) {
@@ -1180,6 +1184,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     memories: runtime.memoryStore.list(),
     reminders: runtime.reminderStore.list(),
   });
+  const contextHealthReport = buildContextHealth(runtime);
   const contextHandledLocally = context.localTaskRouter.handledLocally || [];
   const docs = {
     readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
@@ -1216,6 +1221,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     ready: preflightReport.ready
       && Object.values(routing).every(Boolean)
       && Object.values(commandSurface).every(Boolean)
+      && contextHealthReport.ready
       && Object.values(singleAudioOutlet).every(Boolean)
       && Object.values(interruption).every(Boolean)
       && Object.values(docs).every(Boolean),
@@ -1242,6 +1248,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,
       },
+      contextHealth: contextHealthReport,
       singleAudioOutlet,
       interruption,
       docs,

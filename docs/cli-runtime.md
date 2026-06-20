@@ -141,6 +141,7 @@ Implemented:
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
+- Phase 1 review includes realtime/background context-health checks.
 - Phase 1 review checks that the system design records the Local Task Router boundary.
 - Phase 1 review checks that the single audio outlet constraint is documented and mapped through the realtime announcement path.
 - Phase 1 review checks the interruption path for realtime response cancellation, Background Agent cancellation, and stale announcement skipping.

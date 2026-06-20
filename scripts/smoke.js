@@ -1828,6 +1828,9 @@ function testCliReviewCommand() {
     || !review.checks.sharedContext.localTaskRouter.handledLocally.includes('cancel_reminder')
     || review.checks.sharedContext.localTaskRouter.coversReminderCancel !== true
     || review.checks.sharedContext.localTaskRouter.coversMemoryCrud !== true
+    || review.checks.contextHealth.ready !== true
+    || review.checks.contextHealth.checks.contextVersionMatches !== true
+    || review.checks.contextHealth.checks.realtimeInstructionsContainSharedContext !== true
     || review.checks.singleAudioOutlet.systemDesignConstraint !== true
     || review.checks.singleAudioOutlet.backgroundAnnouncementsUseRealtimeOutlet !== true
     || review.checks.singleAudioOutlet.correlatesAnnouncementsToRealtimeResponses !== true
