@@ -133,7 +133,7 @@ Implemented:
 - Error summary command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.
-- Runtime status includes audio, next reminder, review report, turn, error, and background task summaries.
+- Runtime status includes audio, next reminder, review report/event, turn, error, and background task summaries.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.

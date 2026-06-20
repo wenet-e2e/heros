@@ -244,6 +244,19 @@ function latestReviewReport(dataDir) {
   }
 }
 
+function latestReviewEvent(events) {
+  const event = events.filter((item) => item.type === 'review.completed').at(-1);
+  if (!event) {
+    return null;
+  }
+  return {
+    phase: event.phase || null,
+    ready: typeof event.ready === 'boolean' ? event.ready : null,
+    reportPath: event.reportPath || null,
+    createdAt: event.createdAt || null,
+  };
+}
+
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
@@ -327,6 +340,7 @@ async function status() {
     },
     review: {
       latestReport: latestReviewReport(config.dataDir),
+      latestEvent: latestReviewEvent(loggedEvents),
     },
   }, null, 2));
 }

@@ -450,6 +450,7 @@ function testAgentBootstrap() {
 
 function testCliStatusOutput() {
   const dir = createTempDir('heros-status-');
+  const logPath = path.join(dir, 'events.ndjson');
   const reminderStore = new ReminderStore(dir);
   const reminder = reminderStore.create({
     title: '喝水',
@@ -464,13 +465,20 @@ function testCliStatusOutput() {
     ready: true,
     createdAt: '2026-06-21T00:00:00.000Z',
   }, null, 2)}\n`);
+  fs.writeFileSync(logPath, `${JSON.stringify({
+    type: 'review.completed',
+    phase: 'phase_1_no_ui_cli',
+    ready: true,
+    reportPath: reviewPath,
+    createdAt: '2026-06-21T00:00:01.000Z',
+  })}\n`);
   const result = spawnSync(process.execPath, ['src/cli.js', '--status'], {
     cwd: process.cwd(),
     encoding: 'utf8',
     env: {
       ...process.env,
       HEROS_DATA_DIR: dir,
-      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+      HEROS_EVENT_LOG_PATH: logPath,
       HEROS_BACKGROUND_TASK_TIMEOUT_MS: '1234',
     },
   });
@@ -493,6 +501,9 @@ function testCliStatusOutput() {
   }
   if (status.review.latestReport?.path !== reviewPath || status.review.latestReport.ready !== true) {
     throw new Error('cli status review report smoke failed');
+  }
+  if (status.review.latestEvent?.reportPath !== reviewPath || status.review.latestEvent.ready !== true) {
+    throw new Error('cli status review event smoke failed');
   }
   if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
     throw new Error('cli status runtime state smoke failed');
