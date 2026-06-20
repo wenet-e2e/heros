@@ -22,6 +22,7 @@ import {
   summarizeEvents,
   summarizeRuntimeState,
   summarizeSharedContext,
+  summarizeTimeline,
   summarizeTurns,
 } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
@@ -377,6 +378,46 @@ function testRuntimeStateSummary() {
   configureEvents();
 }
 
+function testTimelineSummary() {
+  const dir = createTempDir('heros-timeline-summary-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('state.changed', {
+    previousState: 'idle',
+    state: 'listening',
+    reason: 'smoke_start',
+  });
+  emitEvent('transcript.completed', {
+    text: '提醒我喝水',
+    turnId: 'turn_timeline',
+    contextVersion: 1,
+  });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_timeline',
+    turnId: 'turn_timeline',
+    taskType: 'reminder',
+    model: 'fake',
+  });
+  emitEvent('announcement.queued', {
+    backgroundTaskId: 'task_timeline',
+    turnId: 'turn_timeline',
+    source: 'background_task',
+    text: '好的，已经创建提醒。',
+  });
+  const summary = summarizeTimeline(readEventLog(logPath));
+  if (
+    summary.total !== 4
+    || summary.entries[0].kind !== 'state'
+    || summary.entries[1].kind !== 'user_turn'
+    || summary.entries[2].kind !== 'background_task'
+    || summary.entries[3].kind !== 'announcement'
+    || summary.entries[3].backgroundTaskId !== 'task_timeline'
+  ) {
+    throw new Error('timeline summary smoke failed');
+  }
+  configureEvents();
+}
+
 function testTurnSummary() {
   const dir = createTempDir('heros-turn-summary-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -620,6 +661,45 @@ function testCliRuntimeStateCommand() {
   const state = JSON.parse(result.stdout);
   if (state.state !== 'speaking' || !state.speaking || state.lastTurnId !== 'turn_cli_runtime_state') {
     throw new Error('cli runtime state output smoke failed');
+  }
+}
+
+function testCliTimelineCommand() {
+  const dir = createTempDir('heros-cli-timeline-');
+  const logPath = path.join(dir, 'events.ndjson');
+  fs.writeFileSync(logPath, `${JSON.stringify({
+    type: 'transcript.completed',
+    text: '提醒我喝水',
+    turnId: 'turn_cli_timeline',
+    contextVersion: 1,
+    createdAt: '2026-06-21T00:00:00.000Z',
+  })}\n${JSON.stringify({
+    type: 'background_task.started',
+    backgroundTaskId: 'task_cli_timeline',
+    turnId: 'turn_cli_timeline',
+    taskType: 'reminder',
+    model: 'fake',
+    createdAt: '2026-06-21T00:00:01.000Z',
+  })}\n`);
+  const result = spawnSync(process.execPath, ['src/cli.js', '--timeline'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli timeline smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const timeline = JSON.parse(result.stdout);
+  if (
+    timeline.total !== 2
+    || timeline.entries[0].kind !== 'user_turn'
+    || timeline.entries[1].backgroundTaskId !== 'task_cli_timeline'
+  ) {
+    throw new Error('cli timeline output smoke failed');
   }
 }
 
@@ -2921,6 +3001,7 @@ testReminderScheduler();
 testMemoryStore();
 testBackgroundTaskSummary();
 testRuntimeStateSummary();
+testTimelineSummary();
 testTurnSummary();
 await testCliInteractionTurns();
 testErrorSummary();
@@ -2928,6 +3009,7 @@ testAgentBootstrap();
 testCliStatusOutput();
 testCliHelpOutput();
 testCliRuntimeStateCommand();
+testCliTimelineCommand();
 testSharedContextSummary();
 testSharedContextHydration();
 testRuntimeHydratesEventLog();

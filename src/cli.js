@@ -21,6 +21,7 @@ import {
   summarizeEvents,
   summarizeRuntimeState,
   summarizeSharedContext,
+  summarizeTimeline,
   summarizeTurns,
 } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
@@ -398,6 +399,15 @@ async function errorSummary({ count = 20 } = {}) {
   console.log(JSON.stringify({
     ...summary,
     errors: summary.errors.slice(-count),
+  }, null, 2));
+}
+
+async function timeline({ count = 20 } = {}) {
+  const { config } = createRuntime({ requireApiKey: false });
+  const summary = summarizeTimeline(readEventLog(config.eventLogPath));
+  console.log(JSON.stringify({
+    ...summary,
+    entries: summary.entries.slice(-count),
   }, null, 2));
 }
 
@@ -885,6 +895,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
     eventsFollow: Boolean(scripts['events:follow']),
     eventSummary: Boolean(scripts['event-summary']),
     errors: Boolean(scripts.errors),
+    timeline: Boolean(scripts.timeline),
     tasks: Boolean(scripts.tasks),
     taskDetail: Boolean(scripts['task-detail']),
     runtimeState: Boolean(scripts['runtime-state']),
@@ -1304,6 +1315,7 @@ function printUsage() {
     '  npm run events -- --since 2026-06-20T12:00:00Z',
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run errors            Summarize recent error events.',
+    '  npm run timeline          Print a normalized runtime timeline.',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run task-detail -- <task_id>',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
@@ -1370,6 +1382,8 @@ try {
     await eventSummary();
   } else if (args[0] === '--errors') {
     await errorSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--timeline') {
+    await timeline({ count: getEventCount(args) });
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--task-detail') {

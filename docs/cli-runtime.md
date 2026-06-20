@@ -20,6 +20,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run events:follow -- --type state.changed`: follows only matching structured runtime events.
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run errors`: summarizes recent structured error events.
+- `npm run timeline`: prints a normalized runtime timeline for no-UI review and later desktop UI mapping.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run task-detail -- <task_id>`: prints one background task's related turns and event timeline.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
@@ -135,6 +136,7 @@ Implemented:
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Phase 1 review completion emits a structured event for CLI and later UI observability.
 - Error summary command reconstructed from structured runtime events.
+- Normalized runtime timeline command reconstructed from structured runtime events.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns and event timeline.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, turn, error, and background task summaries.

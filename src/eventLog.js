@@ -144,6 +144,108 @@ export function summarizeErrors(events) {
   };
 }
 
+function timelineEntry(event) {
+  const base = {
+    at: event.createdAt || null,
+    eventType: event.type,
+    turnId: event.turnId || event.sourceTurnId || null,
+    backgroundTaskId: event.backgroundTaskId || null,
+  };
+  if (event.type === 'state.changed') {
+    return {
+      ...base,
+      kind: 'state',
+      state: event.state || null,
+      previousState: event.previousState || null,
+      reason: event.reason || null,
+    };
+  }
+  if (event.type === 'transcript.completed') {
+    return {
+      ...base,
+      kind: 'user_turn',
+      text: event.text || '',
+      contextVersion: event.contextVersion || null,
+    };
+  }
+  if (event.type === 'response.started' || event.type === 'response.completed' || event.type === 'response.interrupted') {
+    return {
+      ...base,
+      kind: 'response',
+      source: event.source || null,
+      text: event.text || null,
+      reason: event.reason || null,
+    };
+  }
+  if (event.type?.startsWith?.('background_task.')) {
+    return {
+      ...base,
+      kind: 'background_task',
+      taskType: event.taskType || null,
+      status: event.type.split('.').at(-1),
+      reason: event.reason || null,
+      action: event.action || event.result?.action || null,
+      question: event.question || null,
+    };
+  }
+  if (event.type?.startsWith?.('announcement.')) {
+    return {
+      ...base,
+      kind: 'announcement',
+      status: event.type.split('.').at(-1),
+      source: event.source || null,
+      outlet: event.outlet || null,
+      text: event.text || null,
+      reason: event.reason || null,
+    };
+  }
+  if (event.type?.startsWith?.('tool_call.')) {
+    return {
+      ...base,
+      kind: 'tool_call',
+      status: event.type.split('.').at(-1),
+      toolName: event.toolName || null,
+      message: event.message || null,
+    };
+  }
+  if (event.type?.startsWith?.('reminder.')) {
+    return {
+      ...base,
+      kind: 'reminder',
+      status: event.type.split('.').at(-1),
+      reminderId: event.reminder?.id || event.reminderId || null,
+      title: event.reminder?.title || null,
+      remindAt: event.reminder?.remindAt || null,
+    };
+  }
+  if (event.type?.startsWith?.('memory.')) {
+    return {
+      ...base,
+      kind: 'memory',
+      status: event.type.split('.').at(-1),
+      memoryId: event.memory?.id || event.memoryId || null,
+      content: event.memory?.content || null,
+    };
+  }
+  if (event.type === 'error' || event.type?.endsWith?.('.failed')) {
+    return {
+      ...base,
+      kind: 'error',
+      source: event.source || null,
+      message: event.message || event.error?.message || event.error || null,
+    };
+  }
+  return null;
+}
+
+export function summarizeTimeline(events) {
+  const entries = events.map(timelineEntry).filter(Boolean);
+  return {
+    total: entries.length,
+    entries,
+  };
+}
+
 function statusFromCompletion(result) {
   if (result?.action === 'timeout') {
     return 'timeout';
