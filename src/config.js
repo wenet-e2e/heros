@@ -58,6 +58,7 @@ export function getConfig() {
     realtimeVadSilenceDurationMs: process.env.HEROS_REALTIME_VAD_SILENCE_DURATION_MS || '800',
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
+    reminderPollMs: Number(process.env.HEROS_REMINDER_POLL_MS || '30000'),
     dataDir: process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'),
   };
 }

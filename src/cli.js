@@ -11,6 +11,7 @@ import { DashScopeClient } from './dashscope.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { SharedContext } from './context.js';
 import { ReminderStore } from './reminders.js';
+import { ReminderScheduler } from './reminderScheduler.js';
 import { BackgroundAgent } from './backgroundAgent.js';
 import { CliInteractionModel } from './interactionModel.js';
 import { VoiceLoop } from './voiceLoop.js';
@@ -25,6 +26,10 @@ function createRuntime() {
   });
   const context = new SharedContext();
   const reminderStore = new ReminderStore(config.dataDir);
+  const reminderScheduler = new ReminderScheduler({
+    reminderStore,
+    pollMs: config.reminderPollMs,
+  });
   const bootstrap = ensureAgentBootstrap(config.dataDir);
   const backgroundAgent = new BackgroundAgent({
     client,
@@ -38,7 +43,7 @@ function createRuntime() {
     backgroundAgent,
     context,
   });
-  return { config, client, interactionModel, reminderStore, bootstrap };
+  return { config, client, interactionModel, reminderStore, reminderScheduler, bootstrap };
 }
 
 function createRealtimeClient(config) {
@@ -51,11 +56,12 @@ function createRealtimeClient(config) {
 
 async function checkRealtime(config) {
   const realtime = createRealtimeClient(config);
-  realtime.on('event', (event) => {
+  const logSessionEvent = (event) => {
     if (['session.created', 'session.updated', 'error'].includes(event.type)) {
       console.log(`[realtime] ${event.type}`);
     }
-  });
+  };
+  realtime.on('event', logSessionEvent);
   await realtime.connect();
   realtime.updateSession({
     modalities: ['text', 'audio'],
@@ -67,6 +73,7 @@ async function checkRealtime(config) {
     },
   });
   await realtime.waitFor('session.updated', 15000);
+  realtime.off('event', logSessionEvent);
   realtime.close();
 }
 
@@ -79,6 +86,7 @@ async function doctor() {
   console.log(`Realtime voice: ${config.realtimeVoice}`);
   console.log(`Background model: ${config.backgroundModel}`);
   console.log(`Time zone: ${config.timeZone}`);
+  console.log(`Reminder poll interval: ${config.reminderPollMs}ms`);
   console.log(`Data dir: ${config.dataDir}`);
   console.log(`Agent bootstrap dir: ${bootstrap.targetDir}`);
   console.log('Checking realtime WebSocket session...');
@@ -103,42 +111,53 @@ async function once(text) {
 }
 
 async function interactive() {
-  const { interactionModel, reminderStore } = createRuntime();
+  const { interactionModel, reminderStore, reminderScheduler } = createRuntime();
   const rl = readline.createInterface({ input, output });
+  reminderScheduler.start();
   console.log('HerOS CLI ready. Type /exit to quit, /reminders to list reminders.');
-  while (true) {
-    const text = (await rl.question('You: ')).trim();
-    if (!text) {
-      continue;
+  try {
+    while (true) {
+      const text = (await rl.question('You: ')).trim();
+      if (!text) {
+        continue;
+      }
+      if (text === '/exit') {
+        break;
+      }
+      if (text === '/reminders') {
+        console.log(JSON.stringify(reminderStore.list(), null, 2));
+        continue;
+      }
+      try {
+        const reply = await interactionModel.respond(text);
+        console.log(`HerOS: ${reply}`);
+      } catch (error) {
+        console.error(`HerOS error: ${error.message}`);
+      }
     }
-    if (text === '/exit') {
-      break;
-    }
-    if (text === '/reminders') {
-      console.log(JSON.stringify(reminderStore.list(), null, 2));
-      continue;
-    }
-    try {
-      const reply = await interactionModel.respond(text);
-      console.log(`HerOS: ${reply}`);
-    } catch (error) {
-      console.error(`HerOS error: ${error.message}`);
-    }
+  } finally {
+    reminderScheduler.stop();
+    rl.close();
   }
-  rl.close();
 }
 
 async function voiceLoop({ playAudio = true } = {}) {
   const runtime = createRuntime();
   const realtime = createRealtimeClient(runtime.config);
+  runtime.reminderScheduler.start();
   const loop = new VoiceLoop({
     config: runtime.config,
     realtime,
     backgroundAgent: runtime.interactionModel.backgroundAgent,
     context: runtime.interactionModel.context,
+    reminderScheduler: runtime.reminderScheduler,
     playAudio,
   });
-  await loop.start();
+  try {
+    await loop.start();
+  } finally {
+    runtime.reminderScheduler.stop();
+  }
 }
 
 async function talkOnce({ playAudio = true } = {}) {
@@ -243,6 +262,7 @@ function printUsage() {
     '  HEROS_REALTIME_MODEL      Default qwen3.5-omni-plus-realtime.',
     '  HEROS_BACKGROUND_MODEL    Default qwen3.7-plus.',
     '  HEROS_TIME_ZONE           Default system time zone.',
+    '  HEROS_REMINDER_POLL_MS    Default 30000.',
   ].join('\n'));
 }
 

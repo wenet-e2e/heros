@@ -4,11 +4,12 @@ import { emitEvent } from './events.js';
 import { likelyReminder } from './intents.js';
 
 export class VoiceLoop {
-  constructor({ config, realtime, backgroundAgent, context, playAudio = true }) {
+  constructor({ config, realtime, backgroundAgent, context, reminderScheduler, playAudio = true }) {
     this.config = config;
     this.realtime = realtime;
     this.backgroundAgent = backgroundAgent;
     this.context = context;
+    this.reminderScheduler = reminderScheduler;
     this.playAudio = playAudio;
     this.player = new PcmPlayer({ sampleRate: 24000, enabled: playAudio });
     this.recorder = new PcmRecorder({ sampleRate: 16000 });

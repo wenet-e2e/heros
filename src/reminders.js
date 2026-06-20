@@ -30,4 +30,37 @@ export class ReminderStore {
     fs.writeFileSync(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
     return reminder;
   }
+
+  due(now = new Date()) {
+    const nowMs = now.getTime();
+    return this.list().filter((reminder) => {
+      if (reminder.status !== 'scheduled') {
+        return false;
+      }
+      const remindAtMs = Date.parse(reminder.remindAt);
+      return Number.isFinite(remindAtMs) && remindAtMs <= nowMs;
+    });
+  }
+
+  update(id, patch) {
+    const reminders = this.list();
+    const index = reminders.findIndex((reminder) => reminder.id === id);
+    if (index === -1) {
+      return null;
+    }
+    reminders[index] = {
+      ...reminders[index],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
+    return reminders[index];
+  }
+
+  markTriggered(id) {
+    return this.update(id, {
+      status: 'triggered',
+      triggeredAt: new Date().toISOString(),
+    });
+  }
 }
