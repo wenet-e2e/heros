@@ -12,7 +12,14 @@ import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
 import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
-import { filterEvents, followEventLog, readEventLog, summarizeBackgroundTasks, summarizeEvents } from '../src/eventLog.js';
+import {
+  filterEvents,
+  followEventLog,
+  readEventLog,
+  summarizeBackgroundTasks,
+  summarizeEvents,
+  summarizeRuntimeState,
+} from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
@@ -221,6 +228,48 @@ function testBackgroundTaskSummary() {
   configureEvents();
 }
 
+function testRuntimeStateSummary() {
+  const dir = createTempDir('heros-runtime-state-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('state.changed', {
+    previousState: 'idle',
+    state: 'listening',
+    reason: 'smoke_start',
+  });
+  emitEvent('transcript.completed', {
+    text: '提醒我喝水',
+    turnId: 'turn_runtime_state',
+  });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_runtime_state',
+    turnId: 'turn_runtime_state',
+    taskType: 'reminder',
+    model: 'fake',
+  });
+  emitEvent('background_task.needs_clarification', {
+    backgroundTaskId: 'task_runtime_state',
+    turnId: 'turn_runtime_state',
+    question: '什么时候提醒？',
+    reason: 'missing_time',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_runtime_state',
+    turnId: 'turn_runtime_state',
+    result: { action: 'clarify' },
+  });
+  const summary = summarizeRuntimeState(readEventLog(logPath));
+  if (
+    summary.state !== 'idle'
+    || summary.pendingClarificationCount !== 1
+    || summary.lastTurnId !== 'turn_runtime_state'
+    || summary.lastBackgroundTask.status !== 'needs_clarification'
+  ) {
+    throw new Error('runtime state summary smoke failed');
+  }
+  configureEvents();
+}
+
 function testAgentBootstrap() {
   const dir = createTempDir('heros-bootstrap-');
   const bootstrap = ensureAgentBootstrap(dir);
@@ -251,6 +300,38 @@ function testCliStatusOutput() {
   }
   if (status.backgroundTasks.total !== 0 || typeof status.backgroundTasks.byStatus !== 'object') {
     throw new Error('cli status background task summary smoke failed');
+  }
+  if (status.runtimeState.state !== 'idle' || status.runtimeState.pendingClarificationCount !== 0) {
+    throw new Error('cli status runtime state smoke failed');
+  }
+}
+
+function testCliRuntimeStateCommand() {
+  const dir = createTempDir('heros-cli-runtime-state-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('state.changed', {
+    previousState: 'listening',
+    state: 'speaking',
+    reason: 'response_created',
+    turnId: 'turn_cli_runtime_state',
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--runtime-state'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli runtime state smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const state = JSON.parse(result.stdout);
+  if (state.state !== 'speaking' || !state.speaking || state.lastTurnId !== 'turn_cli_runtime_state') {
+    throw new Error('cli runtime state output smoke failed');
   }
 }
 
@@ -1082,8 +1163,10 @@ await testEventLog();
 testReminderScheduler();
 testMemoryStore();
 testBackgroundTaskSummary();
+testRuntimeStateSummary();
 testAgentBootstrap();
 testCliStatusOutput();
+testCliRuntimeStateCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

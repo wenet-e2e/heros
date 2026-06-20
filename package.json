@@ -17,6 +17,7 @@
     "events:follow": "node src/cli.js --events --follow",
     "event-summary": "node src/cli.js --event-summary",
     "tasks": "node src/cli.js --tasks",
+    "runtime-state": "node src/cli.js --runtime-state",
     "reminders": "node src/cli.js --reminders",
     "cancel-reminder": "node src/cli.js --cancel-reminder",
     "memories": "node src/cli.js --memories",

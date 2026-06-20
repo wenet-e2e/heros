@@ -9,7 +9,14 @@ import { commandExists } from './audio.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
-import { filterEvents, followEventLog, readEventLog, summarizeBackgroundTasks, summarizeEvents } from './eventLog.js';
+import {
+  filterEvents,
+  followEventLog,
+  readEventLog,
+  summarizeBackgroundTasks,
+  summarizeEvents,
+  summarizeRuntimeState,
+} from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 import { emitEvent } from './events.js';
 
@@ -129,6 +136,7 @@ async function status() {
   const loggedEvents = readEventLog(config.eventLogPath);
   const eventSummary = summarizeEvents(loggedEvents);
   const taskSummary = summarizeBackgroundTasks(loggedEvents);
+  const runtimeState = summarizeRuntimeState(loggedEvents);
   const remindersByStatus = reminders.reduce((acc, reminder) => {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
@@ -162,6 +170,15 @@ async function status() {
       byStatus: backgroundTasksByStatus,
       lastTaskStatus: lastBackgroundTask?.status || null,
       lastTaskUpdatedAt: lastBackgroundTask?.updatedAt || null,
+    },
+    runtimeState: {
+      state: runtimeState.state,
+      reason: runtimeState.reason,
+      updatedAt: runtimeState.updatedAt,
+      speaking: runtimeState.speaking,
+      backgroundRunning: runtimeState.backgroundRunning,
+      activeBackgroundTaskCount: runtimeState.activeBackgroundTaskCount,
+      pendingClarificationCount: runtimeState.pendingClarificationCount,
     },
     memories: {
       total: memoryStore.list().length,
@@ -208,6 +225,11 @@ async function taskSummary({ count = 20 } = {}) {
     ...summary,
     tasks: summary.tasks.slice(0, count),
   }, null, 2));
+}
+
+async function runtimeState() {
+  const { config } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(summarizeRuntimeState(readEventLog(config.eventLogPath)), null, 2));
 }
 
 async function listReminders() {
@@ -482,6 +504,7 @@ function printUsage() {
     '  npm run events -- --background-task-id task_xxx',
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run tasks             Summarize background tasks from event logs.',
+    '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run cancel-reminder -- <id>',
     '  npm run memories          List long-term memories without network calls.',
@@ -528,6 +551,8 @@ try {
     await eventSummary();
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--runtime-state') {
+    await runtimeState();
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--cancel-reminder') {

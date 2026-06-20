@@ -19,6 +19,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run events:follow -- --type state.changed`: follows only matching structured runtime events.
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
+- `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
 - `npm run memories`: lists long-term memories without network calls.
@@ -87,6 +88,7 @@ Implemented:
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Runtime status includes background task status counts reconstructed from event logs.
+- Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Turn IDs on conversation turns and response/transcript events.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
 - Realtime announcement response events include their background task source, ID, and source turn.

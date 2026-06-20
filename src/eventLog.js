@@ -67,6 +67,12 @@ function statusFromCompletion(result) {
   if (result?.action === 'failed') {
     return 'failed';
   }
+  if (result?.action === 'clarify' || result?.action?.endsWith?.('needs_clarification')) {
+    return 'needs_clarification';
+  }
+  if (result?.action?.endsWith?.('_ambiguous')) {
+    return 'ambiguous';
+  }
   return 'completed';
 }
 
@@ -110,6 +116,14 @@ export function summarizeBackgroundTasks(events) {
         stage: event.stage || null,
         action: event.action || null,
       };
+    } else if (event.type === 'background_task.needs_clarification') {
+      current.status = 'needs_clarification';
+      current.reason = event.reason || current.reason;
+      current.result = {
+        action: 'needs_clarification',
+        question: event.question || null,
+        candidates: event.candidates || null,
+      };
     } else if (event.type === 'background_task.cancelled') {
       current.status = 'cancelled';
       current.reason = event.reason || current.reason;
@@ -138,6 +152,65 @@ export function summarizeBackgroundTasks(events) {
       const bTime = Date.parse(b.updatedAt || b.startedAt || 0);
       return bTime - aTime;
     }),
+  };
+}
+
+function stateFromEvent(fallback, event) {
+  if (event.type === 'state.changed') {
+    return {
+      state: event.state || fallback.state,
+      previousState: event.previousState || fallback.previousState,
+      reason: event.reason || null,
+      updatedAt: event.createdAt || fallback.updatedAt,
+    };
+  }
+  if (event.type === 'input_audio.started') {
+    return { state: 'listening', previousState: fallback.state, reason: 'input_audio_started', updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  if (event.type === 'transcript.completed') {
+    return { state: 'interacting', previousState: fallback.state, reason: 'transcript_completed', updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  if (event.type === 'background_task.started' || event.type === 'background_task.progress') {
+    return { state: 'background_running', previousState: fallback.state, reason: event.type, updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  if (event.type === 'response.started') {
+    return { state: 'speaking', previousState: fallback.state, reason: 'response_started', updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  if (event.type === 'response.interrupted') {
+    return { state: 'interrupted', previousState: fallback.state, reason: event.reason || 'response_interrupted', updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  if (event.type === 'response.completed' || event.type === 'background_task.completed' || event.type === 'background_task.cancelled') {
+    return { state: 'idle', previousState: fallback.state, reason: event.type, updatedAt: event.createdAt || fallback.updatedAt };
+  }
+  return fallback;
+}
+
+export function summarizeRuntimeState(events) {
+  const backgroundTasks = summarizeBackgroundTasks(events);
+  const activeBackgroundTasks = backgroundTasks.tasks.filter((task) => ['requested', 'running'].includes(task.status));
+  const pendingClarifications = backgroundTasks.tasks.filter((task) => task.status === 'needs_clarification');
+  const state = events.reduce(stateFromEvent, {
+    state: 'idle',
+    previousState: null,
+    reason: null,
+    updatedAt: null,
+  });
+  const lastEvent = events.at(-1) || null;
+  const lastTurnEvent = [...events].reverse().find((event) => event.turnId || event.sourceTurnId) || null;
+
+  return {
+    state: state.state,
+    previousState: state.previousState,
+    reason: state.reason,
+    updatedAt: state.updatedAt,
+    speaking: state.state === 'speaking',
+    backgroundRunning: activeBackgroundTasks.length > 0,
+    activeBackgroundTaskCount: activeBackgroundTasks.length,
+    pendingClarificationCount: pendingClarifications.length,
+    lastEventType: lastEvent?.type || null,
+    lastEventAt: lastEvent?.createdAt || null,
+    lastTurnId: lastTurnEvent?.turnId || lastTurnEvent?.sourceTurnId || null,
+    lastBackgroundTask: backgroundTasks.tasks[0] || null,
   };
 }
 
