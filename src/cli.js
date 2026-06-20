@@ -449,6 +449,8 @@ async function routeText(text) {
     handledBy: routeTarget(decision),
     taskType: decision?.type || null,
     reason: decision?.reason || 'no_background_task',
+    pendingBackgroundTaskId: decision?.pendingBackgroundTaskId || null,
+    nextOnly: decision?.nextOnly || false,
   }, null, 2));
 }
 

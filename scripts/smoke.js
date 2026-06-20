@@ -796,7 +796,12 @@ function testCliRouteCommand() {
     throw new Error(`cli route reminder smoke failed: ${reminderResult.stderr || reminderResult.stdout}`);
   }
   const reminderRoute = JSON.parse(reminderResult.stdout);
-  if (!reminderRoute.delegatesToBackground || reminderRoute.handledBy !== 'background_agent' || reminderRoute.taskType !== 'reminder') {
+  if (
+    !reminderRoute.delegatesToBackground
+    || reminderRoute.handledBy !== 'background_agent'
+    || reminderRoute.taskType !== 'reminder'
+    || reminderRoute.pendingBackgroundTaskId !== null
+  ) {
     throw new Error('cli route reminder output smoke failed');
   }
 
@@ -835,7 +840,7 @@ function testCliRouteCommand() {
     throw new Error(`cli route chat smoke failed: ${chatResult.stderr || chatResult.stdout}`);
   }
   const chatRoute = JSON.parse(chatResult.stdout);
-  if (chatRoute.delegatesToBackground || chatRoute.handledBy !== 'realtime_interaction_model') {
+  if (chatRoute.delegatesToBackground || chatRoute.handledBy !== 'realtime_interaction_model' || chatRoute.nextOnly !== false) {
     throw new Error('cli route chat output smoke failed');
   }
 }
