@@ -48,6 +48,7 @@ Implemented:
 - Local reminder creation, validation, scheduling, and trigger events.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
+- Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD and explicit natural-language memory requests.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.

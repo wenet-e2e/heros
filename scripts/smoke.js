@@ -11,6 +11,7 @@ import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
 import { likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
+import { VoiceLoop } from '../src/voiceLoop.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -175,6 +176,31 @@ function testIntentBoundaries() {
   }
 }
 
+function testStaleAnnouncementSkip() {
+  const dir = createTempDir('heros-stale-announcement-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {},
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.turnEpoch = 2;
+  loop.enqueueAnnouncement('old result', {
+    backgroundTaskId: 'task_old',
+    turnEpoch: 1,
+  });
+  const events = readEventLog(logPath);
+  const skipped = events.find((event) => event.type === 'announcement.skipped');
+  if (!skipped || skipped.reason !== 'stale_turn' || skipped.backgroundTaskId !== 'task_old') {
+    throw new Error('stale announcement skip smoke failed');
+  }
+  configureEvents();
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -211,6 +237,7 @@ testReminderScheduler();
 testMemoryStore();
 testSharedContextRedaction();
 testIntentBoundaries();
+testStaleAnnouncementSkip();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();

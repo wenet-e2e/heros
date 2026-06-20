@@ -19,6 +19,7 @@ export class VoiceLoop {
     this.backgroundTasks = new Set();
     this.unsubscribeReminderTrigger = null;
     this.state = 'idle';
+    this.turnEpoch = 0;
   }
 
   setState(state, reason) {
@@ -69,7 +70,9 @@ export class VoiceLoop {
 
     if (this.reminderScheduler) {
       this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
-        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`);
+        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`, {
+          source: 'reminder_due',
+        });
       });
       this.reminderScheduler.start();
     }
@@ -110,6 +113,8 @@ export class VoiceLoop {
   }
 
   async handleSpeechStarted() {
+    this.turnEpoch += 1;
+    emitEvent('conversation.epoch_changed', { turnEpoch: this.turnEpoch, reason: 'user_speech_started' });
     emitEvent('input_audio.started');
     if (!this.isResponding) {
       this.setState('listening', 'user_speech_started');
@@ -136,9 +141,10 @@ export class VoiceLoop {
     emitEvent('transcript.completed', {
       text: transcript,
       contextVersion: this.context.version,
+      turnEpoch: this.turnEpoch,
     });
     if (this.taskRouter.shouldDelegate(transcript)) {
-      this.delegateTask(transcript);
+      this.delegateTask(transcript, { turnEpoch: this.turnEpoch });
     }
   }
 
@@ -159,11 +165,15 @@ export class VoiceLoop {
     process.stdout.write('\n');
   }
 
-  delegateTask(transcript) {
+  delegateTask(transcript, { turnEpoch }) {
     const task = this.taskRouter.maybeHandle(transcript).then((result) => {
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
-        this.enqueueAnnouncement(result.message);
+        this.enqueueAnnouncement(result.message, {
+          backgroundTaskId: result.backgroundTaskId,
+          source: 'background_task',
+          turnEpoch,
+        });
       }
     }).catch((error) => {
       emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
@@ -173,9 +183,19 @@ export class VoiceLoop {
     this.backgroundTasks.add(task);
   }
 
-  enqueueAnnouncement(message) {
-    this.announcementQueue.push(message);
-    emitEvent('announcement.queued', { text: message });
+  enqueueAnnouncement(message, { backgroundTaskId, source = 'background_task', turnEpoch = this.turnEpoch } = {}) {
+    if (turnEpoch < this.turnEpoch) {
+      emitEvent('announcement.skipped', {
+        backgroundTaskId,
+        source,
+        reason: 'stale_turn',
+        turnEpoch,
+        currentTurnEpoch: this.turnEpoch,
+      });
+      return;
+    }
+    this.announcementQueue.push({ message, backgroundTaskId, source, turnEpoch });
+    emitEvent('announcement.queued', { backgroundTaskId, source, text: message, turnEpoch });
     this.drainAnnouncements();
   }
 
@@ -183,20 +203,48 @@ export class VoiceLoop {
     if (this.isResponding || this.isAnnouncing || this.announcementQueue.length === 0) {
       return;
     }
-    const message = this.announcementQueue.shift();
+    const announcement = this.announcementQueue.shift();
+    if (announcement.turnEpoch < this.turnEpoch) {
+      emitEvent('announcement.skipped', {
+        backgroundTaskId: announcement.backgroundTaskId,
+        source: announcement.source,
+        reason: 'stale_turn',
+        turnEpoch: announcement.turnEpoch,
+        currentTurnEpoch: this.turnEpoch,
+      });
+      this.drainAnnouncements();
+      return;
+    }
     this.isAnnouncing = true;
-    emitEvent('announcement.started', { text: message, outlet: 'realtime' });
+    emitEvent('announcement.started', {
+      backgroundTaskId: announcement.backgroundTaskId,
+      source: announcement.source,
+      text: announcement.message,
+      outlet: 'realtime',
+      turnEpoch: announcement.turnEpoch,
+    });
     try {
       this.realtime.createUserTextMessage([
         '后台任务结果如下。',
-        message,
+        announcement.message,
         '请用一句自然、简短、适合语音播报的话告诉用户。',
       ].join('\n'));
       this.realtime.createResponse();
       await this.realtime.waitFor('response.done', 120000);
-      emitEvent('announcement.completed', { outlet: 'realtime' });
+      emitEvent('announcement.completed', {
+        backgroundTaskId: announcement.backgroundTaskId,
+        source: announcement.source,
+        outlet: 'realtime',
+        turnEpoch: announcement.turnEpoch,
+      });
     } catch (error) {
-      emitEvent('announcement.failed', { outlet: 'realtime', message: error.message });
+      emitEvent('announcement.failed', {
+        backgroundTaskId: announcement.backgroundTaskId,
+        source: announcement.source,
+        outlet: 'realtime',
+        message: error.message,
+        turnEpoch: announcement.turnEpoch,
+      });
     } finally {
       this.isAnnouncing = false;
       this.drainAnnouncements();
