@@ -27,7 +27,11 @@ function testEventLog() {
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
   emitEvent('smoke.event_log', { ok: true, type: 'payload_must_not_override_event_type' });
-  emitEvent('smoke.secret_redaction', { text: 'DASHSCOPE_API_KEY=abc123 Bearer secret-token' });
+  emitEvent('smoke.secret_redaction', {
+    backgroundTaskId: 'task_smoke',
+    text: 'DASHSCOPE_API_KEY=abc123 Bearer secret-token',
+    turnId: 'turn_smoke',
+  });
   const events = fs.readFileSync(logPath, 'utf8').trim().split('\n').map(JSON.parse);
   const event = events[0];
   if (event.type !== 'smoke.event_log' || event.ok !== true) {
@@ -44,6 +48,14 @@ function testEventLog() {
   const filtered = filterEvents(readEventLog(logPath), { type: 'smoke.secret_redaction' });
   if (filtered.length !== 1 || filtered[0].type !== 'smoke.secret_redaction') {
     throw new Error('event filter smoke failed');
+  }
+  const turnFiltered = filterEvents(readEventLog(logPath), { turnId: 'turn_smoke' });
+  if (turnFiltered.length !== 1 || turnFiltered[0].turnId !== 'turn_smoke') {
+    throw new Error('event turn filter smoke failed');
+  }
+  const taskFiltered = filterEvents(readEventLog(logPath), { backgroundTaskId: 'task_smoke' });
+  if (taskFiltered.length !== 1 || taskFiltered[0].backgroundTaskId !== 'task_smoke') {
+    throw new Error('event background task filter smoke failed');
   }
   fs.appendFileSync(logPath, 'not-json\n');
   const malformed = readEventLog(logPath).at(-1);

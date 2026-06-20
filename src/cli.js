@@ -135,14 +135,14 @@ async function status() {
   }, null, 2));
 }
 
-async function events({ count = 20, type } = {}) {
+async function events({ backgroundTaskId, count = 20, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
   const allEvents = readEventLog(config.eventLogPath);
   if (allEvents.length === 0) {
     console.log('No event log yet.');
     return;
   }
-  for (const event of filterEvents(allEvents, { type }).slice(-count)) {
+  for (const event of filterEvents(allEvents, { backgroundTaskId, turnId, type }).slice(-count)) {
     console.log(JSON.stringify(event));
   }
 }
@@ -365,6 +365,8 @@ function printUsage() {
     '  npm run status            Print local runtime status without network calls.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events -- --type response.completed',
+    '  npm run events -- --turn-id turn_xxx',
+    '  npm run events -- --background-task-id task_xxx',
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
@@ -395,6 +397,8 @@ try {
     await events({
       count: getEventCount(args),
       type: getArgValue(args, '--type'),
+      turnId: getArgValue(args, '--turn-id'),
+      backgroundTaskId: getArgValue(args, '--background-task-id'),
     });
   } else if (args[0] === '--event-summary') {
     await eventSummary();

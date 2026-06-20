@@ -12,6 +12,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run status`: prints local runtime status without network calls.
 - `npm run events`: prints recent structured runtime events.
 - `npm run events -- --type response.completed`: filters recent structured runtime events by type.
+- `npm run events -- --turn-id turn_xxx`: filters recent structured runtime events by turn.
+- `npm run events -- --background-task-id task_xxx`: filters recent structured runtime events by background task.
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
 - `npm run voice -- --no-play --duration-ms 3000`: starts a short no-play voice loop smoke.

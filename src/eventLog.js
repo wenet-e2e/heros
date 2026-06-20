@@ -21,11 +21,19 @@ export function readEventLog(logPath) {
   });
 }
 
-export function filterEvents(events, { type } = {}) {
-  if (!type) {
-    return events;
-  }
-  return events.filter((event) => event.type === type);
+export function filterEvents(events, { backgroundTaskId, turnId, type } = {}) {
+  return events.filter((event) => {
+    if (type && event.type !== type) {
+      return false;
+    }
+    if (turnId && event.turnId !== turnId) {
+      return false;
+    }
+    if (backgroundTaskId && event.backgroundTaskId !== backgroundTaskId) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export function summarizeEvents(events) {
