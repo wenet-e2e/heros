@@ -13,6 +13,7 @@
     "doctor": "node src/cli.js --doctor",
     "status": "node src/cli.js --status",
     "events": "node src/cli.js --events",
+    "event-summary": "node src/cli.js --event-summary",
     "talk": "node src/cli.js --talk",
     "voice": "node src/cli.js --voice-loop"
   },

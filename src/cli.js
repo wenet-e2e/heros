@@ -9,6 +9,7 @@ import { commandExists } from './audio.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
+import { filterEvents, readEventLog, summarizeEvents } from './eventLog.js';
 
 function createRealtimeClient(config) {
   return new DashScopeRealtimeClient({
@@ -24,6 +25,15 @@ function getArgValue(args, name) {
     return null;
   }
   return args[index + 1] || null;
+}
+
+function getEventCount(args) {
+  const value = args[1];
+  if (!value || value.startsWith('--')) {
+    return 20;
+  }
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? count : 20;
 }
 
 async function checkRealtime(config) {
@@ -89,10 +99,7 @@ async function once(text) {
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
-  const eventLines = fs.existsSync(config.eventLogPath)
-    ? fs.readFileSync(config.eventLogPath, 'utf8').trim().split(/\r?\n/).filter(Boolean)
-    : [];
-  const lastEvent = eventLines.length > 0 ? JSON.parse(eventLines[eventLines.length - 1]) : null;
+  const eventSummary = summarizeEvents(readEventLog(config.eventLogPath));
   const remindersByStatus = reminders.reduce((acc, reminder) => {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
@@ -111,9 +118,9 @@ async function status() {
       byStatus: remindersByStatus,
     },
     events: {
-      total: eventLines.length,
-      lastEventType: lastEvent?.type || null,
-      lastEventAt: lastEvent?.createdAt || null,
+      total: eventSummary.total,
+      lastEventType: eventSummary.lastEventType,
+      lastEventAt: eventSummary.lastEventAt,
     },
     memories: {
       total: memoryStore.list().length,
@@ -121,16 +128,21 @@ async function status() {
   }, null, 2));
 }
 
-async function events(count = 20) {
+async function events({ count = 20, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
-  if (!fs.existsSync(config.eventLogPath)) {
+  const allEvents = readEventLog(config.eventLogPath);
+  if (allEvents.length === 0) {
     console.log('No event log yet.');
     return;
   }
-  const lines = fs.readFileSync(config.eventLogPath, 'utf8').trim().split(/\r?\n/).filter(Boolean);
-  for (const line of lines.slice(-count)) {
-    console.log(line);
+  for (const event of filterEvents(allEvents, { type }).slice(-count)) {
+    console.log(JSON.stringify(event));
   }
+}
+
+async function eventSummary() {
+  const { config } = createRuntime({ requireApiKey: false });
+  console.log(JSON.stringify(summarizeEvents(readEventLog(config.eventLogPath)), null, 2));
 }
 
 function printInteractiveHelp() {
@@ -336,6 +348,8 @@ function printUsage() {
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run status            Print local runtime status without network calls.',
     '  npm run events            Print recent structured runtime events.',
+    '  npm run events -- --type response.completed',
+    '  npm run event-summary     Summarize structured runtime events.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run voice -- --duration-ms 3000',
@@ -360,7 +374,12 @@ try {
   } else if (args[0] === '--status') {
     await status();
   } else if (args[0] === '--events') {
-    await events(Number(args[1] || 20));
+    await events({
+      count: getEventCount(args),
+      type: getArgValue(args, '--type'),
+    });
+  } else if (args[0] === '--event-summary') {
+    await eventSummary();
   } else if (args[0] === '--voice-loop') {
     const durationMs = Number(getArgValue(args, '--duration-ms') || 0) || undefined;
     await voiceLoop({ playAudio: !args.includes('--no-play'), durationMs });

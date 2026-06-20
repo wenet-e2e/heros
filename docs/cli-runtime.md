@@ -10,6 +10,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
 - `npm run status`: prints local runtime status without network calls.
 - `npm run events`: prints recent structured runtime events.
+- `npm run events -- --type response.completed`: filters recent structured runtime events by type.
+- `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run voice`: starts the continuous realtime voice loop. This is the primary Phase 1 runtime path.
 - `npm run voice -- --no-play --duration-ms 3000`: starts a short no-play voice loop smoke.
 - `npm run talk`: records one manual voice turn for focused realtime debugging.
@@ -48,6 +50,7 @@ Implemented:
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Runtime `MEMORY.md` CRUD and explicit natural-language memory requests.
 - Structured event logging to `events.ndjson`.
+- Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Basic secret redaction before structured events are printed/persisted or written into Shared Context.
 - Voice loop state transitions as `state.changed` events for later desktop UI mapping.
 

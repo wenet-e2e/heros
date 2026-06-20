@@ -10,6 +10,7 @@ import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
 import { likelyReminder } from '../src/intents.js';
+import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -29,6 +30,14 @@ function testEventLog() {
   const redacted = events[1];
   if (redacted.text.includes('abc123') || redacted.text.includes('secret-token')) {
     throw new Error('event secret redaction smoke failed');
+  }
+  const summary = summarizeEvents(readEventLog(logPath));
+  if (summary.total !== 2 || summary.byType['smoke.event_log'] !== 1) {
+    throw new Error('event summary smoke failed');
+  }
+  const filtered = filterEvents(readEventLog(logPath), { type: 'smoke.secret_redaction' });
+  if (filtered.length !== 1 || filtered[0].type !== 'smoke.secret_redaction') {
+    throw new Error('event filter smoke failed');
   }
   configureEvents();
 }
