@@ -189,7 +189,7 @@ export class VoiceLoop {
       turnId: userTurn.id,
     });
     if (this.taskRouter.shouldDelegate(transcript)) {
-      this.delegateTask(transcript, { turnEpoch: this.turnEpoch });
+      this.delegateTask(transcript, { turnEpoch: this.turnEpoch, turnId: userTurn.id });
     }
   }
 
@@ -210,11 +210,11 @@ export class VoiceLoop {
     process.stdout.write('\n');
   }
 
-  delegateTask(transcript, { turnEpoch }) {
+  delegateTask(transcript, { turnEpoch, turnId }) {
     if (!this.isResponding && !this.isAnnouncing) {
       this.setState('background_running', 'background_task_started');
     }
-    const task = this.taskRouter.maybeHandle(transcript).then((result) => {
+    const task = this.taskRouter.maybeHandle(transcript, { turnId }).then((result) => {
       this.syncRealtimeContext('background_task_finished');
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
@@ -222,6 +222,7 @@ export class VoiceLoop {
           backgroundTaskId: result.backgroundTaskId,
           source: 'background_task',
           turnEpoch,
+          turnId,
         });
       }
     }).catch((error) => {

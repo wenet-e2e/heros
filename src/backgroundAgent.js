@@ -37,8 +37,8 @@ export class BackgroundAgent {
     this.timeZone = timeZone;
   }
 
-  async handleTask({ userText, context, backgroundTaskId }) {
-    emitEvent('background_task.started', { backgroundTaskId, model: this.model });
+  async handleTask({ userText, context, backgroundTaskId, turnId }) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: this.model });
 
     const now = new Date();
     const localNow = new Intl.DateTimeFormat('zh-CN', {
@@ -96,8 +96,8 @@ export class BackgroundAgent {
           note: decision.note || '',
         });
       } catch (error) {
-        emitEvent('tool_call.failed', { backgroundTaskId, toolName: 'create_reminder', message: error.message });
-        emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'failed', error: error.message } });
+        emitEvent('tool_call.failed', { backgroundTaskId, turnId, toolName: 'create_reminder', message: error.message });
+        emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'failed', error: error.message } });
         return {
           backgroundTaskId,
           type: 'reminder_failed',
@@ -106,8 +106,8 @@ export class BackgroundAgent {
             : '提醒时间解析失败了，可以换一种更具体的说法再试一次。',
         };
       }
-      emitEvent('tool_call.completed', { backgroundTaskId, toolName: 'create_reminder', result: reminder });
-      emitEvent('background_task.completed', { backgroundTaskId, result: reminder });
+      emitEvent('tool_call.completed', { backgroundTaskId, turnId, toolName: 'create_reminder', result: reminder });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: reminder });
       return {
         backgroundTaskId,
         type: 'reminder_created',
@@ -117,8 +117,8 @@ export class BackgroundAgent {
     }
 
     if (decision.action === 'clarify') {
-      emitEvent('background_task.needs_clarification', { backgroundTaskId, question: decision.clarifyingQuestion });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'clarify' } });
+      emitEvent('background_task.needs_clarification', { backgroundTaskId, turnId, question: decision.clarifyingQuestion });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'clarify' } });
       return {
         backgroundTaskId,
         type: 'clarify',
@@ -126,7 +126,7 @@ export class BackgroundAgent {
       };
     }
 
-    emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'none' } });
+    emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'none' } });
     return {
       backgroundTaskId,
       type: 'none',

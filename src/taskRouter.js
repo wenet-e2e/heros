@@ -58,7 +58,7 @@ export class TaskRouter {
     return null;
   }
 
-  async maybeHandle(text) {
+  async maybeHandle(text, { turnId } = {}) {
     const decision = this.shouldDelegate(text);
     if (!decision) {
       return null;
@@ -67,28 +67,31 @@ export class TaskRouter {
 
     emitEvent('background_task.requested', {
       backgroundTaskId,
+      turnId,
       taskType: decision.type,
       reason: decision.reason,
     });
     if (decision.type === 'memory') {
-      return this.handleMemory(text, { backgroundTaskId });
+      return this.handleMemory(text, { backgroundTaskId, turnId });
     }
     if (decision.type === 'forget_memory') {
-      return this.handleForgetMemory(text, { backgroundTaskId });
+      return this.handleForgetMemory(text, { backgroundTaskId, turnId });
     }
     if (decision.type === 'cancel_reminder') {
-      return this.handleCancelReminder(text, { backgroundTaskId });
+      return this.handleCancelReminder(text, { backgroundTaskId, turnId });
     }
     if (decision.type === 'list_reminders') {
-      return this.handleListReminders({ backgroundTaskId });
+      return this.handleListReminders({ backgroundTaskId, turnId });
     }
     const result = await this.backgroundAgent.handleTask({
       backgroundTaskId,
+      turnId,
       userText: text,
       context: this.context.snapshot(),
     });
     this.context.addBackgroundTask({
       backgroundTaskId,
+      turnId,
       type: decision.type,
       status: result.type,
       result,
@@ -97,19 +100,21 @@ export class TaskRouter {
     return result;
   }
 
-  handleListReminders({ backgroundTaskId = createBackgroundTaskId() } = {}) {
-    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'list_reminders' });
+  handleListReminders({ backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'list_reminders' });
     const scheduled = this.reminderStore.list()
       .filter((reminder) => reminder.status === 'scheduled')
       .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
     this.context.addBackgroundTask({
       backgroundTaskId,
+      turnId,
       type: 'list_reminders',
       status: 'completed',
       result: { count: scheduled.length },
     });
     emitEvent('background_task.completed', {
       backgroundTaskId,
+      turnId,
       result: { action: 'list_reminders', count: scheduled.length },
     });
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
@@ -134,17 +139,18 @@ export class TaskRouter {
     };
   }
 
-  handleCancelReminder(text, { backgroundTaskId = createBackgroundTaskId() } = {}) {
-    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'cancel_reminder' });
+  handleCancelReminder(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'cancel_reminder' });
     const query = extractCancelReminderQuery(text);
     if (!query) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'cancel_reminder',
         status: 'needs_clarification',
         result: { query },
       });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'cancel_reminder_needs_clarification' } });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_needs_clarification' } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -161,11 +167,12 @@ export class TaskRouter {
     if (matches.length === 0) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'cancel_reminder',
         status: 'not_found',
         result: { query },
       });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'cancel_reminder_not_found', query } });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_not_found', query } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -176,11 +183,12 @@ export class TaskRouter {
     if (matches.length > 1) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'cancel_reminder',
         status: 'ambiguous',
         result: { query, count: matches.length },
       });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -191,12 +199,13 @@ export class TaskRouter {
     const reminder = this.reminderStore.cancel(matches[0].id);
     this.context.addBackgroundTask({
       backgroundTaskId,
+      turnId,
       type: 'cancel_reminder',
       status: 'cancelled',
       result: reminder,
     });
-    emitEvent('reminder.cancelled', { backgroundTaskId, reminder });
-    emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'cancel_reminder', reminderId: reminder.id } });
+    emitEvent('reminder.cancelled', { backgroundTaskId, turnId, reminder });
+    emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder', reminderId: reminder.id } });
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
     return {
       backgroundTaskId,
@@ -206,21 +215,22 @@ export class TaskRouter {
     };
   }
 
-  handleMemory(text, { backgroundTaskId = createBackgroundTaskId() } = {}) {
-    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'memory' });
+  handleMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'memory' });
     const content = extractMemoryContent(text);
     try {
       const memory = this.memoryStore.create(content);
       const memories = this.memoryStore.list();
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'memory',
         status: 'created',
         result: memory,
       });
       this.context.setLongTermMemory(memories);
-      emitEvent('memory.created', { backgroundTaskId, memory });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'memory_created', memoryId: memory.id } });
+      emitEvent('memory.created', { backgroundTaskId, turnId, memory });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'memory_created', memoryId: memory.id } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -231,12 +241,13 @@ export class TaskRouter {
     } catch (error) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'memory',
         status: 'failed',
         result: { error: error.message },
       });
-      emitEvent('memory.failed', { backgroundTaskId, message: error.message });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'memory_failed', error: error.message } });
+      emitEvent('memory.failed', { backgroundTaskId, turnId, message: error.message });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'memory_failed', error: error.message } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -246,18 +257,19 @@ export class TaskRouter {
     }
   }
 
-  handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId() } = {}) {
-    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'forget_memory' });
+  handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, turnId, model: 'local_task_router', taskType: 'forget_memory' });
     const query = extractForgetMemoryQuery(text);
     const matches = this.memoryStore.list().filter((memory) => memory.content.includes(query));
     if (matches.length === 0) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'forget_memory',
         status: 'not_found',
         result: { query },
       });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory_not_found', query } });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_not_found', query } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -268,11 +280,12 @@ export class TaskRouter {
     if (matches.length > 1) {
       this.context.addBackgroundTask({
         backgroundTaskId,
+        turnId,
         type: 'forget_memory',
         status: 'ambiguous',
         result: { query, count: matches.length },
       });
-      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory_ambiguous', query, count: matches.length } });
+      emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_ambiguous', query, count: matches.length } });
       emitEvent('interaction.context_updated', { contextVersion: this.context.version });
       return {
         backgroundTaskId,
@@ -285,13 +298,14 @@ export class TaskRouter {
     const memories = this.memoryStore.list();
     this.context.addBackgroundTask({
       backgroundTaskId,
+      turnId,
       type: 'forget_memory',
       status: 'deleted',
       result: { memoryId: memory.id },
     });
     this.context.setLongTermMemory(memories);
-    emitEvent('memory.deleted', { backgroundTaskId, memoryId: memory.id });
-    emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory', memoryId: memory.id } });
+    emitEvent('memory.deleted', { backgroundTaskId, turnId, memoryId: memory.id });
+    emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory', memoryId: memory.id } });
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
     return {
       backgroundTaskId,

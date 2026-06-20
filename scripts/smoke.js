@@ -195,6 +195,21 @@ function testTaskRouterMemory() {
   }
 }
 
+async function testTaskRouterTurnLink() {
+  const dir = createTempDir('heros-router-turn-link-');
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    backgroundAgent: null,
+  });
+  await router.maybeHandle('记住用户喜欢短回答', { turnId: 'turn_smoke' });
+  if (context.snapshot().backgroundTasks.at(-1).turnId !== 'turn_smoke') {
+    throw new Error('task router turn link smoke failed');
+  }
+}
+
 function testTaskRouterForgetMemory() {
   const dir = createTempDir('heros-router-forget-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -409,6 +424,7 @@ testVoiceLoopRealtimeInstructions();
 await testRealtimeConnectRetry();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();
+await testTaskRouterTurnLink();
 testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();

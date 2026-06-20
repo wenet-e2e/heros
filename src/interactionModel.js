@@ -14,7 +14,7 @@ export class CliInteractionModel {
     const userTurn = this.context.addTurn('user', userText);
     emitEvent('interaction.context_updated', { contextVersion: this.context.version, turnId: userTurn.id });
 
-    const result = await this.taskRouter.maybeHandle(userText);
+    const result = await this.taskRouter.maybeHandle(userText, { turnId: userTurn.id });
     if (result) {
       if (result.message) {
         const assistantTurn = this.context.addTurn('assistant', result.message);
