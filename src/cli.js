@@ -303,6 +303,19 @@ async function bootstrapStatus() {
   }, null, 2));
 }
 
+async function audioStatus() {
+  console.log(JSON.stringify({
+    recorder: {
+      command: 'rec',
+      available: await commandExists('rec'),
+    },
+    player: {
+      command: 'play',
+      available: await commandExists('play'),
+    },
+  }, null, 2));
+}
+
 async function listReminders() {
   const { reminderStore } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(reminderStore.list(), null, 2));
@@ -590,6 +603,7 @@ function printUsage() {
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
+    '  npm run audio             Check local audio recorder/player commands.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -647,6 +661,8 @@ try {
     await routeText(args.slice(1).join(' '));
   } else if (args[0] === '--bootstrap') {
     await bootstrapStatus();
+  } else if (args[0] === '--audio') {
+    await audioStatus();
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

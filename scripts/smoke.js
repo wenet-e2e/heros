@@ -524,6 +524,24 @@ function testCliBootstrapCommand() {
   }
 }
 
+function testCliAudioCommand() {
+  const result = spawnSync(process.execPath, ['src/cli.js', '--audio'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: createTempDir('heros-cli-audio-'),
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli audio smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const audio = JSON.parse(result.stdout);
+  if (audio.recorder.command !== 'rec' || typeof audio.recorder.available !== 'boolean' || audio.player.command !== 'play') {
+    throw new Error('cli audio output smoke failed');
+  }
+}
+
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -1475,6 +1493,7 @@ testCliTurnsCommand();
 testCliErrorsCommand();
 testCliRouteCommand();
 testCliBootstrapCommand();
+testCliAudioCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

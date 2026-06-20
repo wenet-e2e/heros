@@ -24,6 +24,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run bootstrap`: prints runtime agent bootstrap status.
+- `npm run audio`: checks local audio recorder/player command availability without network calls.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
@@ -61,6 +62,7 @@ Implemented:
 
 - DashScope Realtime WebSocket session check.
 - Doctor emits structured started/ok/failed/completed events for connectivity checks.
+- Headless local audio command availability check.
 - Realtime connection retry events for transient WebSocket startup failures.
 - Continuous VAD voice loop with microphone input and PCM audio output.
 - User interrupt handling by cancelling the active realtime response.
