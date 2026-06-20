@@ -407,6 +407,40 @@ function testCliTurnsCommand() {
   }
 }
 
+function testCliRouteCommand() {
+  const dir = createTempDir('heros-cli-route-');
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+  };
+  const reminderResult = spawnSync(process.execPath, ['src/cli.js', '--route', '明天九点提醒我喝水'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (reminderResult.status !== 0) {
+    throw new Error(`cli route reminder smoke failed: ${reminderResult.stderr || reminderResult.stdout}`);
+  }
+  const reminderRoute = JSON.parse(reminderResult.stdout);
+  if (!reminderRoute.delegatesToBackground || reminderRoute.handledBy !== 'background_agent' || reminderRoute.taskType !== 'reminder') {
+    throw new Error('cli route reminder output smoke failed');
+  }
+
+  const chatResult = spawnSync(process.execPath, ['src/cli.js', '--route', '你怎么看这个观点？'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (chatResult.status !== 0) {
+    throw new Error(`cli route chat smoke failed: ${chatResult.stderr || chatResult.stdout}`);
+  }
+  const chatRoute = JSON.parse(chatResult.stdout);
+  if (chatRoute.delegatesToBackground || chatRoute.handledBy !== 'realtime_interaction_model') {
+    throw new Error('cli route chat output smoke failed');
+  }
+}
+
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
   const store = new ReminderStore(dir);
@@ -1259,6 +1293,7 @@ testAgentBootstrap();
 testCliStatusOutput();
 testCliRuntimeStateCommand();
 testCliTurnsCommand();
+testCliRouteCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

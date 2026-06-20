@@ -242,6 +242,28 @@ async function turnSummary({ count = 20 } = {}) {
   }, null, 2));
 }
 
+function routeTarget(decision) {
+  if (!decision) {
+    return 'realtime_interaction_model';
+  }
+  return decision.type === 'reminder' ? 'background_agent' : 'local_task_router';
+}
+
+async function routeText(text) {
+  if (!text.trim()) {
+    throw new Error('Usage: npm run route -- <text>');
+  }
+  const { taskRouter } = createRuntime({ requireApiKey: false, printEvents: false });
+  const decision = taskRouter.shouldDelegate(text);
+  console.log(JSON.stringify({
+    text,
+    delegatesToBackground: Boolean(decision),
+    handledBy: routeTarget(decision),
+    taskType: decision?.type || null,
+    reason: decision?.reason || 'no_background_task',
+  }, null, 2));
+}
+
 async function listReminders() {
   const { reminderStore } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(reminderStore.list(), null, 2));
@@ -521,6 +543,7 @@ function printUsage() {
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
+    '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -572,6 +595,8 @@ try {
     await runtimeState();
   } else if (args[0] === '--turns') {
     await turnSummary({ count: getEventCount(args) });
+  } else if (args[0] === '--route') {
+    await routeText(args.slice(1).join(' '));
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {
