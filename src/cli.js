@@ -140,6 +140,11 @@ async function interactive() {
         console.log(JSON.stringify(reminderStore.list(), null, 2));
         continue;
       }
+      if (text.startsWith('/cancel-reminder ')) {
+        const reminder = reminderStore.cancel(text.slice('/cancel-reminder '.length).trim());
+        console.log(reminder ? `Cancelled: ${reminder.id}` : 'Reminder not found.');
+        continue;
+      }
       if (text === '/memory') {
         console.log(JSON.stringify(memoryStore.list(), null, 2));
         interactionModel.context.setLongTermMemory(memoryStore.list());

@@ -58,6 +58,16 @@ function testReminderScheduler() {
   if (!refused) {
     throw new Error('invalid reminder time was not refused');
   }
+
+  const future = store.create({
+    title: 'future',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const cancelled = store.cancel(future.id);
+  if (cancelled.status !== 'cancelled') {
+    throw new Error('reminder cancellation smoke failed');
+  }
 }
 
 function testMemoryStore() {

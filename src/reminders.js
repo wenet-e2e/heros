@@ -67,4 +67,11 @@ export class ReminderStore {
       triggeredAt: new Date().toISOString(),
     });
   }
+
+  cancel(id) {
+    return this.update(id, {
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+    });
+  }
 }

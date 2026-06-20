@@ -22,6 +22,14 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 - `reminders.json`: local reminder data.
 - `agent-bootstrap/`: runtime copies of `AGENTS.md`, `SOUL.md`, and `MEMORY.md`.
 
+## Typed CLI Commands
+
+- `/reminders`: list reminders.
+- `/cancel-reminder <id>`: cancel a scheduled reminder.
+- `/memory`: list long-term memories.
+- `/remember <content>`: create a long-term memory.
+- `/forget <id>`: delete a long-term memory.
+
 ## Current Phase 1 Status
 
 Implemented:
