@@ -25,6 +25,7 @@
     "route": "node src/cli.js --route",
     "bootstrap": "node src/cli.js --bootstrap",
     "audio": "node src/cli.js --audio",
+    "audio:probe": "node src/cli.js --audio-probe",
     "preflight": "node src/cli.js --preflight",
     "review": "node src/cli.js --review",
     "reminders": "node src/cli.js --reminders",

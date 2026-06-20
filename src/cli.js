@@ -426,6 +426,79 @@ async function audioStatus() {
   }, null, 2));
 }
 
+async function audioProbe({ durationMs = 500 } = {}) {
+  if (!(await commandExists('rec'))) {
+    throw new Error('Missing `rec`. Install SoX first, for example: brew install sox');
+  }
+  const seconds = Math.max(0.1, durationMs / 1000);
+  const timeoutMs = Math.max(durationMs + 3000, 5000);
+  const args = [
+    '-q',
+    '-b',
+    '16',
+    '-c',
+    '1',
+    '-r',
+    '16000',
+    '-e',
+    'signed-integer',
+    '-t',
+    'raw',
+    '-',
+    'trim',
+    '0',
+    String(seconds),
+  ];
+  const result = await new Promise((resolve, reject) => {
+    const child = spawn('rec', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let bytes = 0;
+    let stderr = '';
+    let settled = false;
+    const fail = (message) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(new Error(`${message}. Check microphone permission, input device selection, and SoX recorder access.`));
+    };
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 500).unref();
+      fail(`Audio probe timed out after ${timeoutMs}ms while capturing ${durationMs}ms`);
+    }, timeoutMs);
+    child.stdout.on('data', (chunk) => {
+      bytes += chunk.length;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString('utf8');
+    });
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      fail(error.message);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (code !== 0) {
+        reject(new Error(`${stderr.trim() || `rec exited with code ${code}`}. Check microphone permission, input device selection, and SoX recorder access.`));
+        return;
+      }
+      resolve({ bytesCaptured: bytes });
+    });
+  });
+  console.log(JSON.stringify({
+    ok: result.bytesCaptured > 0,
+    command: 'rec',
+    durationMs,
+    sampleRate: 16000,
+    channels: 1,
+    bytesCaptured: result.bytesCaptured,
+  }, null, 2));
+}
+
 function checkWritableDir(dir) {
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -836,6 +909,7 @@ function printUsage() {
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
+    '  npm run audio:probe       Probe microphone capture without network calls.',
     '  npm run preflight         Check local readiness before starting voice.',
     '  npm run review            Run local Phase 1 no-UI CLI review.',
     '  npm run reminders         List local reminders without network calls.',
@@ -902,6 +976,8 @@ try {
     await bootstrapStatus();
   } else if (args[0] === '--audio') {
     await audioStatus();
+  } else if (args[0] === '--audio-probe') {
+    await audioProbe({ durationMs: getPositiveNumberArg(args, '--duration-ms', 500) });
   } else if (args[0] === '--preflight') {
     await preflight();
   } else if (args[0] === '--review') {

@@ -27,6 +27,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run bootstrap`: prints runtime agent bootstrap status.
 - `npm run audio`: checks local audio recorder/player command availability without network calls.
+- `npm run audio:probe -- --duration-ms 500`: optionally probes microphone capture without network calls; failures usually point to local microphone permission or device selection.
 - `npm run preflight`: checks local voice-loop readiness without network calls.
 - `npm run review`: runs a local Phase 1 no-UI CLI review without network calls.
 - `npm run reminders`: lists local reminders without network calls.
@@ -68,6 +69,7 @@ Implemented:
 - DashScope Realtime WebSocket session check.
 - Doctor emits structured started/ok/failed/completed events for connectivity checks.
 - Headless local audio command availability check.
+- Optional headless microphone capture probe for local audio permission/device checks.
 - Realtime connection retry events for transient WebSocket startup failures.
 - Headless realtime text turn for no-microphone Qwen-Omni-Realtime debugging.
 - Continuous VAD voice loop with microphone input and PCM audio output.
