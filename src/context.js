@@ -34,12 +34,16 @@ export class SharedContext {
   }
 
   setLongTermMemory(memories) {
-    this.version += 1;
-    this.longTermMemory = memories.map((memory) => ({
+    const next = memories.map((memory) => ({
       id: memory.id,
       content: memory.content,
       updatedAt: memory.updatedAt,
     }));
+    if (JSON.stringify(next) === JSON.stringify(this.longTermMemory)) {
+      return;
+    }
+    this.version += 1;
+    this.longTermMemory = next;
   }
 
   snapshot() {
