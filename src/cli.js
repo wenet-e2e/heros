@@ -329,7 +329,8 @@ function latestSessionReportEvent(events) {
 }
 
 async function status() {
-  const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
+  const runtime = createRuntime({ requireApiKey: false });
+  const { config, reminderStore, memoryStore, bootstrap } = runtime;
   const reminders = reminderStore.list();
   const loggedEvents = readEventLog(config.eventLogPath);
   const eventSummary = summarizeEvents(loggedEvents);
@@ -352,6 +353,7 @@ async function status() {
   }, {});
   const lastBackgroundTask = taskSummary.tasks[0] || null;
   const pendingClarifications = runtimeState.pendingClarifications || [];
+  const contextHealthReport = buildContextHealth(runtime);
   console.log(JSON.stringify({
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
@@ -400,6 +402,12 @@ async function status() {
     },
     localTaskRouter: {
       handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY,
+    },
+    contextHealth: {
+      ready: contextHealthReport.ready,
+      realtime: contextHealthReport.realtime,
+      backgroundAgent: contextHealthReport.backgroundAgent,
+      checks: contextHealthReport.checks,
     },
     runtimeState: {
       state: runtimeState.state,

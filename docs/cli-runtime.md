@@ -104,6 +104,7 @@ Implemented:
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Realtime session context preview command for no-network interaction model debugging.
 - Context health command compares realtime and Background Agent context surfaces for no-UI architecture checks.
+- Runtime status includes live context-health readiness for the realtime/background Shared Context contract.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.
 - Background Agent emits `agent.started` and `agent.completed` lifecycle events around model decisions.

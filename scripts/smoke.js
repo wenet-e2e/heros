@@ -614,6 +614,15 @@ function testCliStatusOutput() {
     throw new Error('cli status local task router summary smoke failed');
   }
   if (
+    status.contextHealth.ready !== true
+    || status.contextHealth.realtime.model !== 'qwen3.5-omni-plus-realtime'
+    || status.contextHealth.backgroundAgent.model !== 'qwen3.7-plus'
+    || status.contextHealth.checks.contextVersionMatches !== true
+    || status.contextHealth.checks.realtimeInstructionsContainSharedContext !== true
+  ) {
+    throw new Error('cli status context health smoke failed');
+  }
+  if (
     status.reminders.dueScheduled !== 0
     || status.reminders.nextScheduledAt !== reminder.remindAt
     || status.reminders.nextScheduled?.title !== '喝水'
