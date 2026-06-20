@@ -1,13 +1,12 @@
 import process from 'node:process';
 import { PcmPlayer, PcmRecorder } from './audio.js';
 import { emitEvent } from './events.js';
-import { likelyReminder } from './intents.js';
 
 export class VoiceLoop {
-  constructor({ config, realtime, backgroundAgent, context, reminderScheduler, playAudio = true }) {
+  constructor({ config, realtime, taskRouter, context, reminderScheduler, playAudio = true }) {
     this.config = config;
     this.realtime = realtime;
-    this.backgroundAgent = backgroundAgent;
+    this.taskRouter = taskRouter;
     this.context = context;
     this.reminderScheduler = reminderScheduler;
     this.playAudio = playAudio;
@@ -105,8 +104,8 @@ export class VoiceLoop {
       text: transcript,
       contextVersion: this.context.version,
     });
-    if (likelyReminder(transcript)) {
-      this.delegateReminder(transcript);
+    if (this.taskRouter.shouldDelegate(transcript)) {
+      this.delegateTask(transcript);
     }
   }
 
@@ -127,21 +126,11 @@ export class VoiceLoop {
     process.stdout.write('\n');
   }
 
-  delegateReminder(transcript) {
-    emitEvent('background_task.requested', { reason: 'voice_likely_reminder' });
-    const task = this.backgroundAgent.handleTask({
-      userText: transcript,
-      context: this.context.snapshot(),
-    }).then((result) => {
-      this.context.addBackgroundTask({
-        type: 'reminder',
-        status: result.type,
-        result,
-      });
+  delegateTask(transcript) {
+    const task = this.taskRouter.maybeHandle(transcript).then((result) => {
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
       }
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
     }).catch((error) => {
       emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
     }).finally(() => {

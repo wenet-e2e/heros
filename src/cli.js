@@ -130,7 +130,7 @@ async function voiceLoop({ playAudio = true } = {}) {
   const loop = new VoiceLoop({
     config: runtime.config,
     realtime,
-    backgroundAgent: runtime.interactionModel.backgroundAgent,
+    taskRouter: runtime.taskRouter,
     context: runtime.interactionModel.context,
     reminderScheduler: runtime.reminderScheduler,
     playAudio,

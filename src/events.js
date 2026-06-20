@@ -12,9 +12,9 @@ export function configureEvents({ logPath } = {}) {
 
 export function emitEvent(type, payload = {}) {
   const event = {
+    ...payload,
     type,
     createdAt: new Date().toISOString(),
-    ...payload,
   };
   const line = JSON.stringify(event);
   process.stdout.write(`[event] ${line}\n`);

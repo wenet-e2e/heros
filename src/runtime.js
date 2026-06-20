@@ -8,6 +8,7 @@ import { CliInteractionModel } from './interactionModel.js';
 import { MemoryStore } from './memoryStore.js';
 import { ReminderScheduler } from './reminderScheduler.js';
 import { ReminderStore } from './reminders.js';
+import { TaskRouter } from './taskRouter.js';
 
 export function createRuntime() {
   const config = getConfig();
@@ -32,10 +33,14 @@ export function createRuntime() {
     reminderStore,
     timeZone: config.timeZone,
   });
+  const taskRouter = new TaskRouter({
+    backgroundAgent,
+    context,
+  });
   const interactionModel = new CliInteractionModel({
     client,
     model: config.backgroundModel,
-    backgroundAgent,
+    taskRouter,
     context,
   });
   return {
@@ -44,6 +49,7 @@ export function createRuntime() {
     context,
     interactionModel,
     backgroundAgent,
+    taskRouter,
     reminderStore,
     reminderScheduler,
     memoryStore,

@@ -1,11 +1,10 @@
 import { emitEvent } from './events.js';
-import { likelyReminder } from './intents.js';
 
 export class CliInteractionModel {
-  constructor({ client, model, backgroundAgent, context }) {
+  constructor({ client, model, taskRouter, context }) {
     this.client = client;
     this.model = model;
-    this.backgroundAgent = backgroundAgent;
+    this.taskRouter = taskRouter;
     this.context = context;
   }
 
@@ -14,12 +13,8 @@ export class CliInteractionModel {
     this.context.addTurn('user', userText);
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
 
-    if (likelyReminder(userText)) {
-      emitEvent('background_task.requested', { reason: 'likely_reminder' });
-      const result = await this.backgroundAgent.handleTask({
-        userText,
-        context: this.context.snapshot(),
-      });
+    const result = await this.taskRouter.maybeHandle(userText);
+    if (result) {
       if (result.message) {
         this.context.addTurn('assistant', result.message);
         emitEvent('response.completed', { source: 'background_agent' });

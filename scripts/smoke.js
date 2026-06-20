@@ -16,7 +16,7 @@ function testEventLog() {
   const dir = createTempDir('heros-events-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
-  emitEvent('smoke.event_log', { ok: true });
+  emitEvent('smoke.event_log', { ok: true, type: 'payload_must_not_override_event_type' });
   const event = JSON.parse(fs.readFileSync(logPath, 'utf8').trim());
   if (event.type !== 'smoke.event_log' || event.ok !== true) {
     throw new Error('event log smoke failed');
