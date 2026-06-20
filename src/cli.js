@@ -946,12 +946,23 @@ async function phaseOneReview({ writeReport = false } = {}) {
     : '';
   docs.localTaskRouter = systemDesignText.includes('Local Task Router')
     && systemDesignText.includes('本地确定性任务路由');
+  const voiceLoopText = fs.existsSync(path.join(process.cwd(), 'src', 'voiceLoop.js'))
+    ? fs.readFileSync(path.join(process.cwd(), 'src', 'voiceLoop.js'), 'utf8')
+    : '';
+  const singleAudioOutlet = {
+    systemDesignConstraint: systemDesignText.includes('单一播报出口'),
+    backgroundAnnouncementsUseRealtimeOutlet: voiceLoopText.includes("outlet: 'realtime'")
+      && voiceLoopText.includes('this.realtime.createUserTextMessage'),
+    correlatesAnnouncementsToRealtimeResponses: voiceLoopText.includes('this.activeAnnouncement')
+      && voiceLoopText.includes('backgroundTaskId: this.activeAnnouncement?.backgroundTaskId'),
+  };
   const review = {
     phase: 'phase_1_no_ui_cli',
     createdAt: new Date().toISOString(),
     ready: preflightReport.ready
       && Object.values(routing).every(Boolean)
       && Object.values(commandSurface).every(Boolean)
+      && Object.values(singleAudioOutlet).every(Boolean)
       && Object.values(docs).every(Boolean),
     checks: {
       preflight: preflightReport,
@@ -976,6 +987,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,
       },
+      singleAudioOutlet,
       docs,
     },
   };
