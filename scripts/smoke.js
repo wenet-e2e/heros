@@ -182,8 +182,20 @@ function testIntentBoundaries() {
   if (likelyReminder('你记得我喜欢什么语音风格吗？')) {
     throw new Error('memory question was misclassified as reminder');
   }
+  if (likelyReminder('你怎么看这个观点？')) {
+    throw new Error('plain point-of-view question was misclassified as reminder');
+  }
+  if (likelyReminder('这个点子不错')) {
+    throw new Error('plain idea statement was misclassified as reminder');
+  }
   if (!likelyReminder('明天上午九点提醒我喝水')) {
     throw new Error('reminder intent smoke failed');
+  }
+  if (!likelyReminder('明天九点叫我喝水')) {
+    throw new Error('implicit reminder intent smoke failed');
+  }
+  if (!likelyReminder('10分钟后通知我开会')) {
+    throw new Error('relative reminder intent smoke failed');
   }
 }
 
