@@ -54,6 +54,38 @@ export class SharedContext {
     this.longTermMemory = next;
   }
 
+  hydrate({ backgroundTasks = [], turns = [] } = {}) {
+    const hydratedTurns = turns.map((turn) => ({
+      id: turn.turnId || turn.id,
+      role: turn.role,
+      content: redactSecrets(turn.text || turn.content || ''),
+      createdAt: turn.createdAt || null,
+      contextVersion: Number.isFinite(turn.contextVersion) ? turn.contextVersion : 0,
+    })).filter((turn) => turn.id && turn.role && turn.content).slice(-30);
+
+    const hydratedTasks = backgroundTasks.map((task) => ({
+      backgroundTaskId: task.backgroundTaskId,
+      turnId: task.turnId || null,
+      type: task.taskType || task.type || null,
+      status: task.status || 'observed',
+      result: redactSecrets(task.result || null),
+      createdAt: task.startedAt || task.updatedAt || null,
+      contextVersion: Number.isFinite(task.contextVersion) ? task.contextVersion : 0,
+    })).filter((task) => task.backgroundTaskId).sort((a, b) => {
+      const aTime = Date.parse(a.createdAt || 0);
+      const bTime = Date.parse(b.createdAt || 0);
+      return aTime - bTime;
+    }).slice(-20);
+
+    this.turns = hydratedTurns;
+    this.backgroundTasks = hydratedTasks;
+    this.version = Math.max(
+      this.version,
+      ...hydratedTurns.map((turn) => turn.contextVersion || 0),
+      ...hydratedTasks.map((task) => task.contextVersion || 0),
+    );
+  }
+
   snapshot() {
     return {
       contextVersion: this.version,

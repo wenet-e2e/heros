@@ -85,6 +85,7 @@ Implemented:
 - Background Agent checks cancellation before tool execution so interrupted tasks cannot create stale reminders.
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
 - Shared Context updates from typed turns and realtime transcripts.
+- Runtime startup hydrates recent Shared Context turns and background tasks from the event log.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.

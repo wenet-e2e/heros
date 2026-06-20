@@ -32,6 +32,7 @@ import { getConfig } from '../src/config.js';
 import { CliInteractionModel } from '../src/interactionModel.js';
 import { DashScopeClient } from '../src/dashscope.js';
 import { commandExists } from '../src/audio.js';
+import { createRuntime } from '../src/runtime.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -531,6 +532,91 @@ function testSharedContextSummary() {
     || summary.bootstrap.files[0] !== 'AGENTS.md'
   ) {
     throw new Error('shared context summary smoke failed');
+  }
+}
+
+function testSharedContextHydration() {
+  const context = new SharedContext();
+  context.hydrate({
+    turns: [{
+      turnId: 'turn_hydrated',
+      role: 'user',
+      text: '你好 Bearer should-not-leak',
+      createdAt: '2026-06-21T00:00:00.000Z',
+      contextVersion: 7,
+    }],
+    backgroundTasks: [{
+      backgroundTaskId: 'task_hydrated',
+      taskType: 'reminder',
+      turnId: 'turn_hydrated',
+      status: 'completed',
+      result: { token: 'should-not-leak' },
+      updatedAt: '2026-06-21T00:00:01.000Z',
+    }],
+  });
+  const snapshot = context.snapshot();
+  if (
+    snapshot.contextVersion !== 7
+    || snapshot.turns[0].id !== 'turn_hydrated'
+    || snapshot.turns[0].content.includes('should-not-leak')
+    || snapshot.backgroundTasks[0].type !== 'reminder'
+    || snapshot.backgroundTasks[0].result.token !== '[REDACTED]'
+  ) {
+    throw new Error('shared context hydration smoke failed');
+  }
+  const turn = context.addTurn('assistant', '你好');
+  if (turn.contextVersion !== 8) {
+    throw new Error('shared context hydration version smoke failed');
+  }
+}
+
+function testRuntimeHydratesEventLog() {
+  const dir = createTempDir('heros-runtime-hydration-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '记住我喜欢短回答',
+    turnId: 'turn_runtime_hydrated',
+    contextVersion: 4,
+  });
+  emitEvent('background_task.requested', {
+    backgroundTaskId: 'task_runtime_hydrated',
+    turnId: 'turn_runtime_hydrated',
+    taskType: 'memory',
+    reason: 'explicit_memory_request',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_runtime_hydrated',
+    turnId: 'turn_runtime_hydrated',
+    result: { action: 'memory_created' },
+  });
+  configureEvents();
+
+  const previousDataDir = process.env.HEROS_DATA_DIR;
+  const previousEventLogPath = process.env.HEROS_EVENT_LOG_PATH;
+  process.env.HEROS_DATA_DIR = dir;
+  process.env.HEROS_EVENT_LOG_PATH = logPath;
+  try {
+    const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+    const snapshot = runtime.context.snapshot();
+    if (
+      snapshot.turns[0]?.id !== 'turn_runtime_hydrated'
+      || snapshot.backgroundTasks[0]?.backgroundTaskId !== 'task_runtime_hydrated'
+      || snapshot.backgroundTasks[0]?.type !== 'memory'
+    ) {
+      throw new Error('runtime event log hydration smoke failed');
+    }
+  } finally {
+    if (previousDataDir === undefined) {
+      delete process.env.HEROS_DATA_DIR;
+    } else {
+      process.env.HEROS_DATA_DIR = previousDataDir;
+    }
+    if (previousEventLogPath === undefined) {
+      delete process.env.HEROS_EVENT_LOG_PATH;
+    } else {
+      process.env.HEROS_EVENT_LOG_PATH = previousEventLogPath;
+    }
   }
 }
 
@@ -2257,6 +2343,8 @@ testAgentBootstrap();
 testCliStatusOutput();
 testCliRuntimeStateCommand();
 testSharedContextSummary();
+testSharedContextHydration();
+testRuntimeHydratesEventLog();
 testCliContextCommand();
 testCliTurnsCommand();
 testCliTranscriptCommand();
