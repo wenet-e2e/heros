@@ -7,6 +7,8 @@ import { BackgroundAgent } from '../src/backgroundAgent.js';
 import { MemoryStore } from '../src/memoryStore.js';
 import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
+import { SharedContext } from '../src/context.js';
+import { TaskRouter } from '../src/taskRouter.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -106,8 +108,27 @@ async function testBackgroundAgentInvalidReminder() {
   }
 }
 
+function testTaskRouterMemory() {
+  const dir = createTempDir('heros-router-memory-');
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    backgroundAgent: null,
+  });
+  const result = router.handleMemory('记住用户喜欢安静的语音风格');
+  if (result.type !== 'memory_created' || memoryStore.list().length !== 1) {
+    throw new Error('task router memory smoke failed');
+  }
+  if (context.snapshot().longTermMemory.length !== 1) {
+    throw new Error('task router memory context smoke failed');
+  }
+}
+
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
+testTaskRouterMemory();
 await testBackgroundAgentInvalidReminder();
 console.log('smoke ok');

@@ -36,6 +36,7 @@ export function createRuntime() {
   const taskRouter = new TaskRouter({
     backgroundAgent,
     context,
+    memoryStore,
   });
   const interactionModel = new CliInteractionModel({
     client,
