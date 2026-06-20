@@ -441,6 +441,31 @@ function testCliRouteCommand() {
   }
 }
 
+function testCliBootstrapCommand() {
+  const dir = createTempDir('heros-cli-bootstrap-');
+  const result = spawnSync(process.execPath, ['src/cli.js', '--bootstrap'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: path.join(dir, 'events.ndjson'),
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli bootstrap smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const bootstrap = JSON.parse(result.stdout);
+  const names = bootstrap.files.map((file) => file.name).sort();
+  if (
+    bootstrap.bootstrapDir !== path.join(dir, 'agent-bootstrap')
+    || bootstrap.memoryCount !== 0
+    || names.join(',') !== 'AGENTS.md,MEMORY.md,SOUL.md'
+  ) {
+    throw new Error('cli bootstrap output smoke failed');
+  }
+}
+
 function testCliReminderCommands() {
   const dir = createTempDir('heros-cli-reminders-');
   const store = new ReminderStore(dir);
@@ -1342,6 +1367,7 @@ testCliStatusOutput();
 testCliRuntimeStateCommand();
 testCliTurnsCommand();
 testCliRouteCommand();
+testCliBootstrapCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

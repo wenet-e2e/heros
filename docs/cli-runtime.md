@@ -22,6 +22,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
+- `npm run bootstrap`: prints runtime agent bootstrap status.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
@@ -88,6 +89,7 @@ Implemented:
 - Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing, and safe natural-language memory deletion.
 - Headless long-term memory CRUD commands.
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
+- Headless agent bootstrap status command.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
