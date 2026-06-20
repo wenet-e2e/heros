@@ -74,13 +74,13 @@ export class VoiceLoop {
     });
   }
 
-  setState(state, reason) {
+  setState(state, reason, metadata = {}) {
     if (this.state === state) {
       return;
     }
     const previousState = this.state;
     this.state = state;
-    emitEvent('state.changed', { previousState, state, reason });
+    emitEvent('state.changed', { ...metadata, previousState, state, reason });
   }
 
   async start({ durationMs } = {}) {
@@ -167,7 +167,7 @@ export class VoiceLoop {
           text: this.currentAssistantText,
           turnId: this.currentAssistantTurnId,
         });
-        this.setState('listening', 'response_done');
+        this.setState('listening', 'response_done', { turnId: this.currentAssistantTurnId });
         this.drainAnnouncements();
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
@@ -181,10 +181,10 @@ export class VoiceLoop {
     this.cancelBackgroundTasks('user_speech_started');
     emitEvent('input_audio.started');
     if (!this.isResponding) {
-      this.setState('listening', 'user_speech_started');
+      this.setState('listening', 'user_speech_started', { turnEpoch: this.turnEpoch });
       return;
     }
-    this.setState('interrupted', 'user_speech_started');
+    this.setState('interrupted', 'user_speech_started', { turnEpoch: this.turnEpoch });
     emitEvent('response.interrupted', { reason: 'user_speech_started' });
     try {
       this.realtime.cancelResponse();
@@ -193,7 +193,7 @@ export class VoiceLoop {
     }
     await this.player.interrupt();
     this.isResponding = false;
-    this.setState('listening', 'response_interrupted');
+    this.setState('listening', 'response_interrupted', { turnEpoch: this.turnEpoch });
   }
 
   handleUserTranscript(transcript) {
@@ -238,7 +238,7 @@ export class VoiceLoop {
 
   delegateTask(transcript, { turnEpoch, turnId }) {
     if (!this.isResponding && !this.isAnnouncing) {
-      this.setState('background_running', 'background_task_started');
+      this.setState('background_running', 'background_task_started', { turnEpoch, turnId });
     }
     const controller = new AbortController();
     this.backgroundTaskControllers.add(controller);
@@ -259,7 +259,7 @@ export class VoiceLoop {
       this.backgroundTasks.delete(task);
       this.backgroundTaskControllers.delete(controller);
       if (this.state === 'background_running') {
-        this.setState('listening', 'background_task_finished');
+        this.setState('listening', 'background_task_finished', { turnEpoch, turnId });
       }
     });
     this.backgroundTasks.add(task);

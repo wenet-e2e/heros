@@ -2638,11 +2638,13 @@ function testVoiceLoopAnnouncementResponseCorrelation() {
   loop.currentAssistantTurnId = 'turn_announcement';
   realtime.emit('event', { type: 'response.done' });
   const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
+  const responseDoneState = readEventLog(logPath).find((event) => event.type === 'state.changed' && event.reason === 'response_done');
   if (
     completed?.backgroundTaskId !== 'task_announcement'
     || completed.reminderId !== 'reminder_announcement'
     || completed.source !== 'background_task'
     || completed.sourceTurnId !== 'turn_user_source'
+    || responseDoneState?.turnId !== 'turn_announcement'
   ) {
     throw new Error('voice loop announcement response correlation smoke failed');
   }
@@ -2769,6 +2771,9 @@ async function testVoiceLoopStartupFailureEvents() {
 }
 
 async function testVoiceLoopBackgroundState() {
+  const dir = createTempDir('heros-voice-background-state-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
   const loop = new VoiceLoop({
     config: {},
     realtime: {},
@@ -2782,7 +2787,7 @@ async function testVoiceLoopBackgroundState() {
     playAudio: false,
   });
   loop.setState('listening', 'smoke_start');
-  loop.delegateTask('明天九点提醒我喝水', { turnEpoch: 0 });
+  loop.delegateTask('明天九点提醒我喝水', { turnEpoch: 2, turnId: 'turn_background_state' });
   if (loop.state !== 'background_running') {
     throw new Error('voice loop did not enter background_running');
   }
@@ -2790,6 +2795,18 @@ async function testVoiceLoopBackgroundState() {
   if (loop.state !== 'listening') {
     throw new Error('voice loop did not leave background_running');
   }
+  const states = readEventLog(logPath).filter((event) => event.type === 'state.changed');
+  const started = states.find((event) => event.reason === 'background_task_started');
+  const finished = states.find((event) => event.reason === 'background_task_finished');
+  if (
+    started?.turnId !== 'turn_background_state'
+    || started.turnEpoch !== 2
+    || finished?.turnId !== 'turn_background_state'
+    || finished.turnEpoch !== 2
+  ) {
+    throw new Error('voice loop background state metadata smoke failed');
+  }
+  configureEvents();
 }
 
 async function testVoiceLoopBackgroundCancellation() {
