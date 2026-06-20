@@ -892,6 +892,111 @@ function testCliVerificationCommand() {
   }
 }
 
+function createFakeAudioPath() {
+  const dir = createTempDir('heros-fake-audio-');
+  for (const command of ['rec', 'play']) {
+    const filePath = path.join(dir, command);
+    fs.writeFileSync(filePath, '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(filePath, 0o755);
+  }
+  return `${dir}${path.delimiter}${process.env.PATH || ''}`;
+}
+
+function writeGateEvidence(dir, logPath) {
+  const reviewDir = path.join(dir, 'reviews');
+  const verifyDir = path.join(dir, 'verify-reports');
+  fs.mkdirSync(reviewDir, { recursive: true });
+  fs.mkdirSync(verifyDir, { recursive: true });
+  const reviewPath = path.join(reviewDir, 'phase-1-review-smoke.json');
+  const verifyPath = path.join(verifyDir, 'verify-report-smoke.json');
+  fs.writeFileSync(reviewPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    createdAt: '2026-06-21T00:00:30.000Z',
+    ready: true,
+    checks: {},
+  }, null, 2)}\n`);
+  fs.writeFileSync(verifyPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    type: 'verify_report',
+    startedAt: '2026-06-21T00:00:31.000Z',
+    endedAt: '2026-06-21T00:00:32.000Z',
+    ok: true,
+    steps: [
+      { name: 'check', ok: true, durationMs: 100 },
+      { name: 'doctor', ok: true, durationMs: 100 },
+      { name: 'smoke:background', ok: true, durationMs: 100 },
+      { name: 'smoke:realtime', ok: true, durationMs: 100 },
+    ],
+  }, null, 2)}\n`);
+  fs.writeFileSync(logPath, [
+    JSON.stringify({
+      type: 'review.completed',
+      phase: 'phase_1_no_ui_cli',
+      ready: true,
+      reportPath: reviewPath,
+      createdAt: '2026-06-21T00:00:33.000Z',
+    }),
+    JSON.stringify({
+      type: 'verify_report.created',
+      phase: 'phase_1_no_ui_cli',
+      ok: true,
+      reportPath: verifyPath,
+      stepCount: 4,
+      failedStep: null,
+      createdAt: '2026-06-21T00:00:34.000Z',
+    }),
+  ].join('\n') + '\n');
+}
+
+function testCliGateCommand() {
+  const dir = createTempDir('heros-gate-');
+  const logPath = path.join(dir, 'events.ndjson');
+  writeGateEvidence(dir, logPath);
+  const env = {
+    ...process.env,
+    DASHSCOPE_API_KEY: 'smoke-key',
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: logPath,
+    PATH: createFakeAudioPath(),
+  };
+  const result = spawnSync(process.execPath, ['src/cli.js', '--gate'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli gate smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const gate = JSON.parse(result.stdout);
+  if (
+    gate.ready !== true
+    || gate.checks.reviewReportEventAligned !== true
+    || gate.checks.verifyReportEventAligned !== true
+  ) {
+    throw new Error('cli gate output smoke failed');
+  }
+
+  const missingDir = createTempDir('heros-gate-missing-');
+  const missingLogPath = path.join(missingDir, 'events.ndjson');
+  fs.writeFileSync(missingLogPath, '');
+  const missingResult = spawnSync(process.execPath, ['src/cli.js', '--gate'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...env,
+      HEROS_DATA_DIR: missingDir,
+      HEROS_EVENT_LOG_PATH: missingLogPath,
+    },
+  });
+  if (missingResult.status === 0) {
+    throw new Error('cli gate missing evidence should fail');
+  }
+  const missingGate = JSON.parse(missingResult.stdout);
+  if (missingGate.ready !== false || missingGate.checks.reviewReportReady !== false || missingGate.checks.verifyReportOk !== false) {
+    throw new Error('cli gate missing evidence output smoke failed');
+  }
+}
+
 function testCliHelpOutput() {
   const result = spawnSync(process.execPath, ['src/cli.js', '--help'], {
     cwd: process.cwd(),
@@ -906,6 +1011,7 @@ function testCliHelpOutput() {
   }
   if (
     !result.stdout.includes('routing boundary')
+    || !result.stdout.includes('npm run gate')
     || !result.stdout.includes('npm run client-state')
     || !result.stdout.includes('npm run client-state:follow')
     || !result.stdout.includes('npm run verification')
@@ -2081,6 +2187,7 @@ function testCliReviewCommand() {
     || review.checks.verification.latestEvent !== null
     || review.checks.verification.reportEventAligned !== null
     || review.checks.commandSurface.check !== true
+    || review.checks.commandSurface.gate !== true
     || review.checks.commandSurface.verify !== true
     || review.checks.commandSurface.verifyReport !== true
     || review.checks.commandSurface.verification !== true
@@ -3651,6 +3758,7 @@ testAgentBootstrap();
 testCliStatusOutput();
 await testCliClientStateFollowOutput();
 testCliVerificationCommand();
+testCliGateCommand();
 testCliHelpOutput();
 testCliRuntimeStateCommand();
 testCliTimelineCommand();

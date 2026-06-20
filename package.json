@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check.js && node scripts/smoke.js",
+    "gate": "node src/cli.js --gate",
     "verify": "npm run check && npm run doctor && npm run smoke:background && npm run smoke:realtime",
     "verify:report": "node scripts/verify-report.js",
     "verification": "node src/cli.js --verification",

@@ -5,6 +5,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 ## Commands
 
 - `npm run check`: syntax checks and local smoke tests.
+- `npm run gate`: checks local Phase 1 readiness evidence and exits non-zero if not ready.
 - `npm run verify`: full local + DashScope verification.
 - `npm run verify:report`: full local + DashScope verification with a JSON artifact under `.heros/verify-reports/`.
 - `npm run verification`: prints the latest verification report/event status without network calls.
@@ -88,6 +89,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 Implemented:
 
 - DashScope Realtime WebSocket session check.
+- Phase 1 gate command for local readiness evidence before milestone checkins.
 - Doctor emits structured started/ok/failed/completed events for connectivity checks.
 - Headless local audio command availability check.
 - Optional headless microphone capture probe for local audio permission/device checks.

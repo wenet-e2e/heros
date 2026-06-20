@@ -371,6 +371,19 @@ function latestSessionReportEvent(events) {
   };
 }
 
+function reviewEventForReport(events, report) {
+  if (!report?.path) {
+    return latestReviewEvent(events);
+  }
+  const event = [...events].reverse().find((item) => item.type === 'review.completed' && item.reportPath === report.path);
+  return event ? {
+    phase: event.phase || null,
+    ready: typeof event.ready === 'boolean' ? event.ready : null,
+    reportPath: event.reportPath || null,
+    createdAt: event.createdAt || null,
+  } : null;
+}
+
 function latestVerifyReportEvent(events) {
   const event = events.filter((item) => item.type === 'verify_report.created').at(-1);
   if (!event) {
@@ -384,6 +397,21 @@ function latestVerifyReportEvent(events) {
     failedStep: event.failedStep || null,
     createdAt: event.createdAt || null,
   };
+}
+
+function verifyEventForReport(events, report) {
+  if (!report?.path) {
+    return latestVerifyReportEvent(events);
+  }
+  const event = [...events].reverse().find((item) => item.type === 'verify_report.created' && item.reportPath === report.path);
+  return event ? {
+    phase: event.phase || null,
+    ok: typeof event.ok === 'boolean' ? event.ok : null,
+    reportPath: event.reportPath || null,
+    stepCount: event.stepCount || null,
+    failedStep: event.failedStep || null,
+    createdAt: event.createdAt || null,
+  } : null;
 }
 
 async function status() {
@@ -591,7 +619,7 @@ async function clientState({ follow = false, fromStart = false, pollMs = 500 } =
 async function verificationStatus() {
   const { config } = createRuntime({ requireApiKey: false, printEvents: false });
   const latestReport = latestVerifyReport(config.dataDir);
-  const latestEvent = latestVerifyReportEvent(readEventLog(config.eventLogPath));
+  const latestEvent = verifyEventForReport(readEventLog(config.eventLogPath), latestReport);
   console.log(JSON.stringify({
     dataDir: config.dataDir,
     eventLogPath: config.eventLogPath,
@@ -603,6 +631,48 @@ async function verificationStatus() {
       ? latestReport.path === latestEvent.reportPath && latestReport.ok === latestEvent.ok
       : null,
   }, null, 2));
+}
+
+async function gate() {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const events = readEventLog(runtime.config.eventLogPath);
+  const preflightReport = await collectPreflight(runtime);
+  const contextHealthReport = buildContextHealth(runtime);
+  const reviewReport = latestReviewReport(runtime.config.dataDir);
+  const reviewEvent = reviewEventForReport(events, reviewReport);
+  const verifyReport = latestVerifyReport(runtime.config.dataDir);
+  const verifyEvent = verifyEventForReport(events, verifyReport);
+  const checks = {
+    preflightReady: preflightReport.ready,
+    contextHealthReady: contextHealthReport.ready,
+    reviewReportReady: reviewReport?.ready === true,
+    reviewEventReady: reviewEvent?.ready === true,
+    reviewReportEventAligned: reviewReport && reviewEvent
+      ? reviewReport.path === reviewEvent.reportPath && reviewReport.ready === reviewEvent.ready
+      : false,
+    verifyReportOk: verifyReport?.ok === true,
+    verifyEventOk: verifyEvent?.ok === true,
+    verifyReportEventAligned: verifyReport && verifyEvent
+      ? verifyReport.path === verifyEvent.reportPath && verifyReport.ok === verifyEvent.ok
+      : false,
+  };
+  const result = {
+    phase: 'phase_1_no_ui_cli',
+    ready: Object.values(checks).every(Boolean),
+    checks,
+    review: {
+      latestReport: reviewReport,
+      latestEvent: reviewEvent,
+    },
+    verification: {
+      latestReport: verifyReport,
+      latestEvent: verifyEvent,
+    },
+  };
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.ready) {
+    process.exitCode = 1;
+  }
 }
 
 async function events({ backgroundTaskId, count = 20, follow = false, fromStart = false, pollMs = 500, since, sourceTurnId, turnId, type } = {}) {
@@ -1309,6 +1379,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
   const scripts = packageJson.scripts || {};
   const commandSurface = {
     check: Boolean(scripts.check),
+    gate: Boolean(scripts.gate),
     verify: Boolean(scripts.verify),
     verifyReport: Boolean(scripts['verify:report']),
     verification: Boolean(scripts.verification),
@@ -1811,6 +1882,7 @@ function printUsage() {
     'HerOS CLI',
     '',
     'Commands:',
+    '  npm run gate              Check local Phase 1 readiness evidence and exit non-zero if not ready.',
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run verify:report     Run full verification and write a local report artifact.',
     '  npm run verification      Print latest verification report/event status without network calls.',
@@ -1884,6 +1956,8 @@ const args = process.argv.slice(2);
 try {
   if (args[0] === '--doctor') {
     await doctor();
+  } else if (args[0] === '--gate') {
+    await gate();
   } else if (args[0] === '--status') {
     await status();
   } else if (args[0] === '--client-state') {
