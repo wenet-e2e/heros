@@ -540,12 +540,31 @@ function testCliStatusOutput() {
     ready: true,
     createdAt: '2026-06-21T00:00:00.000Z',
   }, null, 2)}\n`);
+  const sessionReportDir = path.join(dir, 'session-reports');
+  fs.mkdirSync(sessionReportDir, { recursive: true });
+  const sessionReportPath = path.join(sessionReportDir, 'session-report-smoke.json');
+  fs.writeFileSync(sessionReportPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    createdAt: '2026-06-21T00:00:00.500Z',
+    filters: { backgroundTaskId: 'task_status_clarify' },
+    eventSummary: { total: 3 },
+    turns: { total: 0 },
+    backgroundTasks: { total: 1 },
+    errors: { total: 0 },
+  }, null, 2)}\n`);
   fs.writeFileSync(logPath, `${JSON.stringify({
     type: 'review.completed',
     phase: 'phase_1_no_ui_cli',
     ready: true,
     reportPath: reviewPath,
     createdAt: '2026-06-21T00:00:01.000Z',
+  })}\n${JSON.stringify({
+    type: 'session_report.created',
+    reportPath: sessionReportPath,
+    eventCount: 3,
+    turnCount: 0,
+    filters: { backgroundTaskId: 'task_status_clarify' },
+    createdAt: '2026-06-21T00:00:01.500Z',
   })}\n${JSON.stringify({
     type: 'background_task.started',
     backgroundTaskId: 'task_status_clarify',
@@ -606,6 +625,21 @@ function testCliStatusOutput() {
   }
   if (status.review.latestEvent?.reportPath !== reviewPath || status.review.latestEvent.ready !== true) {
     throw new Error('cli status review event smoke failed');
+  }
+  if (
+    status.sessionReport.latestReport?.path !== sessionReportPath
+    || status.sessionReport.latestReport.eventCount !== 3
+    || status.sessionReport.latestReport.backgroundTaskCount !== 1
+    || status.sessionReport.latestReport.filters.backgroundTaskId !== 'task_status_clarify'
+  ) {
+    throw new Error('cli status session report smoke failed');
+  }
+  if (
+    status.sessionReport.latestEvent?.reportPath !== sessionReportPath
+    || status.sessionReport.latestEvent.eventCount !== 3
+    || status.sessionReport.latestEvent.filters.backgroundTaskId !== 'task_status_clarify'
+  ) {
+    throw new Error('cli status session report event smoke failed');
   }
   if (
     status.runtimeState.state !== 'idle'

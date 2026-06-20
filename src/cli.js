@@ -262,6 +262,45 @@ function latestReviewReport(dataDir) {
   }
 }
 
+function latestSessionReport(dataDir) {
+  const reportDir = path.join(dataDir, 'session-reports');
+  if (!fs.existsSync(reportDir)) {
+    return null;
+  }
+  const reports = fs.readdirSync(reportDir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => {
+      const reportPath = path.join(reportDir, name);
+      return {
+        path: reportPath,
+        updatedAtMs: fs.statSync(reportPath).mtimeMs,
+      };
+    })
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+  if (reports.length === 0) {
+    return null;
+  }
+  const latest = reports[0];
+  try {
+    const report = JSON.parse(fs.readFileSync(latest.path, 'utf8'));
+    return {
+      path: latest.path,
+      phase: report.phase || null,
+      createdAt: report.createdAt || null,
+      filters: report.filters || {},
+      eventCount: report.eventSummary?.total ?? null,
+      turnCount: report.turns?.total ?? null,
+      backgroundTaskCount: report.backgroundTasks?.total ?? null,
+      errorCount: report.errors?.total ?? null,
+    };
+  } catch (error) {
+    return {
+      path: latest.path,
+      error: error.message,
+    };
+  }
+}
+
 function latestReviewEvent(events) {
   const event = events.filter((item) => item.type === 'review.completed').at(-1);
   if (!event) {
@@ -271,6 +310,20 @@ function latestReviewEvent(events) {
     phase: event.phase || null,
     ready: typeof event.ready === 'boolean' ? event.ready : null,
     reportPath: event.reportPath || null,
+    createdAt: event.createdAt || null,
+  };
+}
+
+function latestSessionReportEvent(events) {
+  const event = events.filter((item) => item.type === 'session_report.created').at(-1);
+  if (!event) {
+    return null;
+  }
+  return {
+    reportPath: event.reportPath || null,
+    eventCount: event.eventCount ?? null,
+    turnCount: event.turnCount ?? null,
+    filters: event.filters || {},
     createdAt: event.createdAt || null,
   };
 }
@@ -381,6 +434,10 @@ async function status() {
     review: {
       latestReport: latestReviewReport(config.dataDir),
       latestEvent: latestReviewEvent(loggedEvents),
+    },
+    sessionReport: {
+      latestReport: latestSessionReport(config.dataDir),
+      latestEvent: latestSessionReportEvent(loggedEvents),
     },
   }, null, 2));
 }
