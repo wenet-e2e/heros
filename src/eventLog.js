@@ -57,6 +57,43 @@ export function summarizeEvents(events) {
   };
 }
 
+export function summarizeTurns(events) {
+  const turns = new Map();
+  for (const event of events) {
+    if (event.type === 'transcript.completed' && event.turnId) {
+      turns.set(event.turnId, {
+        ...(turns.get(event.turnId) || {}),
+        turnId: event.turnId,
+        role: 'user',
+        text: event.text || '',
+        source: 'transcript',
+        contextVersion: event.contextVersion || null,
+        createdAt: event.createdAt || null,
+      });
+    } else if (event.type === 'response.completed' && event.turnId) {
+      turns.set(event.turnId, {
+        ...(turns.get(event.turnId) || {}),
+        turnId: event.turnId,
+        role: 'assistant',
+        text: event.text || null,
+        source: event.source || 'response',
+        sourceTurnId: event.sourceTurnId || null,
+        backgroundTaskId: event.backgroundTaskId || null,
+        createdAt: event.createdAt || null,
+      });
+    }
+  }
+
+  return {
+    total: turns.size,
+    turns: [...turns.values()].sort((a, b) => {
+      const aTime = Date.parse(a.createdAt || 0);
+      const bTime = Date.parse(b.createdAt || 0);
+      return aTime - bTime;
+    }),
+  };
+}
+
 function statusFromCompletion(result) {
   if (result?.action === 'timeout') {
     return 'timeout';

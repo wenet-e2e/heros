@@ -18,6 +18,7 @@
     "event-summary": "node src/cli.js --event-summary",
     "tasks": "node src/cli.js --tasks",
     "runtime-state": "node src/cli.js --runtime-state",
+    "turns": "node src/cli.js --turns",
     "reminders": "node src/cli.js --reminders",
     "check-reminders": "node src/cli.js --check-reminders",
     "cancel-reminder": "node src/cli.js --cancel-reminder",

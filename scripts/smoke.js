@@ -19,6 +19,7 @@ import {
   summarizeBackgroundTasks,
   summarizeEvents,
   summarizeRuntimeState,
+  summarizeTurns,
 } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
@@ -280,6 +281,35 @@ function testRuntimeStateSummary() {
   configureEvents();
 }
 
+function testTurnSummary() {
+  const dir = createTempDir('heros-turn-summary-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '明天九点提醒我喝水',
+    turnId: 'turn_user_summary',
+    contextVersion: 1,
+  });
+  emitEvent('response.completed', {
+    source: 'background_agent',
+    sourceTurnId: 'turn_user_summary',
+    backgroundTaskId: 'task_turn_summary',
+    text: '好的，明天九点提醒你喝水。',
+    turnId: 'turn_assistant_summary',
+  });
+  const summary = summarizeTurns(readEventLog(logPath));
+  if (
+    summary.total !== 2
+    || summary.turns[0].role !== 'user'
+    || summary.turns[1].role !== 'assistant'
+    || summary.turns[1].backgroundTaskId !== 'task_turn_summary'
+    || !summary.turns[1].text.includes('明天九点')
+  ) {
+    throw new Error('turn summary smoke failed');
+  }
+  configureEvents();
+}
+
 function testAgentBootstrap() {
   const dir = createTempDir('heros-bootstrap-');
   const bootstrap = ensureAgentBootstrap(dir);
@@ -342,6 +372,38 @@ function testCliRuntimeStateCommand() {
   const state = JSON.parse(result.stdout);
   if (state.state !== 'speaking' || !state.speaking || state.lastTurnId !== 'turn_cli_runtime_state') {
     throw new Error('cli runtime state output smoke failed');
+  }
+}
+
+function testCliTurnsCommand() {
+  const dir = createTempDir('heros-cli-turns-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '记住我喜欢短回答',
+    turnId: 'turn_cli_user',
+  });
+  emitEvent('response.completed', {
+    source: 'background_agent',
+    text: '我记住了。',
+    turnId: 'turn_cli_assistant',
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--turns'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli turns smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const summary = JSON.parse(result.stdout);
+  if (summary.total !== 2 || summary.turns[0].turnId !== 'turn_cli_user' || summary.turns[1].text !== '我记住了。') {
+    throw new Error('cli turns output smoke failed');
   }
 }
 
@@ -1192,9 +1254,11 @@ testReminderScheduler();
 testMemoryStore();
 testBackgroundTaskSummary();
 testRuntimeStateSummary();
+testTurnSummary();
 testAgentBootstrap();
 testCliStatusOutput();
 testCliRuntimeStateCommand();
+testCliTurnsCommand();
 testCliReminderCommands();
 testCliMemoryCommands();
 testConfigNumberFallback();

@@ -20,6 +20,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run event-summary`: summarizes structured runtime events by type.
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
+- `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
 - `npm run reminders`: lists local reminders without network calls.
 - `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
@@ -91,6 +92,7 @@ Implemented:
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Runtime status includes background task status counts reconstructed from event logs.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
+- Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Turn IDs on conversation turns and response/transcript events.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
 - Realtime announcement response events include their background task source, ID, and source turn.

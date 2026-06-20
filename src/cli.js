@@ -16,6 +16,7 @@ import {
   summarizeBackgroundTasks,
   summarizeEvents,
   summarizeRuntimeState,
+  summarizeTurns,
 } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 import { emitEvent } from './events.js';
@@ -230,6 +231,15 @@ async function taskSummary({ count = 20 } = {}) {
 async function runtimeState() {
   const { config } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(summarizeRuntimeState(readEventLog(config.eventLogPath)), null, 2));
+}
+
+async function turnSummary({ count = 20 } = {}) {
+  const { config } = createRuntime({ requireApiKey: false });
+  const summary = summarizeTurns(readEventLog(config.eventLogPath));
+  console.log(JSON.stringify({
+    ...summary,
+    turns: summary.turns.slice(-count),
+  }, null, 2));
 }
 
 async function listReminders() {
@@ -510,6 +520,7 @@ function printUsage() {
     '  npm run event-summary     Summarize structured runtime events.',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
+    '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
     '  npm run reminders         List local reminders without network calls.',
     '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
@@ -559,6 +570,8 @@ try {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--runtime-state') {
     await runtimeState();
+  } else if (args[0] === '--turns') {
+    await turnSummary({ count: getEventCount(args) });
   } else if (args[0] === '--reminders') {
     await listReminders();
   } else if (args[0] === '--check-reminders') {

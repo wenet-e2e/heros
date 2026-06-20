@@ -150,6 +150,7 @@ export class VoiceLoop {
           backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
           sourceTurnId: this.activeAnnouncement?.turnId,
           source: this.activeAnnouncement?.source || 'realtime',
+          text: this.currentAssistantText,
           turnId: this.currentAssistantTurnId,
         });
         this.setState('listening', 'response_done');

@@ -21,6 +21,7 @@ export class CliInteractionModel {
         emitEvent('response.completed', {
           backgroundTaskId: result.backgroundTaskId,
           source: result.source || 'background_agent',
+          text: result.message,
           turnId: assistantTurn.id,
         });
         return result.message;
@@ -59,7 +60,12 @@ export class CliInteractionModel {
     });
 
     const assistantTurn = this.context.addTurn('assistant', content);
-    emitEvent('response.completed', { source: 'cli_fallback', model: this.model, turnId: assistantTurn.id });
+    emitEvent('response.completed', {
+      source: 'cli_fallback',
+      model: this.model,
+      text: content,
+      turnId: assistantTurn.id,
+    });
     return content;
   }
 }
