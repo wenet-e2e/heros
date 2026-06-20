@@ -16,6 +16,15 @@ import {
   likelyReminder,
 } from './intents.js';
 
+export const LOCAL_TASK_ROUTER_HANDLED_LOCALLY = Object.freeze([
+  'cancel_reminder',
+  'forget_memory',
+  'list_memory',
+  'list_reminders',
+  'memory',
+  'update_memory',
+]);
+
 function createBackgroundTaskId() {
   return `task_${crypto.randomUUID()}`;
 }
@@ -222,14 +231,7 @@ export class TaskRouter {
         timeZone: this.timeZone,
       },
       localTaskRouter: {
-        handledLocally: [
-          'cancel_reminder',
-          'forget_memory',
-          'list_memory',
-          'list_reminders',
-          'memory',
-          'update_memory',
-        ],
+        handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY,
       },
       sharedContext,
       pendingClarification,

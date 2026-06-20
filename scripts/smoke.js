@@ -10,7 +10,7 @@ import { MemoryStore } from '../src/memoryStore.js';
 import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
-import { TaskRouter } from '../src/taskRouter.js';
+import { LOCAL_TASK_ROUTER_HANDLED_LOCALLY, TaskRouter } from '../src/taskRouter.js';
 import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder, likelyUpdateMemory, likelyUpdateReminder } from '../src/intents.js';
 import {
   filterEvents,
@@ -557,12 +557,14 @@ function testSharedContextSummary() {
   ];
   const summary = summarizeSharedContext(events, {
     bootstrapFiles: ['/tmp/AGENTS.md'],
+    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
     memories: [{ id: 'memory_1', content: '用户喜欢短回答', updatedAt: '2026-06-21T00:00:00.000Z' }],
     reminders: [],
   });
   if (
     summary.contextVersion !== 3
     || summary.turns.total !== 1
+    || !summary.localTaskRouter.handledLocally.includes('cancel_reminder')
     || summary.longTermMemory.total !== 1
     || summary.bootstrap.files[0] !== 'AGENTS.md'
   ) {
@@ -1306,6 +1308,9 @@ function testCliReviewCommand() {
     || review.checks.routing.bareForgetMemoryClarifiesLocally !== true
     || review.checks.routing.pendingForgetMemoryHandledLocally !== true
     || review.checks.routing.chatStaysRealtime !== true
+    || !review.checks.sharedContext.localTaskRouter.handledLocally.includes('cancel_reminder')
+    || review.checks.sharedContext.localTaskRouter.coversReminderCancel !== true
+    || review.checks.sharedContext.localTaskRouter.coversMemoryCrud !== true
     || review.checks.commandSurface.check !== true
     || review.checks.commandSurface.verify !== true
     || review.checks.commandSurface.doctor !== true

@@ -7,6 +7,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
 import { commandExists } from './audio.js';
 import { writeTextFileAtomic } from './storage.js';
+import { LOCAL_TASK_ROUTER_HANDLED_LOCALLY } from './taskRouter.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
@@ -413,6 +414,7 @@ async function contextSummary() {
   const { bootstrap, config, memoryStore, reminderStore } = createRuntime({ requireApiKey: false, printEvents: false });
   console.log(JSON.stringify(summarizeSharedContext(readEventLog(config.eventLogPath), {
     bootstrapFiles: bootstrap.files,
+    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
     memories: memoryStore.list(),
     reminders: reminderStore.list(),
   }), null, 2));
@@ -447,8 +449,7 @@ function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
   }
-  const localTaskTypes = new Set(['cancel_reminder', 'forget_memory', 'list_memory', 'list_reminders', 'memory', 'update_memory']);
-  return localTaskTypes.has(decision.type) ? 'local_task_router' : 'background_agent';
+  return LOCAL_TASK_ROUTER_HANDLED_LOCALLY.includes(decision.type) ? 'local_task_router' : 'background_agent';
 }
 
 async function routeText(text) {
@@ -900,9 +901,11 @@ async function phaseOneReview({ writeReport = false } = {}) {
   };
   const context = summarizeSharedContext(events, {
     bootstrapFiles: runtime.bootstrap.files,
+    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
     memories: runtime.memoryStore.list(),
     reminders: runtime.reminderStore.list(),
   });
+  const contextHandledLocally = context.localTaskRouter.handledLocally || [];
   const docs = {
     readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
     systemDesign: fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
@@ -933,6 +936,13 @@ async function phaseOneReview({ writeReport = false } = {}) {
         contextVersion: context.contextVersion,
         turns: context.turns.total,
         backgroundTasks: context.backgroundTasks.total,
+        localTaskRouter: {
+          handledLocally: contextHandledLocally,
+          coversReminderCancel: contextHandledLocally.includes('cancel_reminder'),
+          coversMemoryCrud: contextHandledLocally.includes('memory')
+            && contextHandledLocally.includes('update_memory')
+            && contextHandledLocally.includes('forget_memory'),
+        },
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,
       },

@@ -350,7 +350,10 @@ export function summarizeRuntimeState(events) {
   };
 }
 
-export function summarizeSharedContext(events, { bootstrapFiles = [], memories = [], reminders = [] } = {}) {
+export function summarizeSharedContext(
+  events,
+  { bootstrapFiles = [], localTaskRouter = { handledLocally: [] }, memories = [], reminders = [] } = {},
+) {
   const turnSummary = summarizeTurns(events);
   const taskSummary = summarizeBackgroundTasks(events);
   const runtimeState = summarizeRuntimeState(events);
@@ -375,6 +378,9 @@ export function summarizeSharedContext(events, { bootstrapFiles = [], memories =
       active: activeBackgroundTasks,
       pendingClarifications,
       recent: taskSummary.tasks.slice(0, 10),
+    },
+    localTaskRouter: {
+      handledLocally: [...(localTaskRouter.handledLocally || [])],
     },
     reminders: {
       total: reminders.length,

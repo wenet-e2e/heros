@@ -85,6 +85,7 @@ Implemented:
 - Voice loop shutdown cancels active Background Agent delegations before waiting for cleanup.
 - Background Agent checks cancellation before tool execution so interrupted tasks cannot create stale reminders.
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
+- Shared Context summaries expose the Local Task Router capability boundary used before Background Agent delegation.
 - Shared Context updates from typed turns and realtime transcripts.
 - Runtime startup hydrates recent Shared Context turns and background tasks from the event log.
 - Runtime startup preserves pending clarification state reconstructed from local task event logs.
@@ -137,6 +138,7 @@ Implemented:
 - Runtime status includes audio, next reminder, review report/event, turn, error, and background task summaries.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
+- Shared Context and Phase 1 review expose which deterministic task types are handled locally before Background Agent delegation.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Readable transcript command for quick no-UI conversation review.
 - Headless routing check for realtime-direct vs task delegation decisions.
