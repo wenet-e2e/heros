@@ -6,50 +6,9 @@ import process from 'node:process';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
 import { commandExists } from './audio.js';
-import { getConfig } from './config.js';
-import { DashScopeClient } from './dashscope.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
-import { SharedContext } from './context.js';
-import { ReminderStore } from './reminders.js';
-import { ReminderScheduler } from './reminderScheduler.js';
-import { BackgroundAgent } from './backgroundAgent.js';
-import { CliInteractionModel } from './interactionModel.js';
 import { VoiceLoop } from './voiceLoop.js';
-import { ensureAgentBootstrap } from './bootstrap.js';
-import { configureEvents } from './events.js';
-import { MemoryStore } from './memoryStore.js';
-
-function createRuntime() {
-  const config = getConfig();
-  const client = new DashScopeClient({
-    apiKey: config.dashscopeApiKey,
-    baseUrl: config.dashscopeBaseUrl,
-    timeoutMs: config.dashscopeRequestTimeoutMs,
-  });
-  const context = new SharedContext();
-  const reminderStore = new ReminderStore(config.dataDir);
-  configureEvents({ logPath: config.eventLogPath });
-  const reminderScheduler = new ReminderScheduler({
-    reminderStore,
-    pollMs: config.reminderPollMs,
-  });
-  const bootstrap = ensureAgentBootstrap(config.dataDir);
-  const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
-  context.setLongTermMemory(memoryStore.list());
-  const backgroundAgent = new BackgroundAgent({
-    client,
-    model: config.backgroundModel,
-    reminderStore,
-    timeZone: config.timeZone,
-  });
-  const interactionModel = new CliInteractionModel({
-    client,
-    model: config.backgroundModel,
-    backgroundAgent,
-    context,
-  });
-  return { config, client, interactionModel, reminderStore, reminderScheduler, memoryStore, bootstrap };
-}
+import { createRuntime } from './runtime.js';
 
 function createRealtimeClient(config) {
   return new DashScopeRealtimeClient({
