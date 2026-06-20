@@ -6,6 +6,7 @@
   "scripts": {
     "check": "node scripts/check.js && node scripts/smoke.js",
     "smoke": "node scripts/smoke.js",
+    "smoke:realtime": "node scripts/realtime-smoke.js",
     "cli": "node src/cli.js",
     "cli:once": "node src/cli.js --once",
     "doctor": "node src/cli.js --doctor",
