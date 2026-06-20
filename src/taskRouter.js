@@ -142,19 +142,25 @@ const PENDING_CLARIFICATION_STATUSES = new Set(['ambiguous', 'needs_clarificatio
 
 function latestPendingClarification(context) {
   const tasks = context?.snapshot?.().backgroundTasks || [];
-  const task = [...tasks].reverse().find((item) => (
-    PENDING_CLARIFICATION_STATUSES.has(item.status)
-    && PENDING_CLARIFICATION_TASK_TYPES.has(item.type)
-  ));
-  if (!task) {
-    return null;
+  const newerTaskTypes = new Set();
+  for (const task of [...tasks].reverse()) {
+    if (
+      PENDING_CLARIFICATION_STATUSES.has(task.status)
+      && PENDING_CLARIFICATION_TASK_TYPES.has(task.type)
+      && !newerTaskTypes.has(task.type)
+    ) {
+      return {
+        backgroundTaskId: task.backgroundTaskId,
+        turnId: task.turnId,
+        type: task.type,
+        result: task.result || null,
+      };
+    }
+    if (task.type) {
+      newerTaskTypes.add(task.type);
+    }
   }
-  return {
-    backgroundTaskId: task.backgroundTaskId,
-    turnId: task.turnId,
-    type: task.type,
-    result: task.result || null,
-  };
+  return null;
 }
 
 export class TaskRouter {

@@ -1134,12 +1134,22 @@ function testCliTaskCommand() {
     throw new Error(`cli task pending cancel answer smoke failed: ${resolvedCancelResult.stderr || resolvedCancelResult.stdout}`);
   }
   const resolvedCancelTask = JSON.parse(resolvedCancelResult.stdout);
+  const routeAfterCancelResult = spawnSync(process.execPath, ['src/cli.js', '--route', '喝水'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (routeAfterCancelResult.status !== 0) {
+    throw new Error(`cli task pending cancel cleared route smoke failed: ${routeAfterCancelResult.stderr || routeAfterCancelResult.stdout}`);
+  }
+  const routeAfterCancel = JSON.parse(routeAfterCancelResult.stdout);
   const reminderAfterCancel = reminderStore.list().find((item) => item.id === reminder.id);
   if (
     pendingCancelTask.result?.type !== 'cancel_reminder_needs_clarification'
     || resolvedCancelTask.result?.type !== 'reminder_cancelled'
     || resolvedCancelTask.reason !== 'pending_clarification_response'
     || resolvedCancelTask.pendingBackgroundTaskId !== pendingCancelTask.result.backgroundTaskId
+    || routeAfterCancel.delegatesToBackground !== false
     || reminderAfterCancel?.status !== 'cancelled'
   ) {
     throw new Error('cli task pending cancel cross-process smoke failed');
