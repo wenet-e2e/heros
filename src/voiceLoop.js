@@ -49,13 +49,6 @@ export class VoiceLoop {
     });
     await this.realtime.waitFor('session.updated', 15000);
 
-    if (this.reminderScheduler) {
-      this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
-        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`);
-      });
-      this.reminderScheduler.start();
-    }
-
     await this.player.start();
     this.recorder.on('data', (chunk) => this.realtime.appendAudio(chunk));
     await this.recorder.start();
@@ -67,6 +60,13 @@ export class VoiceLoop {
     });
     this.setState('listening', 'voice_loop_started');
     console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');
+
+    if (this.reminderScheduler) {
+      this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
+        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`);
+      });
+      this.reminderScheduler.start();
+    }
 
     await this.waitForShutdown({ durationMs });
   }
