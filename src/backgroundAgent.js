@@ -12,6 +12,20 @@ function extractJson(text) {
   return JSON.parse(match[0]);
 }
 
+function throwIfAborted(signal) {
+  if (!signal?.aborted) {
+    return;
+  }
+  const reason = signal.reason || 'cancelled';
+  if (reason instanceof Error) {
+    throw reason;
+  }
+  const error = new Error(`Background task cancelled: ${reason}`);
+  error.name = 'BackgroundTaskCancelledError';
+  error.reason = reason;
+  throw error;
+}
+
 function formatLocalTime(isoString, timeZone) {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -82,7 +96,9 @@ export class BackgroundAgent {
       signal,
     });
 
+    throwIfAborted(signal);
     const decision = extractJson(content);
+    throwIfAborted(signal);
 
     if (decision.action === 'create_reminder') {
       let reminder;

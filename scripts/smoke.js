@@ -242,6 +242,38 @@ async function testBackgroundAgentPastReminder() {
   }
 }
 
+async function testBackgroundAgentAbortBeforeToolCall() {
+  const dir = createTempDir('heros-agent-abort-');
+  const reminderStore = new ReminderStore(dir);
+  const controller = new AbortController();
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text() {
+        controller.abort('user_speech_started');
+        return JSON.stringify({
+          action: 'create_reminder',
+          title: '喝水',
+          remindAt: new Date(Date.now() + 60000).toISOString(),
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  let cancelled = false;
+  try {
+    await agent.handleTask({ userText: '提醒我喝水', context: {}, signal: controller.signal });
+  } catch (error) {
+    cancelled = error.name === 'BackgroundTaskCancelledError';
+  }
+  if (!cancelled || reminderStore.list().length !== 0) {
+    throw new Error('background agent abort before tool call smoke failed');
+  }
+}
+
 function testTaskRouterMemory() {
   const dir = createTempDir('heros-router-memory-');
   const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
@@ -802,4 +834,5 @@ testTaskRouterListReminders();
 testTaskRouterListMemory();
 await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
+await testBackgroundAgentAbortBeforeToolCall();
 console.log('smoke ok');

@@ -49,6 +49,7 @@ Implemented:
 - User interrupt handling by cancelling the active realtime response.
 - New user speech cancels active Background Agent delegations so stale tasks cannot complete after interruption.
 - Voice loop shutdown cancels active Background Agent delegations before waiting for cleanup.
+- Background Agent checks cancellation before tool execution so interrupted tasks cannot create stale reminders.
 - Shared Context updates from typed turns and realtime transcripts.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
