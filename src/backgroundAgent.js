@@ -29,7 +29,8 @@ function formatLocalTime(isoString, timeZone) {
 }
 
 export class BackgroundAgent {
-  constructor({ client, model, reminderStore, timeZone }) {
+  constructor({ agentBootstrap = {}, client, model, reminderStore, timeZone }) {
+    this.agentBootstrap = agentBootstrap;
     this.client = client;
     this.model = model;
     this.reminderStore = reminderStore;
@@ -63,12 +64,18 @@ export class BackgroundAgent {
       'If time is missing or ambiguous, use action "clarify".',
       'If the request is not a reminder task, use action "none".',
     ].join('\n');
+    const bootstrap = [
+      this.agentBootstrap['AGENTS.md'],
+      this.agentBootstrap['SOUL.md'],
+      this.agentBootstrap['MEMORY.md'],
+    ].filter(Boolean).join('\n\n');
 
     const content = await this.client.text({
       model: this.model,
       temperature: 0.1,
       messages: [
         { role: 'system', content: system },
+        { role: 'system', content: `Agent Bootstrap:\n${bootstrap}` },
         { role: 'user', content: JSON.stringify({ userText, context }, null, 2) },
       ],
       responseFormat: { type: 'json_object' },

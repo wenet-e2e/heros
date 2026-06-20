@@ -50,6 +50,7 @@ Implemented:
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD and explicit natural-language memory requests.
+- Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Structured event logging to `events.ndjson`.
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Background task correlation IDs across request, execution, tool call, and completion events.

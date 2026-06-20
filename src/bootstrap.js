@@ -26,3 +26,9 @@ export function ensureAgentBootstrap(dataDir) {
     files,
   };
 }
+
+export function readAgentBootstrap(files) {
+  return Object.fromEntries(
+    files.map((filePath) => [path.basename(filePath), fs.readFileSync(filePath, 'utf8')]),
+  );
+}

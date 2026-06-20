@@ -1,5 +1,5 @@
 import { BackgroundAgent } from './backgroundAgent.js';
-import { ensureAgentBootstrap } from './bootstrap.js';
+import { ensureAgentBootstrap, readAgentBootstrap } from './bootstrap.js';
 import { getConfig } from './config.js';
 import { SharedContext } from './context.js';
 import { DashScopeClient } from './dashscope.js';
@@ -25,9 +25,11 @@ export function createRuntime({ requireApiKey = true } = {}) {
     pollMs: config.reminderPollMs,
   });
   const bootstrap = ensureAgentBootstrap(config.dataDir);
+  const agentBootstrap = readAgentBootstrap(bootstrap.files);
   const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
   context.setLongTermMemory(memoryStore.list());
   const backgroundAgent = new BackgroundAgent({
+    agentBootstrap,
     client,
     model: config.backgroundModel,
     reminderStore,
@@ -40,6 +42,7 @@ export function createRuntime({ requireApiKey = true } = {}) {
     reminderStore,
   });
   const interactionModel = new CliInteractionModel({
+    agentBootstrap,
     client,
     model: config.backgroundModel,
     taskRouter,
@@ -56,5 +59,6 @@ export function createRuntime({ requireApiKey = true } = {}) {
     reminderScheduler,
     memoryStore,
     bootstrap,
+    agentBootstrap,
   };
 }

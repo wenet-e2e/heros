@@ -1,7 +1,8 @@
 import { emitEvent } from './events.js';
 
 export class CliInteractionModel {
-  constructor({ client, model, taskRouter, context }) {
+  constructor({ agentBootstrap = {}, client, model, taskRouter, context }) {
+    this.agentBootstrap = agentBootstrap;
     this.client = client;
     this.model = model;
     this.taskRouter = taskRouter;
@@ -29,6 +30,11 @@ export class CliInteractionModel {
       'For complex tasks, the runtime delegates to a background agent; for this response, answer directly and briefly.',
       'Use Chinese unless the user clearly uses another language.',
     ].join('\n');
+    const bootstrap = [
+      this.agentBootstrap['AGENTS.md'],
+      this.agentBootstrap['SOUL.md'],
+      this.agentBootstrap['MEMORY.md'],
+    ].filter(Boolean).join('\n\n');
 
     const contextSnapshot = this.context.snapshot();
     const sharedContext = {
@@ -42,6 +48,7 @@ export class CliInteractionModel {
       temperature: 0.7,
       messages: [
         { role: 'system', content: system },
+        { role: 'system', content: `Agent Bootstrap:\n${bootstrap}` },
         { role: 'system', content: `Shared Context JSON:\n${JSON.stringify(sharedContext, null, 2)}` },
         ...contextSnapshot.turns.map((turn) => ({ role: turn.role, content: turn.content })),
       ],

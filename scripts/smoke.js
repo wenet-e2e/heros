@@ -12,6 +12,7 @@ import { TaskRouter } from '../src/taskRouter.js';
 import { likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
+import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -107,6 +108,15 @@ function testMemoryStore() {
   }
   if (!refused) {
     throw new Error('memory secret refusal smoke failed');
+  }
+}
+
+function testAgentBootstrap() {
+  const dir = createTempDir('heros-bootstrap-');
+  const bootstrap = ensureAgentBootstrap(dir);
+  const content = readAgentBootstrap(bootstrap.files);
+  if (!content['AGENTS.md']?.includes('Mission') || !content['SOUL.md']?.includes('Voice')) {
+    throw new Error('agent bootstrap read smoke failed');
   }
 }
 
@@ -235,6 +245,7 @@ function testTaskRouterCancelReminder() {
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
+testAgentBootstrap();
 testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
