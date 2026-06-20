@@ -142,6 +142,7 @@ export class VoiceLoop {
     }
     console.log(`\nYou: ${transcript}`);
     this.context.addTurn('user', transcript);
+    emitEvent('interaction.context_updated', { contextVersion: this.context.version, reason: 'user_transcript' });
     emitEvent('transcript.completed', {
       text: transcript,
       contextVersion: this.context.version,
@@ -170,6 +171,9 @@ export class VoiceLoop {
   }
 
   delegateTask(transcript, { turnEpoch }) {
+    if (!this.isResponding && !this.isAnnouncing) {
+      this.setState('background_running', 'background_task_started');
+    }
     const task = this.taskRouter.maybeHandle(transcript).then((result) => {
       if (result.message) {
         console.log(`\nBackground: ${result.message}`);
@@ -183,6 +187,9 @@ export class VoiceLoop {
       emitEvent('tool_call.failed', { toolName: 'create_reminder', message: error.message });
     }).finally(() => {
       this.backgroundTasks.delete(task);
+      if (this.state === 'background_running') {
+        this.setState('listening', 'background_task_finished');
+      }
     });
     this.backgroundTasks.add(task);
   }

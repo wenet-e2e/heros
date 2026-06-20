@@ -57,7 +57,7 @@ Implemented:
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Background task correlation IDs across request, execution, tool call, and completion events.
 - Basic secret redaction before structured events are printed/persisted or written into Shared Context.
-- Voice loop state transitions as `state.changed` events for later desktop UI mapping.
+- Voice loop state transitions, including `background_running`, as `state.changed` events for later desktop UI mapping.
 
 ## Environment
 

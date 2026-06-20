@@ -268,6 +268,30 @@ async function testRealtimeConnectRetry() {
   }
 }
 
+async function testVoiceLoopBackgroundState() {
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {},
+    taskRouter: {
+      async maybeHandle() {
+        return { type: 'none', message: '' };
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.setState('listening', 'smoke_start');
+  loop.delegateTask('明天九点提醒我喝水', { turnEpoch: 0 });
+  if (loop.state !== 'background_running') {
+    throw new Error('voice loop did not enter background_running');
+  }
+  await Promise.allSettled([...loop.backgroundTasks]);
+  if (loop.state !== 'listening') {
+    throw new Error('voice loop did not leave background_running');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -332,6 +356,7 @@ testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
 await testRealtimeConnectRetry();
+await testVoiceLoopBackgroundState();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
