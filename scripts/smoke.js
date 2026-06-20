@@ -1424,6 +1424,44 @@ async function testRealtimeWaitForClose() {
   }
 }
 
+async function testVoiceLoopStartupFailureEvents() {
+  const dir = createTempDir('heros-voice-startup-failure-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  let closed = false;
+  const realtime = new EventEmitter();
+  realtime.connect = async () => {
+    throw new Error('connect boom');
+  };
+  realtime.close = () => {
+    closed = true;
+  };
+  const loop = new VoiceLoop({
+    config: {
+      realtimeConnectRetries: 0,
+      realtimeConnectRetryDelayMs: 0,
+    },
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  let failed = false;
+  try {
+    await loop.start({ durationMs: 1 });
+  } catch (error) {
+    failed = error.message === 'connect boom';
+  }
+  const events = readEventLog(logPath);
+  const failure = events.find((event) => event.type === 'voice_loop.failed');
+  const errorState = events.find((event) => event.type === 'state.changed' && event.state === 'error');
+  if (!failed || !closed || failure?.message !== 'connect boom' || errorState?.reason !== 'voice_loop_failed') {
+    throw new Error('voice loop startup failure event smoke failed');
+  }
+  configureEvents();
+}
+
 async function testVoiceLoopBackgroundState() {
   const loop = new VoiceLoop({
     config: {},
@@ -1619,6 +1657,7 @@ testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
+await testVoiceLoopStartupFailureEvents();
 await testVoiceLoopBackgroundState();
 await testVoiceLoopBackgroundCancellation();
 await testVoiceLoopShutdownCancelsBackgroundTasks();

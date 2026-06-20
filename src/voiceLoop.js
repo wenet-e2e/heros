@@ -84,43 +84,55 @@ export class VoiceLoop {
   }
 
   async start({ durationMs } = {}) {
-    this.attachRealtimeEvents();
-    await connectRealtimeWithRetry(this.realtime, {
-      retries: this.config.realtimeConnectRetries,
-      delayMs: this.config.realtimeConnectRetryDelayMs,
-    });
-    this.realtime.updateSession(this.realtimeSessionConfig());
-    await this.realtime.waitFor('session.updated', 15000);
-
-    await this.player.start();
-    this.recorder.on('data', (chunk) => {
-      try {
-        this.realtime.appendAudio(chunk);
-      } catch (error) {
-        emitEvent('error', { source: 'input_audio_buffer.append', message: error.message });
-      }
-    });
-    await this.recorder.start();
-
-    emitEvent('voice_loop.started', {
-      realtimeModel: this.config.realtimeModel,
-      backgroundModel: this.config.backgroundModel,
-      turnDetection: this.config.realtimeTurnDetection,
-    });
-    this.setState('listening', 'voice_loop_started');
-    console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');
-
-    if (this.reminderScheduler) {
-      this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
-        this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`, {
-          reminderId: reminder.id,
-          source: 'reminder_due',
-        });
+    try {
+      this.attachRealtimeEvents();
+      await connectRealtimeWithRetry(this.realtime, {
+        retries: this.config.realtimeConnectRetries,
+        delayMs: this.config.realtimeConnectRetryDelayMs,
       });
-      this.reminderScheduler.start();
-    }
+      this.realtime.updateSession(this.realtimeSessionConfig());
+      await this.realtime.waitFor('session.updated', 15000);
 
-    await this.waitForShutdown({ durationMs });
+      await this.player.start();
+      this.recorder.on('data', (chunk) => {
+        try {
+          this.realtime.appendAudio(chunk);
+        } catch (error) {
+          emitEvent('error', { source: 'input_audio_buffer.append', message: error.message });
+        }
+      });
+      await this.recorder.start();
+
+      emitEvent('voice_loop.started', {
+        realtimeModel: this.config.realtimeModel,
+        backgroundModel: this.config.backgroundModel,
+        turnDetection: this.config.realtimeTurnDetection,
+      });
+      this.setState('listening', 'voice_loop_started');
+      console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');
+
+      if (this.reminderScheduler) {
+        this.unsubscribeReminderTrigger = this.reminderScheduler.onTriggered((reminder) => {
+          this.enqueueAnnouncement(`提醒时间到了：${reminder.title}${reminder.note ? `。${reminder.note}` : ''}`, {
+            reminderId: reminder.id,
+            source: 'reminder_due',
+          });
+        });
+        this.reminderScheduler.start();
+      }
+
+      await this.waitForShutdown({ durationMs });
+    } catch (error) {
+      emitEvent('voice_loop.failed', { message: error.message });
+      this.setState('error', 'voice_loop_failed');
+      this.recorder.stop();
+      this.player.stop();
+      this.realtime.close();
+      this.unsubscribeReminderTrigger?.();
+      this.unsubscribeReminderTrigger = null;
+      this.reminderScheduler?.stop();
+      throw error;
+    }
   }
 
   attachRealtimeEvents() {
