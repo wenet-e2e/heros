@@ -75,6 +75,31 @@ async function once(text) {
   console.log(`HerOS: ${reply}`);
 }
 
+async function status() {
+  const { config, reminderStore, memoryStore, bootstrap } = createRuntime();
+  const reminders = reminderStore.list();
+  const remindersByStatus = reminders.reduce((acc, reminder) => {
+    acc[reminder.status] = (acc[reminder.status] || 0) + 1;
+    return acc;
+  }, {});
+  console.log(JSON.stringify({
+    realtimeModel: config.realtimeModel,
+    backgroundModel: config.backgroundModel,
+    timeZone: config.timeZone,
+    dataDir: config.dataDir,
+    eventLogPath: config.eventLogPath,
+    bootstrapDir: bootstrap.targetDir,
+    bootstrapFiles: bootstrap.files.length,
+    reminders: {
+      total: reminders.length,
+      byStatus: remindersByStatus,
+    },
+    memories: {
+      total: memoryStore.list().length,
+    },
+  }, null, 2));
+}
+
 async function interactive() {
   const { interactionModel, reminderStore, reminderScheduler, memoryStore } = createRuntime();
   const rl = readline.createInterface({ input, output });
@@ -234,6 +259,7 @@ function printUsage() {
     '',
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
+    '  npm run status            Print local runtime status without network calls.',
     '  npm run cli               Start typed CLI fallback.',
     '  npm run voice             Start continuous realtime voice loop.',
     '  npm run cli -- --talk     Record one voice turn with Qwen-Omni-Realtime.',
@@ -253,6 +279,8 @@ const args = process.argv.slice(2);
 try {
   if (args[0] === '--doctor') {
     await doctor();
+  } else if (args[0] === '--status') {
+    await status();
   } else if (args[0] === '--voice-loop') {
     await voiceLoop({ playAudio: args[1] !== '--no-play' });
   } else if (args[0] === '--talk') {

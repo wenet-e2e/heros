@@ -20,6 +20,8 @@ HerOS 在“对话”之外，需要具备 Agent 决策和任务执行能力。M
 
 CLI 阶段不实现主界面、不实现复杂设置页、不绑定最终桌面技术栈。
 
+CLI 运行方式见 [docs/cli-runtime.md](./cli-runtime.md)。
+
 ### 2.2 Phase 2: 桌面界面
 
 第二阶段在 Phase 1 核心运行时通过后接入桌面客户端：
