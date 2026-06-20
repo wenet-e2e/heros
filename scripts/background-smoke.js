@@ -32,8 +32,30 @@ try {
     throw new Error('Background reminder smoke did not emit tool_call.completed');
   }
 
+  const originalRemindAt = reminder.remindAt;
+  const updateReply = await runtime.interactionModel.respond('把喝水提醒改到明天上午十点');
+  const updatedReminders = runtime.reminderStore.list();
+  const updatedReminder = updatedReminders.find((item) => item.id === reminder.id);
+  if (
+    !updateReply
+    || updatedReminders.length !== 1
+    || updatedReminder?.status !== 'scheduled'
+    || updatedReminder.remindAt === originalRemindAt
+  ) {
+    throw new Error(`Background reminder update smoke failed: ${updateReply}`);
+  }
+
+  const updatedEvents = readEventLog(runtime.config.eventLogPath);
+  if (!updatedEvents.some((event) => event.type === 'reminder.updated')) {
+    throw new Error('Background reminder update smoke did not emit reminder.updated');
+  }
+  if (!updatedEvents.some((event) => event.type === 'tool_call.completed' && event.toolName === 'update_reminder')) {
+    throw new Error('Background reminder update smoke did not emit update_reminder tool_call.completed');
+  }
+
   passed = true;
   console.log(`Background reminder smoke OK: ${reply}`);
+  console.log(`Background reminder update smoke OK: ${updateReply}`);
 } finally {
   if (passed) {
     fs.rmSync(dataDir, { recursive: true, force: true });
