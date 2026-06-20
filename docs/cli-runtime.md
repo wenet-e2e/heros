@@ -143,7 +143,7 @@ Implemented:
 - Timeline command supports the same turn, background task, event type, and time-window filters as raw event inspection.
 - Timeline summaries resolve task types across events with the same background task ID, so completed and announcement entries keep task context.
 - Background task summary command reconstructed from event logs for CLI milestone review.
-- Background task detail command reconstructs one task's related turns and event timeline.
+- Background task detail command reconstructs one task's related turns, normalized timeline, and raw event list.
 - Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, turn, error, and background task summaries.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.

@@ -314,12 +314,13 @@ function testBackgroundTaskSummary() {
     !detail.found
     || detail.task.backgroundTaskId !== 'task_summary'
     || detail.turns.length !== 2
+    || !detail.timeline.some((entry) => entry.kind === 'background_task' && entry.taskType === 'reminder')
     || !detail.events.some((event) => event.type === 'background_task.progress')
   ) {
     throw new Error('background task detail smoke failed');
   }
   const missing = summarizeBackgroundTaskDetail(readEventLog(logPath), 'task_missing');
-  if (missing.found || missing.events.length !== 0) {
+  if (missing.found || missing.events.length !== 0 || missing.timeline.length !== 0) {
     throw new Error('missing background task detail smoke failed');
   }
   configureEvents();
@@ -1315,6 +1316,7 @@ function testCliTaskDetailCommand() {
     !detail.found
     || detail.task.backgroundTaskId !== task.result.backgroundTaskId
     || !detail.turns.some((turn) => turn.turnId === task.turnId)
+    || !detail.timeline.some((entry) => entry.kind === 'memory' && entry.taskType === 'memory')
     || !detail.events.some((event) => event.type === 'memory.created')
   ) {
     throw new Error('cli task detail output smoke failed');

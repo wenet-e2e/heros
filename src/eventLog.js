@@ -390,6 +390,7 @@ export function summarizeBackgroundTaskDetail(events, backgroundTaskId) {
       found: false,
       task: null,
       turns: [],
+      timeline: [],
       events: [],
     };
   }
@@ -427,6 +428,7 @@ export function summarizeBackgroundTaskDetail(events, backgroundTaskId) {
     found: true,
     task,
     turns,
+    timeline: summarizeTimeline(relatedEvents).entries,
     events: relatedEvents,
   };
 }
