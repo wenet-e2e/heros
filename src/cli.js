@@ -488,7 +488,7 @@ async function audioStatus() {
   }, null, 2));
 }
 
-async function audioProbe({ durationMs = 500 } = {}) {
+async function collectAudioProbe({ durationMs = 500 } = {}) {
   if (!(await commandExists('rec'))) {
     throw new Error('Missing `rec`. Install SoX first, for example: brew install sox');
   }
@@ -551,14 +551,18 @@ async function audioProbe({ durationMs = 500 } = {}) {
       resolve({ bytesCaptured: bytes });
     });
   });
-  console.log(JSON.stringify({
+  return {
     ok: result.bytesCaptured > 0,
     command: 'rec',
     durationMs,
     sampleRate: 16000,
     channels: 1,
     bytesCaptured: result.bytesCaptured,
-  }, null, 2));
+  };
+}
+
+async function audioProbe({ durationMs = 500 } = {}) {
+  console.log(JSON.stringify(await collectAudioProbe({ durationMs }), null, 2));
 }
 
 function checkWritableDir(dir) {
@@ -573,7 +577,7 @@ function checkWritableDir(dir) {
   }
 }
 
-async function collectPreflight(runtime = createRuntime({ requireApiKey: false, printEvents: false })) {
+async function collectPreflight(runtime = createRuntime({ requireApiKey: false, printEvents: false }), { probeAudio = false, audioProbeDurationMs = 500 } = {}) {
   const { bootstrap, config } = runtime;
   const recorderAvailable = await commandExists('rec');
   const playerAvailable = await commandExists('play');
@@ -581,6 +585,23 @@ async function collectPreflight(runtime = createRuntime({ requireApiKey: false, 
   const missingBootstrap = ['AGENTS.md', 'SOUL.md', 'MEMORY.md'].filter((name) => !bootstrapNames.includes(name));
   const dataDir = checkWritableDir(config.dataDir);
   const eventLogDir = checkWritableDir(path.dirname(config.eventLogPath));
+  let capture = { checked: false };
+  if (probeAudio) {
+    try {
+      capture = {
+        checked: true,
+        ...(await collectAudioProbe({ durationMs: audioProbeDurationMs })),
+      };
+    } catch (error) {
+      capture = {
+        checked: true,
+        ok: false,
+        command: 'rec',
+        durationMs: audioProbeDurationMs,
+        error: error.message,
+      };
+    }
+  }
   const checks = {
     apiKey: {
       ok: Boolean(config.dashscopeApiKey),
@@ -597,6 +618,7 @@ async function collectPreflight(runtime = createRuntime({ requireApiKey: false, 
         ok: playerAvailable,
         installHint: playerAvailable ? null : 'Install SoX, for example: brew install sox',
       },
+      capture,
     },
     runtimeData: {
       dataDir,
@@ -613,6 +635,7 @@ async function collectPreflight(runtime = createRuntime({ requireApiKey: false, 
     ready: checks.apiKey.ok
       && checks.audio.recorder.ok
       && checks.audio.player.ok
+      && (!probeAudio || checks.audio.capture.ok)
       && checks.runtimeData.dataDir.writable
       && checks.runtimeData.eventLogDir.writable
       && checks.bootstrap.ok,
@@ -622,8 +645,11 @@ async function collectPreflight(runtime = createRuntime({ requireApiKey: false, 
   };
 }
 
-async function preflight() {
-  console.log(JSON.stringify(await collectPreflight(), null, 2));
+async function preflight({ probeAudio = false, durationMs = 500 } = {}) {
+  console.log(JSON.stringify(await collectPreflight(undefined, {
+    probeAudio,
+    audioProbeDurationMs: durationMs,
+  }), null, 2));
 }
 
 function reviewTimestamp() {
@@ -984,6 +1010,7 @@ function printUsage() {
     '  npm run audio             Check local audio recorder/player commands.',
     '  npm run audio:probe       Probe microphone capture without network calls.',
     '  npm run preflight         Check local readiness before starting voice.',
+    '  npm run preflight -- --probe-audio',
     '  npm run review            Run local Phase 1 no-UI CLI review.',
     '  npm run review:report     Run Phase 1 review and write a local report artifact.',
     '  npm run reminders         List local reminders without network calls.',
@@ -1055,7 +1082,10 @@ try {
   } else if (args[0] === '--audio-probe') {
     await audioProbe({ durationMs: getPositiveNumberArg(args, '--duration-ms', 500) });
   } else if (args[0] === '--preflight') {
-    await preflight();
+    await preflight({
+      probeAudio: args.includes('--probe-audio'),
+      durationMs: getPositiveNumberArg(args, '--duration-ms', 500),
+    });
   } else if (args[0] === '--review') {
     await phaseOneReview();
   } else if (args[0] === '--review-report') {

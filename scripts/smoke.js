@@ -760,11 +760,42 @@ function testCliPreflightCommand() {
     typeof preflight.ready !== 'boolean'
     || preflight.checks.apiKey.ok !== true
     || typeof preflight.checks.audio.recorder.ok !== 'boolean'
+    || preflight.checks.audio.capture.checked !== false
     || preflight.checks.runtimeData.dataDir.writable !== true
     || preflight.checks.runtimeData.eventLogDir.writable !== true
     || preflight.checks.bootstrap.ok !== true
   ) {
     throw new Error('cli preflight output smoke failed');
+  }
+
+  const probeDir = createTempDir('heros-cli-preflight-probe-');
+  const fakeBin = path.join(probeDir, 'bin');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  const fakeWhich = path.join(fakeBin, 'which');
+  fs.writeFileSync(fakeWhich, '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(fakeWhich, 0o755);
+  const probeResult = spawnSync(process.execPath, ['src/cli.js', '--preflight', '--probe-audio', '--duration-ms', '100'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: fakeBin,
+      DASHSCOPE_API_KEY: 'test-key',
+      HEROS_DATA_DIR: probeDir,
+      HEROS_EVENT_LOG_PATH: path.join(probeDir, 'events.ndjson'),
+    },
+  });
+  if (probeResult.status !== 0) {
+    throw new Error(`cli preflight audio probe smoke failed: ${probeResult.stderr || probeResult.stdout}`);
+  }
+  const probePreflight = JSON.parse(probeResult.stdout);
+  if (
+    probePreflight.ready !== false
+    || probePreflight.checks.audio.capture.checked !== true
+    || probePreflight.checks.audio.capture.ok !== false
+    || !probePreflight.checks.audio.capture.error
+  ) {
+    throw new Error('cli preflight audio probe output smoke failed');
   }
 }
 
