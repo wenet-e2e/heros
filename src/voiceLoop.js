@@ -50,7 +50,13 @@ export class VoiceLoop {
     await this.realtime.waitFor('session.updated', 15000);
 
     await this.player.start();
-    this.recorder.on('data', (chunk) => this.realtime.appendAudio(chunk));
+    this.recorder.on('data', (chunk) => {
+      try {
+        this.realtime.appendAudio(chunk);
+      } catch (error) {
+        emitEvent('error', { source: 'input_audio_buffer.append', message: error.message });
+      }
+    });
     await this.recorder.start();
 
     emitEvent('voice_loop.started', {
