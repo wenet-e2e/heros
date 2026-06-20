@@ -334,12 +334,17 @@ function testRuntimeStateSummary() {
     turnId: 'turn_runtime_state',
     result: { action: 'clarify' },
   });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_runtime_state_ambiguous',
+    turnId: 'turn_runtime_state',
+    result: { action: 'cancel_reminder_ambiguous' },
+  });
   const summary = summarizeRuntimeState(readEventLog(logPath));
   if (
     summary.state !== 'idle'
-    || summary.pendingClarificationCount !== 1
+    || summary.pendingClarificationCount !== 2
     || summary.lastTurnId !== 'turn_runtime_state'
-    || summary.lastBackgroundTask.status !== 'needs_clarification'
+    || !['ambiguous', 'needs_clarification'].includes(summary.lastBackgroundTask.status)
   ) {
     throw new Error('runtime state summary smoke failed');
   }
@@ -2412,6 +2417,41 @@ async function testTaskRouterCancelReminder() {
     || pendingStore.list().find((item) => item.id === pendingReminder.id)?.status !== 'cancelled'
   ) {
     throw new Error('task router pending cancel reminder smoke failed');
+  }
+
+  const ambiguousDir = createTempDir('heros-router-ambiguous-cancel-reminder-');
+  const ambiguousStore = new ReminderStore(ambiguousDir);
+  const earlyReminder = ambiguousStore.create({
+    title: '早喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const lateReminder = ambiguousStore.create({
+    title: '晚喝水',
+    remindAt: new Date(Date.now() + 120000).toISOString(),
+    note: '',
+  });
+  const ambiguousContext = new SharedContext();
+  const ambiguousRouter = new TaskRouter({
+    context: ambiguousContext,
+    reminderStore: ambiguousStore,
+    memoryStore: null,
+    backgroundAgent: null,
+  });
+  const ambiguousResult = await ambiguousRouter.maybeHandle('取消喝水提醒', { turnId: 'turn_cancel_ambiguous' });
+  const ambiguousDecision = ambiguousRouter.shouldDelegate('早');
+  const resolvedAmbiguous = await ambiguousRouter.maybeHandle('早', { turnId: 'turn_cancel_ambiguous_answer' });
+  const ambiguousItems = ambiguousStore.list();
+  if (
+    ambiguousResult.type !== 'cancel_reminder_ambiguous'
+    || ambiguousDecision?.type !== 'cancel_reminder'
+    || ambiguousDecision.reason !== 'pending_clarification_response'
+    || resolvedAmbiguous.type !== 'reminder_cancelled'
+    || resolvedAmbiguous.reminder.id !== earlyReminder.id
+    || ambiguousItems.find((item) => item.id === earlyReminder.id)?.status !== 'cancelled'
+    || ambiguousItems.find((item) => item.id === lateReminder.id)?.status !== 'scheduled'
+  ) {
+    throw new Error('task router ambiguous cancel reminder follow-up smoke failed');
   }
 
   const nextDir = createTempDir('heros-router-next-reminder-');

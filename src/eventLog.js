@@ -324,7 +324,7 @@ function stateFromEvent(fallback, event) {
 export function summarizeRuntimeState(events) {
   const backgroundTasks = summarizeBackgroundTasks(events);
   const activeBackgroundTasks = backgroundTasks.tasks.filter((task) => ['requested', 'running'].includes(task.status));
-  const pendingClarifications = backgroundTasks.tasks.filter((task) => task.status === 'needs_clarification');
+  const pendingClarifications = backgroundTasks.tasks.filter((task) => ['ambiguous', 'needs_clarification'].includes(task.status));
   const state = events.reduce(stateFromEvent, {
     state: 'idle',
     previousState: null,

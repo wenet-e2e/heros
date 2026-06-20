@@ -98,6 +98,7 @@ Implemented:
 - Background and local-router clarification results are tracked as `needs_clarification` events/context.
 - Reminder clarification follow-up utterances continue the pending Background Agent task path.
 - Local pending clarification follow-up utterances continue cancellation and memory task paths.
+- Ambiguous task results are treated as pending clarification for follow-up routing.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
 - Background Agent reminder creation emits reminder lifecycle events.

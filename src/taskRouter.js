@@ -129,10 +129,11 @@ const PENDING_CLARIFICATION_TASK_TYPES = new Set([
   'update_memory',
   'update_reminder',
 ]);
+const PENDING_CLARIFICATION_STATUSES = new Set(['ambiguous', 'needs_clarification']);
 
 function latestPendingClarification(context) {
   const task = context?.snapshot?.().backgroundTasks?.at(-1) || null;
-  if (!task || task.status !== 'needs_clarification') {
+  if (!task || !PENDING_CLARIFICATION_STATUSES.has(task.status)) {
     return null;
   }
   if (!PENDING_CLARIFICATION_TASK_TYPES.has(task.type)) {
