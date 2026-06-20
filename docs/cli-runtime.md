@@ -115,6 +115,7 @@ Implemented:
 - Due reminder announcements include reminder IDs for event-log correlation.
 - Stale background announcements are skipped when the user starts a newer voice turn.
 - Runtime `MEMORY.md` CRUD, explicit natural-language memory creation/listing/update, and safe natural-language memory deletion.
+- Natural-language memory update can ask for missing details and continue from the follow-up utterance.
 - Headless long-term memory CRUD commands.
 - Agent bootstrap files are copied into the runtime data dir and injected into CLI/background model prompts.
 - Headless agent bootstrap status command.

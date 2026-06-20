@@ -1927,7 +1927,7 @@ function testTaskRouterForgetMemory() {
   }
 }
 
-function testTaskRouterUpdateMemory() {
+async function testTaskRouterUpdateMemory() {
   const dir = createTempDir('heros-router-update-memory-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
@@ -1952,6 +1952,32 @@ function testTaskRouterUpdateMemory() {
     throw new Error('task router update memory event smoke failed');
   }
   configureEvents();
+
+  const pendingDir = createTempDir('heros-router-pending-update-memory-');
+  const pendingMemoryStore = new MemoryStore(path.join(pendingDir, 'MEMORY.md'));
+  const pendingMemory = pendingMemoryStore.create('用户喜欢短回答');
+  const pendingContext = new SharedContext();
+  pendingContext.setLongTermMemory(pendingMemoryStore.list());
+  const pendingRouter = new TaskRouter({
+    context: pendingContext,
+    memoryStore: pendingMemoryStore,
+    reminderStore: null,
+    backgroundAgent: null,
+  });
+  const pendingClarify = await pendingRouter.maybeHandle('修改记忆', { turnId: 'turn_update_memory_pending' });
+  const pendingDecision = pendingRouter.shouldDelegate('短回答改成用户喜欢详细回答');
+  const pendingUpdate = await pendingRouter.maybeHandle('短回答改成用户喜欢详细回答', { turnId: 'turn_update_memory_answer' });
+  const updatedMemory = pendingMemoryStore.list().find((memory) => memory.id === pendingMemory.id);
+  if (
+    pendingClarify.type !== 'update_memory_needs_clarification'
+    || pendingDecision?.type !== 'update_memory'
+    || pendingDecision.reason !== 'pending_clarification_response'
+    || pendingDecision.pendingBackgroundTaskId !== pendingClarify.backgroundTaskId
+    || pendingUpdate.type !== 'memory_updated'
+    || !updatedMemory?.content.includes('详细回答')
+  ) {
+    throw new Error('task router pending update memory smoke failed');
+  }
 }
 
 function testSharedContextRedaction() {
@@ -2037,6 +2063,9 @@ function testIntentBoundaries() {
   }
   if (!likelyUpdateMemory('把记忆里短回答改成用户喜欢详细回答')) {
     throw new Error('update memory intent smoke failed');
+  }
+  if (!likelyUpdateMemory('修改记忆')) {
+    throw new Error('bare update memory intent smoke failed');
   }
   if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
     throw new Error('forget memory intent smoke failed');
@@ -2587,7 +2616,7 @@ await testTaskRouterBackgroundTimeout();
 await testTaskRouterBackgroundCancellation();
 await testTaskRouterBackgroundContextPackage();
 testTaskRouterForgetMemory();
-testTaskRouterUpdateMemory();
+await testTaskRouterUpdateMemory();
 await testTaskRouterCancelReminder();
 testTaskRouterListReminders();
 testTaskRouterListMemory();

@@ -38,7 +38,11 @@ export function extractUpdateMemoryPatch(text) {
 
 export function likelyUpdateMemory(text) {
   const patch = extractUpdateMemoryPatch(text);
-  return Boolean(patch.query && patch.content);
+  if (patch.query && patch.content) {
+    return true;
+  }
+  const trimmed = text.trim();
+  return /^(更新|修改)(?:长期)?记忆$/.test(trimmed) || /^把(?:长期)?(?:记忆|记忆里|记忆中)/.test(trimmed);
 }
 
 export function likelyReminder(text) {
