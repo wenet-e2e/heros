@@ -40,6 +40,7 @@ export function createRuntime({ requireApiKey = true } = {}) {
     context,
     memoryStore,
     reminderStore,
+    timeZone: config.timeZone,
   });
   const interactionModel = new CliInteractionModel({
     agentBootstrap,

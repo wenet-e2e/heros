@@ -47,6 +47,7 @@ Implemented:
 - Background reminder delegation through a shared TaskRouter.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Natural-language scheduled reminder listing.
 - Explicit natural-language reminder cancellation when a single scheduled reminder matches.
 - Due reminder announcements through the same realtime audio outlet when the voice loop is running.
 - Stale background announcements are skipped when the user starts a newer voice turn.

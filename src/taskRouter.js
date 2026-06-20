@@ -1,20 +1,46 @@
 import crypto from 'node:crypto';
 import { emitEvent } from './events.js';
-import { extractCancelReminderQuery, extractMemoryContent, likelyCancelReminder, likelyMemory, likelyReminder } from './intents.js';
+import {
+  extractCancelReminderQuery,
+  extractMemoryContent,
+  likelyCancelReminder,
+  likelyListReminders,
+  likelyMemory,
+  likelyReminder,
+} from './intents.js';
 
 function createBackgroundTaskId() {
   return `task_${crypto.randomUUID()}`;
 }
 
+function formatReminderTime(isoString, timeZone) {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return isoString;
+  }
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone,
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export class TaskRouter {
-  constructor({ backgroundAgent, context, memoryStore, reminderStore }) {
+  constructor({ backgroundAgent, context, memoryStore, reminderStore, timeZone }) {
     this.backgroundAgent = backgroundAgent;
     this.context = context;
     this.memoryStore = memoryStore;
     this.reminderStore = reminderStore;
+    this.timeZone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 
   shouldDelegate(text) {
+    if (likelyListReminders(text)) {
+      return { type: 'list_reminders', reason: 'explicit_list_reminders_request' };
+    }
     if (likelyCancelReminder(text)) {
       return { type: 'cancel_reminder', reason: 'explicit_cancel_reminder_request' };
     }
@@ -45,6 +71,9 @@ export class TaskRouter {
     if (decision.type === 'cancel_reminder') {
       return this.handleCancelReminder(text, { backgroundTaskId });
     }
+    if (decision.type === 'list_reminders') {
+      return this.handleListReminders({ backgroundTaskId });
+    }
     const result = await this.backgroundAgent.handleTask({
       backgroundTaskId,
       userText: text,
@@ -58,6 +87,43 @@ export class TaskRouter {
     });
     emitEvent('interaction.context_updated', { contextVersion: this.context.version });
     return result;
+  }
+
+  handleListReminders({ backgroundTaskId = createBackgroundTaskId() } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'list_reminders' });
+    const scheduled = this.reminderStore.list()
+      .filter((reminder) => reminder.status === 'scheduled')
+      .sort((a, b) => Date.parse(a.remindAt) - Date.parse(b.remindAt));
+    this.context.addBackgroundTask({
+      backgroundTaskId,
+      type: 'list_reminders',
+      status: 'completed',
+      result: { count: scheduled.length },
+    });
+    emitEvent('background_task.completed', {
+      backgroundTaskId,
+      result: { action: 'list_reminders', count: scheduled.length },
+    });
+    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+
+    if (scheduled.length === 0) {
+      return {
+        backgroundTaskId,
+        type: 'reminders_listed',
+        reminders: scheduled,
+        message: '现在没有待触发的提醒。',
+      };
+    }
+    const summary = scheduled.slice(0, 5)
+      .map((reminder) => `${reminder.title}，${formatReminderTime(reminder.remindAt, this.timeZone)}`)
+      .join('；');
+    const suffix = scheduled.length > 5 ? `；另外还有 ${scheduled.length - 5} 个提醒` : '';
+    return {
+      backgroundTaskId,
+      type: 'reminders_listed',
+      reminders: scheduled,
+      message: `你现在有 ${scheduled.length} 个提醒：${summary}${suffix}`,
+    };
   }
 
   handleCancelReminder(text, { backgroundTaskId = createBackgroundTaskId() } = {}) {

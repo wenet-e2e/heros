@@ -9,7 +9,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyReminder } from '../src/intents.js';
+import { likelyListReminders, likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
@@ -222,6 +222,9 @@ function testIntentBoundaries() {
   if (!likelyReminder('10分钟后通知我开会')) {
     throw new Error('relative reminder intent smoke failed');
   }
+  if (!likelyListReminders('我有哪些提醒？')) {
+    throw new Error('list reminders intent smoke failed');
+  }
 }
 
 function testStaleAnnouncementSkip() {
@@ -296,6 +299,31 @@ function testTaskRouterCancelReminder() {
   }
 }
 
+function testTaskRouterListReminders() {
+  const dir = createTempDir('heros-router-list-reminders-');
+  const reminderStore = new ReminderStore(dir);
+  reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const context = new SharedContext();
+  const router = new TaskRouter({
+    context,
+    reminderStore,
+    memoryStore: null,
+    backgroundAgent: null,
+    timeZone: 'Asia/Shanghai',
+  });
+  const result = router.handleListReminders();
+  if (result.type !== 'reminders_listed' || result.reminders.length !== 1 || !result.message.includes('喝水')) {
+    throw new Error('task router list reminders smoke failed');
+  }
+  if (context.snapshot().backgroundTasks.at(-1).type !== 'list_reminders') {
+    throw new Error('task router list reminders context smoke failed');
+  }
+}
+
 testEventLog();
 testReminderScheduler();
 testMemoryStore();
@@ -306,6 +334,7 @@ testStaleAnnouncementSkip();
 await testRealtimeConnectRetry();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
+testTaskRouterListReminders();
 await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 console.log('smoke ok');
