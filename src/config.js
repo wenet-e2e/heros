@@ -57,6 +57,8 @@ export function getConfig({ requireApiKey = true } = {}) {
     realtimeVadThreshold: process.env.HEROS_REALTIME_VAD_THRESHOLD || '0.5',
     realtimeVadPrefixPaddingMs: process.env.HEROS_REALTIME_VAD_PREFIX_PADDING_MS || '500',
     realtimeVadSilenceDurationMs: process.env.HEROS_REALTIME_VAD_SILENCE_DURATION_MS || '800',
+    realtimeConnectRetries: Number(process.env.HEROS_REALTIME_CONNECT_RETRIES || '2'),
+    realtimeConnectRetryDelayMs: Number(process.env.HEROS_REALTIME_CONNECT_RETRY_DELAY_MS || '500'),
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
     reminderPollMs: Number(process.env.HEROS_REMINDER_POLL_MS || '30000'),

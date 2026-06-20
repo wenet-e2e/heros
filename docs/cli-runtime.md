@@ -40,6 +40,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 Implemented:
 
 - DashScope Realtime WebSocket session check.
+- Realtime connection retry events for transient WebSocket startup failures.
 - Continuous VAD voice loop with microphone input and PCM audio output.
 - User interrupt handling by cancelling the active realtime response.
 - Shared Context updates from typed turns and realtime transcripts.
@@ -67,6 +68,8 @@ Common overrides:
 
 - `HEROS_REALTIME_MODEL`
 - `HEROS_REALTIME_TURN_DETECTION` (default `semantic_vad`)
+- `HEROS_REALTIME_CONNECT_RETRIES` (default `2`)
+- `HEROS_REALTIME_CONNECT_RETRY_DELAY_MS` (default `500`)
 - `HEROS_BACKGROUND_MODEL`
 - `HEROS_TIME_ZONE`
 - `HEROS_DATA_DIR`

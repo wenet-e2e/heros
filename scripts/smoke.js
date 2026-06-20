@@ -13,6 +13,7 @@ import { likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
+import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -211,6 +212,22 @@ function testStaleAnnouncementSkip() {
   configureEvents();
 }
 
+async function testRealtimeConnectRetry() {
+  let attempts = 0;
+  const realtime = {
+    async connect() {
+      attempts += 1;
+      if (attempts < 2) {
+        throw new Error('temporary connect failure');
+      }
+    },
+  };
+  await connectRealtimeWithRetry(realtime, { retries: 1, delayMs: 0 });
+  if (attempts !== 2) {
+    throw new Error('realtime connect retry smoke failed');
+  }
+}
+
 function testTaskRouterCancelReminder() {
   const dir = createTempDir('heros-router-reminder-');
   const reminderStore = new ReminderStore(dir);
@@ -249,6 +266,7 @@ testAgentBootstrap();
 testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
+await testRealtimeConnectRetry();
 testTaskRouterMemory();
 testTaskRouterCancelReminder();
 await testBackgroundAgentInvalidReminder();

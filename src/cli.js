@@ -10,6 +10,7 @@ import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
 import { filterEvents, readEventLog, summarizeEvents } from './eventLog.js';
+import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 function createRealtimeClient(config) {
   return new DashScopeRealtimeClient({
@@ -44,7 +45,10 @@ async function checkRealtime(config) {
     }
   };
   realtime.on('event', logSessionEvent);
-  await realtime.connect();
+  await connectRealtimeWithRetry(realtime, {
+    retries: config.realtimeConnectRetries,
+    delayMs: config.realtimeConnectRetryDelayMs,
+  });
   realtime.updateSession({
     modalities: ['text', 'audio'],
     voice: config.realtimeVoice,
@@ -67,6 +71,7 @@ async function doctor() {
   console.log(`Realtime model: ${config.realtimeModel}`);
   console.log(`Realtime voice: ${config.realtimeVoice}`);
   console.log(`Realtime turn detection: ${config.realtimeTurnDetection}`);
+  console.log(`Realtime connect retries: ${config.realtimeConnectRetries}`);
   console.log(`Background model: ${config.backgroundModel}`);
   console.log(`Time zone: ${config.timeZone}`);
   console.log(`Reminder poll interval: ${config.reminderPollMs}ms`);
@@ -295,7 +300,10 @@ async function talkOnce({ playAudio = true } = {}) {
     }
   });
 
-  await realtime.connect();
+  await connectRealtimeWithRetry(realtime, {
+    retries: config.realtimeConnectRetries,
+    delayMs: config.realtimeConnectRetryDelayMs,
+  });
   realtime.updateSession({
     modalities: ['text', 'audio'],
     voice: config.realtimeVoice,
@@ -360,6 +368,7 @@ function printUsage() {
     '  DASHSCOPE_API_KEY         Required, usually in .env.local.',
     '  HEROS_REALTIME_MODEL      Default qwen3.5-omni-plus-realtime.',
     '  HEROS_REALTIME_TURN_DETECTION Default semantic_vad.',
+    '  HEROS_REALTIME_CONNECT_RETRIES Default 2.',
     '  HEROS_BACKGROUND_MODEL    Default qwen3.7-plus.',
     '  HEROS_TIME_ZONE           Default system time zone.',
     '  HEROS_REMINDER_POLL_MS    Default 30000.',

@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { PcmPlayer, PcmRecorder } from './audio.js';
 import { emitEvent } from './events.js';
+import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 export class VoiceLoop {
   constructor({ config, realtime, taskRouter, context, reminderScheduler, playAudio = true }) {
@@ -33,7 +34,10 @@ export class VoiceLoop {
 
   async start({ durationMs } = {}) {
     this.attachRealtimeEvents();
-    await this.realtime.connect();
+    await connectRealtimeWithRetry(this.realtime, {
+      retries: this.config.realtimeConnectRetries,
+      delayMs: this.config.realtimeConnectRetryDelayMs,
+    });
     this.realtime.updateSession({
       modalities: ['text', 'audio'],
       voice: this.config.realtimeVoice,

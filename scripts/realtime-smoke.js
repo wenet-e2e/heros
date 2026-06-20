@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createRuntime } from '../src/runtime.js';
 import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
+import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
 
 const runtime = createRuntime();
 const realtime = new DashScopeRealtimeClient({
@@ -16,7 +17,10 @@ realtime.on('event', (event) => {
   }
 });
 
-await realtime.connect();
+await connectRealtimeWithRetry(realtime, {
+  retries: runtime.config.realtimeConnectRetries,
+  delayMs: runtime.config.realtimeConnectRetryDelayMs,
+});
 realtime.updateSession({
   modalities: ['text', 'audio'],
   voice: runtime.config.realtimeVoice,
