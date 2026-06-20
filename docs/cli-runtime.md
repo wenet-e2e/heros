@@ -55,6 +55,7 @@ Implemented:
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation is covered by a temp-dir network smoke.
 - Background Agent emits `agent.started` and `agent.completed` lifecycle events around model decisions.
+- Background Agent emits `background_task.progress` after model decisions for CLI/UI progress mapping.
 - Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
 - Background clarification results are tracked as `needs_clarification` in Shared Context.
 - Background task result announcements through the same realtime audio outlet.

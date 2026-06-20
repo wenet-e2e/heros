@@ -272,7 +272,12 @@ async function testBackgroundAgentLifecycleEvents() {
   const events = readEventLog(logPath);
   const started = events.find((event) => event.type === 'agent.started');
   const completed = events.find((event) => event.type === 'agent.completed');
-  if (started?.backgroundTaskId !== 'task_agent_events' || completed?.action !== 'none') {
+  const progress = events.find((event) => event.type === 'background_task.progress');
+  if (
+    started?.backgroundTaskId !== 'task_agent_events'
+    || completed?.action !== 'none'
+    || progress?.stage !== 'agent_decision'
+  ) {
     throw new Error('background agent lifecycle events smoke failed');
   }
   configureEvents();

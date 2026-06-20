@@ -101,6 +101,12 @@ export class BackgroundAgent {
     const decision = extractJson(content);
     throwIfAborted(signal);
     emitEvent('agent.completed', { backgroundTaskId, turnId, model: this.model, action: decision.action });
+    emitEvent('background_task.progress', {
+      backgroundTaskId,
+      turnId,
+      stage: 'agent_decision',
+      action: decision.action,
+    });
 
     if (decision.action === 'create_reminder') {
       let reminder;
