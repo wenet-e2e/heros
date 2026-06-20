@@ -1074,6 +1074,10 @@ function reviewTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function readIfExists(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+}
+
 async function phaseOneReview({ writeReport = false } = {}) {
   const runtime = createRuntime({ requireApiKey: false, printEvents: false });
   const preflightReport = await collectPreflight(runtime);
@@ -1186,14 +1190,36 @@ async function phaseOneReview({ writeReport = false } = {}) {
   });
   const contextHealthReport = buildContextHealth(runtime);
   const contextHandledLocally = context.localTaskRouter.handledLocally || [];
+  const readmePath = path.join(process.cwd(), 'README.md');
+  const systemDesignPath = path.join(process.cwd(), 'docs', 'system-design.md');
+  const cliRuntimePath = path.join(process.cwd(), 'docs', 'cli-runtime.md');
+  const readmeText = readIfExists(readmePath);
+  const systemDesignText = readIfExists(systemDesignPath);
+  const cliRuntimeText = readIfExists(cliRuntimePath);
   const docs = {
-    readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
-    systemDesign: fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
-    cliRuntime: fs.existsSync(path.join(process.cwd(), 'docs', 'cli-runtime.md')),
+    readme: Boolean(readmeText),
+    systemDesign: Boolean(systemDesignText),
+    cliRuntime: Boolean(cliRuntimeText),
   };
-  const systemDesignText = docs.systemDesign
-    ? fs.readFileSync(path.join(process.cwd(), 'docs', 'system-design.md'), 'utf8')
-    : '';
+  docs.productDefinition = readmeText.includes('电影《HER》')
+    && readmeText.includes('有深度')
+    && readmeText.includes('实际任务执行');
+  docs.desktopFirst = readmeText.includes('桌面优先')
+    && readmeText.includes('Web 不作为第一形态')
+    && systemDesignText.includes('桌面优先');
+  docs.phaseOneNoUi = readmeText.includes('无界面 CLI 先行')
+    && systemDesignText.includes('Phase 1: 无界面 CLI')
+    && cliRuntimeText.includes('no-UI CLI');
+  docs.realtimeInteractionModel = readmeText.includes('Realtime Interaction Model')
+    && systemDesignText.includes('端到端语音(realtime)模型作为 Interaction Model');
+  docs.backgroundModel = readmeText.includes('Background LLM/Agent')
+    && systemDesignText.includes('Background LLM/Agent');
+  docs.sharedContext = readmeText.includes('Shared Context')
+    && systemDesignText.includes('共享上下文');
+  docs.mvpReminderLoop = readmeText.includes('提醒能力')
+    && systemDesignText.includes('CLI 提醒任务闭环可用');
+  docs.phaseTwoUiAfterCli = systemDesignText.includes('Phase 2: 桌面界面')
+    && systemDesignText.includes('桌面界面只消费核心事件');
   docs.localTaskRouter = systemDesignText.includes('Local Task Router')
     && systemDesignText.includes('本地确定性任务路由');
   const voiceLoopText = fs.existsSync(path.join(process.cwd(), 'src', 'voiceLoop.js'))

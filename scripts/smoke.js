@@ -1868,6 +1868,14 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.voice !== true
     || review.checks.docs.readme !== true
     || review.checks.docs.systemDesign !== true
+    || review.checks.docs.productDefinition !== true
+    || review.checks.docs.desktopFirst !== true
+    || review.checks.docs.phaseOneNoUi !== true
+    || review.checks.docs.realtimeInteractionModel !== true
+    || review.checks.docs.backgroundModel !== true
+    || review.checks.docs.sharedContext !== true
+    || review.checks.docs.mvpReminderLoop !== true
+    || review.checks.docs.phaseTwoUiAfterCli !== true
     || review.checks.docs.localTaskRouter !== true
   ) {
     throw new Error('cli review output smoke failed');
