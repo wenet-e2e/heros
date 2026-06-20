@@ -1596,6 +1596,39 @@ async function testBackgroundAgentInvalidReminder() {
   }
 }
 
+async function testBackgroundAgentSystemPrompt() {
+  const dir = createTempDir('heros-agent-prompt-');
+  const reminderStore = new ReminderStore(dir);
+  let systemPrompt = '';
+  const agent = new BackgroundAgent({
+    reminderStore,
+    model: 'fake',
+    timeZone: 'Asia/Shanghai',
+    client: {
+      async text({ messages }) {
+        systemPrompt = messages[0].content;
+        return JSON.stringify({
+          action: 'none',
+          reminderId: '',
+          title: '',
+          remindAt: '',
+          note: '',
+          clarifyingQuestion: '',
+        });
+      },
+    },
+  });
+  await agent.handleTask({
+    userText: '查询我的提醒',
+    context: {},
+    backgroundTaskId: 'task_agent_prompt',
+    turnId: 'turn_agent_prompt',
+  });
+  if (!systemPrompt.includes('Local Task Router') || !systemPrompt.includes('long-term memory CRUD')) {
+    throw new Error('background agent local task router prompt smoke failed');
+  }
+}
+
 async function testBackgroundAgentPastReminder() {
   const dir = createTempDir('heros-agent-past-');
   const reminderStore = new ReminderStore(dir);
@@ -2787,6 +2820,7 @@ await testTaskRouterUpdateMemory();
 await testTaskRouterCancelReminder();
 testTaskRouterListReminders();
 testTaskRouterListMemory();
+await testBackgroundAgentSystemPrompt();
 await testBackgroundAgentInvalidReminder();
 await testBackgroundAgentPastReminder();
 await testBackgroundAgentLifecycleEvents();
