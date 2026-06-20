@@ -317,6 +317,21 @@ function testVoiceLoopRealtimeInstructions() {
   }
 }
 
+function testVoiceLoopAssistantTurnId() {
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {},
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.handleAssistantDone('好的');
+  if (!loop.currentAssistantTurnId?.startsWith('turn_')) {
+    throw new Error('voice loop assistant turn id smoke failed');
+  }
+}
+
 async function testRealtimeConnectRetry() {
   let attempts = 0;
   const realtime = {
@@ -421,6 +436,7 @@ testSharedContextRedaction();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
+testVoiceLoopAssistantTurnId();
 await testRealtimeConnectRetry();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();

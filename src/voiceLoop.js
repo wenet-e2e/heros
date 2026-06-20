@@ -18,6 +18,7 @@ export class VoiceLoop {
     this.isAnnouncing = false;
     this.announcementQueue = [];
     this.currentAssistantText = '';
+    this.currentAssistantTurnId = null;
     this.backgroundTasks = new Set();
     this.unsubscribeReminderTrigger = null;
     this.state = 'idle';
@@ -132,6 +133,7 @@ export class VoiceLoop {
       } else if (event.type === 'response.created') {
         this.isResponding = true;
         this.currentAssistantText = '';
+        this.currentAssistantTurnId = null;
         this.setState('speaking', 'response_created');
         emitEvent('response.started', { source: 'realtime' });
       } else if (event.type === 'response.audio_transcript.delta' || event.type === 'response.text.delta') {
@@ -142,7 +144,7 @@ export class VoiceLoop {
         this.player.write(Buffer.from(event.delta || '', 'base64'));
       } else if (event.type === 'response.done') {
         this.isResponding = false;
-        emitEvent('response.completed', { source: 'realtime' });
+        emitEvent('response.completed', { source: 'realtime', turnId: this.currentAssistantTurnId });
         this.setState('listening', 'response_done');
         this.drainAnnouncements();
       } else if (event.type === 'error') {
@@ -205,6 +207,7 @@ export class VoiceLoop {
     const content = text || this.currentAssistantText;
     if (content.trim()) {
       const assistantTurn = this.context.addTurn('assistant', content);
+      this.currentAssistantTurnId = assistantTurn.id;
       emitEvent('interaction.context_updated', { contextVersion: this.context.version, turnId: assistantTurn.id });
     }
     process.stdout.write('\n');
