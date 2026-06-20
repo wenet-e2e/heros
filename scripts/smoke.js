@@ -12,7 +12,7 @@ import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
 import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
-import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
+import { filterEvents, followEventLog, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
 import { connectRealtimeWithRetry } from '../src/realtimeRetry.js';
@@ -24,7 +24,7 @@ function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function testEventLog() {
+async function testEventLog() {
   const dir = createTempDir('heros-events-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
@@ -63,6 +63,24 @@ function testEventLog() {
   const malformed = readEventLog(logPath).at(-1);
   if (malformed.type !== 'event_log.malformed' || malformed.lineNumber !== 3) {
     throw new Error('malformed event log smoke failed');
+  }
+
+  const controller = new AbortController();
+  const followed = [];
+  const following = followEventLog(logPath, {
+    pollMs: 50,
+    signal: controller.signal,
+    type: 'smoke.follow',
+    onEvent(event) {
+      followed.push(event);
+    },
+  });
+  emitEvent('smoke.follow', { turnId: 'turn_follow' });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  controller.abort('smoke_complete');
+  await following;
+  if (followed.length !== 1 || followed[0].turnId !== 'turn_follow') {
+    throw new Error('event follow smoke failed');
   }
   configureEvents();
 }
@@ -845,7 +863,7 @@ function testTaskRouterListMemory() {
   }
 }
 
-testEventLog();
+await testEventLog();
 testReminderScheduler();
 testMemoryStore();
 testAgentBootstrap();

@@ -9,7 +9,7 @@ import { commandExists } from './audio.js';
 import { DashScopeRealtimeClient } from './realtimeClient.js';
 import { VoiceLoop } from './voiceLoop.js';
 import { createRuntime } from './runtime.js';
-import { filterEvents, readEventLog, summarizeEvents } from './eventLog.js';
+import { filterEvents, followEventLog, readEventLog, summarizeEvents } from './eventLog.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 function createRealtimeClient(config) {
@@ -35,6 +35,11 @@ function getEventCount(args) {
   }
   const count = Number(value);
   return Number.isFinite(count) && count > 0 ? count : 20;
+}
+
+function getPositiveNumberArg(args, name, fallback) {
+  const value = Number(getArgValue(args, name));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 async function checkRealtime(config) {
@@ -135,8 +140,22 @@ async function status() {
   }, null, 2));
 }
 
-async function events({ backgroundTaskId, count = 20, turnId, type } = {}) {
+async function events({ backgroundTaskId, count = 20, follow = false, fromStart = false, pollMs = 500, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
+  if (follow) {
+    console.log(`Following event log: ${config.eventLogPath}`);
+    await followEventLog(config.eventLogPath, {
+      backgroundTaskId,
+      fromStart,
+      pollMs,
+      turnId,
+      type,
+      onEvent(event) {
+        console.log(JSON.stringify(event));
+      },
+    });
+    return;
+  }
   const allEvents = readEventLog(config.eventLogPath);
   if (allEvents.length === 0) {
     console.log('No event log yet.');
@@ -364,6 +383,7 @@ function printUsage() {
     '  npm run doctor            Check DashScope realtime and background LLM.',
     '  npm run status            Print local runtime status without network calls.',
     '  npm run events            Print recent structured runtime events.',
+    '  npm run events:follow     Follow structured runtime events as they arrive.',
     '  npm run events -- --type response.completed',
     '  npm run events -- --turn-id turn_xxx',
     '  npm run events -- --background-task-id task_xxx',
@@ -396,6 +416,9 @@ try {
   } else if (args[0] === '--events') {
     await events({
       count: getEventCount(args),
+      follow: args.includes('--follow'),
+      fromStart: args.includes('--from-start'),
+      pollMs: getPositiveNumberArg(args, '--poll-ms', 500),
       type: getArgValue(args, '--type'),
       turnId: getArgValue(args, '--turn-id'),
       backgroundTaskId: getArgValue(args, '--background-task-id'),
