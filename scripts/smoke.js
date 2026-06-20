@@ -755,6 +755,17 @@ function testRuntimeHydratesPendingClarification() {
     turnId: 'turn_runtime_pending_cancel',
     result: { action: 'cancel_reminder_needs_clarification' },
   });
+  emitEvent('background_task.started', {
+    backgroundTaskId: 'task_runtime_list_memory',
+    turnId: 'turn_runtime_list_memory',
+    taskType: 'list_memory',
+    model: 'local_task_router',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_runtime_list_memory',
+    turnId: 'turn_runtime_list_memory',
+    result: { action: 'list_memory', count: 0 },
+  });
   configureEvents();
 
   const previousDataDir = process.env.HEROS_DATA_DIR;
@@ -764,10 +775,12 @@ function testRuntimeHydratesPendingClarification() {
   try {
     const runtime = createRuntime({ requireApiKey: false, printEvents: false });
     const decision = runtime.taskRouter.shouldDelegate('喝水');
+    const contextPackage = runtime.taskRouter.buildContextPackage();
     if (
       decision?.type !== 'cancel_reminder'
       || decision.reason !== 'pending_clarification_response'
       || decision.pendingBackgroundTaskId !== 'task_runtime_pending_cancel'
+      || contextPackage.pendingClarification?.backgroundTaskId !== 'task_runtime_pending_cancel'
     ) {
       throw new Error('runtime pending clarification hydration smoke failed');
     }

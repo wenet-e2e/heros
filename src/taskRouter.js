@@ -141,11 +141,12 @@ const PENDING_CLARIFICATION_TASK_TYPES = new Set([
 const PENDING_CLARIFICATION_STATUSES = new Set(['ambiguous', 'needs_clarification']);
 
 function latestPendingClarification(context) {
-  const task = context?.snapshot?.().backgroundTasks?.at(-1) || null;
-  if (!task || !PENDING_CLARIFICATION_STATUSES.has(task.status)) {
-    return null;
-  }
-  if (!PENDING_CLARIFICATION_TASK_TYPES.has(task.type)) {
+  const tasks = context?.snapshot?.().backgroundTasks || [];
+  const task = [...tasks].reverse().find((item) => (
+    PENDING_CLARIFICATION_STATUSES.has(item.status)
+    && PENDING_CLARIFICATION_TASK_TYPES.has(item.type)
+  ));
+  if (!task) {
     return null;
   }
   return {
