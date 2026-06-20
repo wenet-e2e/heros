@@ -93,6 +93,7 @@ Implemented:
 - Background Agent unexpected failures emit structured failed events for error summaries.
 - Background LLM requests preserve external cancellation reasons instead of collapsing them into request timeouts.
 - Background and local-router clarification results are tracked as `needs_clarification` events/context.
+- Reminder clarification follow-up utterances continue the pending Background Agent task path.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
 - Background Agent reminder creation emits reminder lifecycle events.

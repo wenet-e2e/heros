@@ -85,6 +85,7 @@ export class BackgroundAgent {
       `Current local time is ${localNow}, time zone ${this.timeZone}.`,
       'Resolve relative dates such as 今天, 明天, 后天, 上午, 下午 in this local time zone.',
       'Return remindAt as ISO-8601 with an explicit local timezone offset, for example 2026-06-22T09:00:00+08:00. Do not return UTC Z unless the user explicitly asks for UTC.',
+      'If context.pendingClarification is present, treat userText as the answer to that pending clarification and combine it with the previous task and turns in sharedContext.',
       'For update_reminder, choose a single scheduled reminder from context.reminders.scheduled and return its reminderId. If no single target is clear, use action "clarify".',
       'For update_reminder, include only the fields that should change. If the user changes time, return remindAt. If the user changes title or note, return title or note.',
       'If time is missing or ambiguous, use action "clarify".',

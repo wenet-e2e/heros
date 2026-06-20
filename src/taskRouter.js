@@ -122,6 +122,22 @@ function emitNeedsClarification({ backgroundTaskId, turnId, question, reason, ca
   });
 }
 
+function latestPendingClarification(context) {
+  const task = context?.snapshot?.().backgroundTasks?.at(-1) || null;
+  if (!task || task.status !== 'needs_clarification') {
+    return null;
+  }
+  if (!['reminder', 'update_reminder'].includes(task.type)) {
+    return null;
+  }
+  return {
+    backgroundTaskId: task.backgroundTaskId,
+    turnId: task.turnId,
+    type: task.type,
+    result: task.result || null,
+  };
+}
+
 export class TaskRouter {
   constructor({ backgroundAgent, context, memoryStore, reminderStore, taskTimeoutMs = 60000, timeZone }) {
     this.backgroundAgent = backgroundAgent;
@@ -157,6 +173,14 @@ export class TaskRouter {
     if (likelyForgetMemory(text)) {
       return { type: 'forget_memory', reason: 'explicit_forget_memory_request' };
     }
+    const pendingClarification = latestPendingClarification(this.context);
+    if (pendingClarification && text.trim()) {
+      return {
+        type: pendingClarification.type,
+        reason: 'pending_clarification_response',
+        pendingBackgroundTaskId: pendingClarification.backgroundTaskId,
+      };
+    }
     if (likelyReminder(text)) {
       return { type: 'reminder', reason: 'likely_reminder' };
     }
@@ -165,6 +189,7 @@ export class TaskRouter {
 
   buildContextPackage() {
     const sharedContext = this.context.snapshot();
+    const pendingClarification = latestPendingClarification(this.context);
     const reminders = this.reminderStore?.list?.() || [];
     const scheduledReminders = reminders
       .filter((reminder) => reminder.status === 'scheduled')
@@ -188,6 +213,7 @@ export class TaskRouter {
         timeZone: this.timeZone,
       },
       sharedContext,
+      pendingClarification,
       reminders: {
         totalScheduled: scheduledReminders.length,
         nextScheduledAt: scheduledReminders[0]?.remindAt || null,
@@ -303,7 +329,7 @@ export class TaskRouter {
       result,
     });
     emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
-    return { ...result, source: 'background_agent' };
+    return { backgroundTaskId, ...result, source: 'background_agent' };
   }
 
   handleListReminders({ backgroundTaskId = createBackgroundTaskId(), nextOnly = false, turnId } = {}) {

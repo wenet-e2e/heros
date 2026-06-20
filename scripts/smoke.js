@@ -1497,12 +1497,22 @@ async function testTaskRouterBackgroundFailure() {
 
 async function testTaskRouterBackgroundClarification() {
   const context = new SharedContext();
+  let calls = 0;
+  let continuation = null;
   const router = new TaskRouter({
     context,
     memoryStore: null,
     reminderStore: null,
     backgroundAgent: {
-      async handleTask() {
+      async handleTask({ userText, context: contextPackage }) {
+        calls += 1;
+        if (calls === 2) {
+          continuation = { userText, contextPackage };
+          return {
+            type: 'none',
+            message: '',
+          };
+        }
         return {
           type: 'clarify',
           message: '你想让我什么时候提醒？',
@@ -1517,6 +1527,18 @@ async function testTaskRouterBackgroundClarification() {
   const task = context.snapshot().backgroundTasks.at(-1);
   if (task.status !== 'needs_clarification' || task.turnId !== 'turn_clarify') {
     throw new Error('task router background clarification context smoke failed');
+  }
+  const decision = router.shouldDelegate('九点');
+  if (decision?.type !== 'reminder' || decision.reason !== 'pending_clarification_response') {
+    throw new Error('task router pending clarification route smoke failed');
+  }
+  await router.maybeHandle('九点', { turnId: 'turn_clarify_answer' });
+  if (
+    continuation?.userText !== '九点'
+    || continuation.contextPackage.pendingClarification?.backgroundTaskId !== result.backgroundTaskId
+    || context.snapshot().backgroundTasks.at(-1).status !== 'none'
+  ) {
+    throw new Error('task router pending clarification context package smoke failed');
   }
 }
 
