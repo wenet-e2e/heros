@@ -249,6 +249,11 @@ async function cancelReminder(id) {
   console.log(JSON.stringify(reminder, null, 2));
 }
 
+async function checkReminders() {
+  const { reminderScheduler } = createRuntime({ requireApiKey: false, printEvents: false });
+  console.log(JSON.stringify(reminderScheduler.check({ print: false }), null, 2));
+}
+
 async function listMemories() {
   const { memoryStore } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(memoryStore.list(), null, 2));
@@ -506,6 +511,7 @@ function printUsage() {
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run reminders         List local reminders without network calls.',
+    '  npm run check-reminders   Trigger due local reminders once without starting voice.',
     '  npm run cancel-reminder -- <id>',
     '  npm run memories          List long-term memories without network calls.',
     '  npm run remember -- <content>',
@@ -555,6 +561,8 @@ try {
     await runtimeState();
   } else if (args[0] === '--reminders') {
     await listReminders();
+  } else if (args[0] === '--check-reminders') {
+    await checkReminders();
   } else if (args[0] === '--cancel-reminder') {
     await cancelReminder(args[1]);
   } else if (args[0] === '--memories') {

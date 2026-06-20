@@ -10,7 +10,7 @@ import { ReminderScheduler } from './reminderScheduler.js';
 import { ReminderStore } from './reminders.js';
 import { TaskRouter } from './taskRouter.js';
 
-export function createRuntime({ requireApiKey = true } = {}) {
+export function createRuntime({ printEvents = true, requireApiKey = true } = {}) {
   const config = getConfig({ requireApiKey });
   const client = new DashScopeClient({
     apiKey: config.dashscopeApiKey,
@@ -19,7 +19,7 @@ export function createRuntime({ requireApiKey = true } = {}) {
   });
   const context = new SharedContext();
   const reminderStore = new ReminderStore(config.dataDir);
-  configureEvents({ logPath: config.eventLogPath });
+  configureEvents({ logPath: config.eventLogPath, print: printEvents });
   const reminderScheduler = new ReminderScheduler({
     reminderStore,
     pollMs: config.reminderPollMs,

@@ -31,14 +31,18 @@ export class ReminderScheduler {
     emitEvent('reminder_scheduler.stopped');
   }
 
-  check() {
+  check({ print = true } = {}) {
     const due = this.reminderStore.due();
+    const triggeredReminders = [];
     for (const reminder of due) {
       const triggered = this.reminderStore.markTriggered(reminder.id);
+      triggeredReminders.push(triggered);
       emitEvent('reminder.triggered', { reminder: triggered });
-      console.log(`\nReminder: ${triggered.title} (${triggered.remindAt})`);
-      if (triggered.note) {
-        console.log(`Note: ${triggered.note}`);
+      if (print) {
+        console.log(`\nReminder: ${triggered.title} (${triggered.remindAt})`);
+        if (triggered.note) {
+          console.log(`Note: ${triggered.note}`);
+        }
       }
       for (const listener of this.triggerListeners) {
         try {
@@ -48,5 +52,6 @@ export class ReminderScheduler {
         }
       }
     }
+    return triggeredReminders;
   }
 }

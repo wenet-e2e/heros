@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 let eventLogPath = null;
+let printEvents = true;
 const SECRET_REDACTIONS = [
   /\b(DASHSCOPE_API_KEY|API_KEY|TOKEN|SECRET|PASSWORD)\s*=\s*[^\s,;]+/gi,
   /\b(Bearer)\s+[A-Za-z0-9._~+/=-]+/gi,
@@ -9,8 +10,9 @@ const SECRET_REDACTIONS = [
 ];
 const SECRET_KEY_PATTERN = /(api[_-]?key|token|secret|password|passwd|authorization|bearer)/i;
 
-export function configureEvents({ logPath } = {}) {
+export function configureEvents({ logPath, print = true } = {}) {
   eventLogPath = logPath || null;
+  printEvents = print;
   if (eventLogPath) {
     fs.mkdirSync(path.dirname(eventLogPath), { recursive: true });
   }
@@ -45,7 +47,9 @@ export function emitEvent(type, payload = {}) {
     createdAt: new Date().toISOString(),
   };
   const line = JSON.stringify(event);
-  process.stdout.write(`[event] ${line}\n`);
+  if (printEvents) {
+    process.stdout.write(`[event] ${line}\n`);
+  }
   if (eventLogPath) {
     fs.appendFileSync(eventLogPath, `${line}\n`);
   }

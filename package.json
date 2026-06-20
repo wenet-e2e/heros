@@ -19,6 +19,7 @@
     "tasks": "node src/cli.js --tasks",
     "runtime-state": "node src/cli.js --runtime-state",
     "reminders": "node src/cli.js --reminders",
+    "check-reminders": "node src/cli.js --check-reminders",
     "cancel-reminder": "node src/cli.js --cancel-reminder",
     "memories": "node src/cli.js --memories",
     "remember": "node src/cli.js --remember",

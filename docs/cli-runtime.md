@@ -21,6 +21,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run tasks`: summarizes recent background tasks reconstructed from structured runtime events.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run reminders`: lists local reminders without network calls.
+- `npm run check-reminders`: triggers due local reminders once without starting voice.
 - `npm run cancel-reminder -- <id>`: cancels one scheduled local reminder without network calls.
 - `npm run memories`: lists long-term memories without network calls.
 - `npm run remember -- <content>`: creates one long-term memory without network calls.
@@ -73,6 +74,7 @@ Implemented:
 - Background and local-router clarification results are tracked as `needs_clarification` events/context.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Headless one-shot due reminder trigger checks.
 - Local reminder and memory files use atomic writes to reduce partial-write corruption.
 - Headless local reminder listing and cancellation commands.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.

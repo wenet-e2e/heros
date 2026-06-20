@@ -157,6 +157,16 @@ function testReminderScheduler() {
   if (cancelled.status !== 'cancelled') {
     throw new Error('reminder cancellation smoke failed');
   }
+
+  const oneShot = store.create({
+    title: 'one-shot',
+    remindAt: new Date(Date.now() - 1000).toISOString(),
+    note: '',
+  });
+  const triggered = scheduler.check({ print: false });
+  if (triggered.length !== 1 || triggered[0].id !== oneShot.id || store.list().find((item) => item.id === oneShot.id)?.status !== 'triggered') {
+    throw new Error('reminder scheduler one-shot check smoke failed');
+  }
 }
 
 function testMemoryStore() {
@@ -372,6 +382,24 @@ function testCliReminderCommands() {
   const cancelled = JSON.parse(cancelResult.stdout);
   if (cancelled.status !== 'cancelled' || store.list()[0].status !== 'cancelled') {
     throw new Error('cli cancel reminder output smoke failed');
+  }
+
+  const due = store.create({
+    title: '站起来活动',
+    remindAt: new Date(Date.now() - 1000).toISOString(),
+    note: '',
+  });
+  const checkResult = spawnSync(process.execPath, ['src/cli.js', '--check-reminders'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (checkResult.status !== 0) {
+    throw new Error(`cli check reminders smoke failed: ${checkResult.stderr || checkResult.stdout}`);
+  }
+  const checked = JSON.parse(checkResult.stdout);
+  if (checked.length !== 1 || checked[0].id !== due.id || store.list().find((item) => item.id === due.id)?.status !== 'triggered') {
+    throw new Error('cli check reminders output smoke failed');
   }
 }
 
