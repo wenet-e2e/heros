@@ -153,6 +153,7 @@ Implemented:
 - Phase 1 review checks the interruption path for realtime response cancellation, Background Agent cancellation, and stale announcement skipping.
 - Phase 1 review covers bare and pending reminder cancellation routing, pending memory update routing, and pending memory deletion routing.
 - Phase 1 review also checks the Phase 1 CLI command surface for no-UI regression coverage.
+- Phase 1 review includes the latest verification report/event as observation-only milestone evidence.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Phase 1 review completion emits a structured event for CLI and later UI observability.
 - Error summary command reconstructed from structured runtime events.

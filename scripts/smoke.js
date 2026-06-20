@@ -1884,6 +1884,10 @@ function testCliReviewCommand() {
     || review.checks.interruption.cancelsBackgroundTasksOnSpeech !== true
     || review.checks.interruption.interruptsRealtimeResponse !== true
     || review.checks.interruption.skipsStaleAnnouncements !== true
+    || review.checks.verification.observationOnly !== true
+    || review.checks.verification.latestReport !== null
+    || review.checks.verification.latestEvent !== null
+    || review.checks.verification.reportEventAligned !== null
     || review.checks.commandSurface.check !== true
     || review.checks.commandSurface.verify !== true
     || review.checks.commandSurface.verifyReport !== true

@@ -1312,6 +1312,19 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     skipsStaleAnnouncements: voiceLoopText.includes('announcement.skipped')
       && voiceLoopText.includes('stale_turn'),
   };
+  const latestVerificationReport = latestVerifyReport(runtime.config.dataDir);
+  const latestVerificationEvent = latestVerifyReportEvent(events);
+  const verification = {
+    observationOnly: true,
+    latestReport: latestVerificationReport,
+    latestEvent: latestVerificationEvent,
+    latestReportOk: typeof latestVerificationReport?.ok === 'boolean' ? latestVerificationReport.ok : null,
+    latestEventOk: typeof latestVerificationEvent?.ok === 'boolean' ? latestVerificationEvent.ok : null,
+    reportEventAligned: latestVerificationReport && latestVerificationEvent
+      ? latestVerificationReport.path === latestVerificationEvent.reportPath
+        && latestVerificationReport.ok === latestVerificationEvent.ok
+      : null,
+  };
   const review = {
     phase: 'phase_1_no_ui_cli',
     createdAt: new Date().toISOString(),
@@ -1348,6 +1361,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
       contextHealth: contextHealthReport,
       singleAudioOutlet,
       interruption,
+      verification,
       docs,
     },
   };
