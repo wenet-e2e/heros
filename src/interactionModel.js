@@ -18,7 +18,7 @@ export class CliInteractionModel {
     if (result) {
       if (result.message) {
         const assistantTurn = this.context.addTurn('assistant', result.message);
-        emitEvent('response.completed', { source: 'background_agent', turnId: assistantTurn.id });
+        emitEvent('response.completed', { source: result.source || 'background_agent', turnId: assistantTurn.id });
         return result.message;
       }
     }

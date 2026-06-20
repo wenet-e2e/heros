@@ -72,16 +72,16 @@ export class TaskRouter {
       reason: decision.reason,
     });
     if (decision.type === 'memory') {
-      return this.handleMemory(text, { backgroundTaskId, turnId });
+      return { ...this.handleMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'forget_memory') {
-      return this.handleForgetMemory(text, { backgroundTaskId, turnId });
+      return { ...this.handleForgetMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'cancel_reminder') {
-      return this.handleCancelReminder(text, { backgroundTaskId, turnId });
+      return { ...this.handleCancelReminder(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     if (decision.type === 'list_reminders') {
-      return this.handleListReminders({ backgroundTaskId, turnId });
+      return { ...this.handleListReminders({ backgroundTaskId, turnId }), source: 'local_task_router' };
     }
     const result = await this.backgroundAgent.handleTask({
       backgroundTaskId,
@@ -97,7 +97,7 @@ export class TaskRouter {
       result,
     });
     emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
-    return result;
+    return { ...result, source: 'background_agent' };
   }
 
   handleListReminders({ backgroundTaskId = createBackgroundTaskId(), turnId } = {}) {
