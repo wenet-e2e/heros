@@ -552,6 +552,20 @@ function testCliStatusOutput() {
     backgroundTasks: { total: 1 },
     errors: { total: 0 },
   }, null, 2)}\n`);
+  const verifyReportDir = path.join(dir, 'verify-reports');
+  fs.mkdirSync(verifyReportDir, { recursive: true });
+  const verifyReportPath = path.join(verifyReportDir, 'verify-report-smoke.json');
+  fs.writeFileSync(verifyReportPath, `${JSON.stringify({
+    phase: 'phase_1_no_ui_cli',
+    type: 'verify_report',
+    startedAt: '2026-06-21T00:00:02.000Z',
+    endedAt: '2026-06-21T00:00:12.000Z',
+    ok: true,
+    steps: [
+      { name: 'check', ok: true, durationMs: 100 },
+      { name: 'doctor', ok: true, durationMs: 200 },
+    ],
+  }, null, 2)}\n`);
   fs.writeFileSync(logPath, `${JSON.stringify({
     type: 'review.completed',
     phase: 'phase_1_no_ui_cli',
@@ -634,6 +648,14 @@ function testCliStatusOutput() {
   }
   if (status.review.latestEvent?.reportPath !== reviewPath || status.review.latestEvent.ready !== true) {
     throw new Error('cli status review event smoke failed');
+  }
+  if (
+    status.verify.latestReport?.path !== verifyReportPath
+    || status.verify.latestReport.ok !== true
+    || status.verify.latestReport.steps.length !== 2
+    || status.verify.latestReport.steps[1].name !== 'doctor'
+  ) {
+    throw new Error('cli status verify report smoke failed');
   }
   if (
     status.sessionReport.latestReport?.path !== sessionReportPath
@@ -1849,6 +1871,7 @@ function testCliReviewCommand() {
     || review.checks.interruption.skipsStaleAnnouncements !== true
     || review.checks.commandSurface.check !== true
     || review.checks.commandSurface.verify !== true
+    || review.checks.commandSurface.verifyReport !== true
     || review.checks.commandSurface.doctor !== true
     || review.checks.commandSurface.status !== true
     || review.checks.commandSurface.events !== true

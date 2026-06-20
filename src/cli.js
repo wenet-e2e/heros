@@ -301,6 +301,49 @@ function latestSessionReport(dataDir) {
   }
 }
 
+function latestVerifyReport(dataDir) {
+  const reportDir = path.join(dataDir, 'verify-reports');
+  if (!fs.existsSync(reportDir)) {
+    return null;
+  }
+  const reports = fs.readdirSync(reportDir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => {
+      const reportPath = path.join(reportDir, name);
+      return {
+        path: reportPath,
+        updatedAtMs: fs.statSync(reportPath).mtimeMs,
+      };
+    })
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+  if (reports.length === 0) {
+    return null;
+  }
+  const latest = reports[0];
+  try {
+    const report = JSON.parse(fs.readFileSync(latest.path, 'utf8'));
+    return {
+      path: latest.path,
+      phase: report.phase || null,
+      ok: typeof report.ok === 'boolean' ? report.ok : null,
+      startedAt: report.startedAt || null,
+      endedAt: report.endedAt || null,
+      steps: Array.isArray(report.steps)
+        ? report.steps.map((step) => ({
+          name: step.name || null,
+          ok: typeof step.ok === 'boolean' ? step.ok : null,
+          durationMs: step.durationMs ?? null,
+        }))
+        : [],
+    };
+  } catch (error) {
+    return {
+      path: latest.path,
+      error: error.message,
+    };
+  }
+}
+
 function latestReviewEvent(events) {
   const event = events.filter((item) => item.type === 'review.completed').at(-1);
   if (!event) {
@@ -442,6 +485,9 @@ async function status() {
     review: {
       latestReport: latestReviewReport(config.dataDir),
       latestEvent: latestReviewEvent(loggedEvents),
+    },
+    verify: {
+      latestReport: latestVerifyReport(config.dataDir),
     },
     sessionReport: {
       latestReport: latestSessionReport(config.dataDir),
@@ -1147,6 +1193,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
   const commandSurface = {
     check: Boolean(scripts.check),
     verify: Boolean(scripts.verify),
+    verifyReport: Boolean(scripts['verify:report']),
     smoke: Boolean(scripts.smoke),
     smokeBackground: Boolean(scripts['smoke:background']),
     smokeRealtime: Boolean(scripts['smoke:realtime']),
@@ -1620,6 +1667,7 @@ function printUsage() {
     '',
     'Commands:',
     '  npm run doctor            Check DashScope realtime and background LLM.',
+    '  npm run verify:report     Run full verification and write a local report artifact.',
     '  npm run status            Print local runtime status and routing boundary without network calls.',
     '  npm run events            Print recent structured runtime events.',
     '  npm run events:follow     Follow structured runtime events as they arrive.',

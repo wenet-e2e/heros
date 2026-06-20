@@ -6,6 +6,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 
 - `npm run check`: syntax checks and local smoke tests.
 - `npm run verify`: full local + DashScope verification.
+- `npm run verify:report`: full local + DashScope verification with a JSON artifact under `.heros/verify-reports/`.
 - `npm run smoke:background`: network smoke test for Background Agent reminder creation and update in a temp data dir.
 - `npm run smoke:realtime`: network smoke test for realtime text injection and spoken transcript.
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
@@ -108,6 +109,7 @@ Implemented:
 - Runtime status includes live context-health readiness for the realtime/background Shared Context contract.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.
+- Full verification can be captured as a local JSON artifact for milestone review.
 - Background Agent emits `agent.started` and `agent.completed` lifecycle events around model decisions.
 - Background Agent emits `background_task.progress` after model decisions for CLI/UI progress mapping.
 - Background Agent delegation has a timeout guard and emits cancellation events when a task runs too long.
@@ -160,7 +162,7 @@ Implemented:
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns, normalized timeline, and raw event list.
 - No-UI session report command writes milestone artifacts with event, turn, task, timeline, error, Shared Context, and runtime state summaries.
-- Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, session report/event, turn, error, and background task summaries.
+- Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, verify report, session report/event, turn, error, and background task summaries.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.
