@@ -1075,6 +1075,41 @@ function testCliTaskCommand() {
   if (chatTask.delegated || chatTask.handledBy !== 'realtime_interaction_model' || chatTask.result !== null) {
     throw new Error('cli task chat output smoke failed');
   }
+
+  const reminderStore = new ReminderStore(dir);
+  const reminder = reminderStore.create({
+    title: '喝水',
+    remindAt: new Date(Date.now() + 60000).toISOString(),
+    note: '',
+  });
+  const pendingCancelResult = spawnSync(process.execPath, ['src/cli.js', '--task', '取消提醒'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (pendingCancelResult.status !== 0) {
+    throw new Error(`cli task pending cancel smoke failed: ${pendingCancelResult.stderr || pendingCancelResult.stdout}`);
+  }
+  const pendingCancelTask = JSON.parse(pendingCancelResult.stdout);
+  const resolvedCancelResult = spawnSync(process.execPath, ['src/cli.js', '--task', '喝水'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (resolvedCancelResult.status !== 0) {
+    throw new Error(`cli task pending cancel answer smoke failed: ${resolvedCancelResult.stderr || resolvedCancelResult.stdout}`);
+  }
+  const resolvedCancelTask = JSON.parse(resolvedCancelResult.stdout);
+  const reminderAfterCancel = reminderStore.list().find((item) => item.id === reminder.id);
+  if (
+    pendingCancelTask.result?.type !== 'cancel_reminder_needs_clarification'
+    || resolvedCancelTask.result?.type !== 'reminder_cancelled'
+    || resolvedCancelTask.reason !== 'pending_clarification_response'
+    || resolvedCancelTask.pendingBackgroundTaskId !== pendingCancelTask.result.backgroundTaskId
+    || reminderAfterCancel?.status !== 'cancelled'
+  ) {
+    throw new Error('cli task pending cancel cross-process smoke failed');
+  }
 }
 
 function testCliTaskDetailCommand() {

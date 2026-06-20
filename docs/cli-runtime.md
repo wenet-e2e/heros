@@ -144,6 +144,7 @@ Implemented:
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Headless delegated task runner for JSON verification without entering the interactive CLI.
 - Headless delegated task runner emits assistant response events for transcript replay.
+- Headless delegated task runner preserves pending local clarification state across separate CLI invocations.
 - Headless scenario replay runs multiple text turns in one Shared Context for no-microphone regression checks.
 - Headless scenario replay covers pending reminder cancellation and pending memory deletion follow-ups.
 - Headless task and scenario JSON output includes pending task routing metadata for multi-turn debugging.
