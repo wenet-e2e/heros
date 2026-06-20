@@ -126,6 +126,7 @@ Implemented:
 - Headless voice-loop preflight for API key, audio commands, writable runtime data, and bootstrap files.
 - Optional microphone capture probe in preflight for local permission/device diagnostics.
 - Headless Phase 1 review for local readiness, core routing matrix, observability, Shared Context, and docs.
+- Phase 1 review checks that the system design records the Local Task Router boundary.
 - Phase 1 review covers bare and pending reminder cancellation routing, pending memory update routing, and pending memory deletion routing.
 - Phase 1 review also checks the Phase 1 CLI command surface for no-UI regression coverage.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.

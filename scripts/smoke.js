@@ -1332,6 +1332,7 @@ function testCliReviewCommand() {
     || review.checks.commandSurface.voice !== true
     || review.checks.docs.readme !== true
     || review.checks.docs.systemDesign !== true
+    || review.checks.docs.localTaskRouter !== true
   ) {
     throw new Error('cli review output smoke failed');
   }

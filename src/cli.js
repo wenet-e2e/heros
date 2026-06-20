@@ -903,14 +903,23 @@ async function phaseOneReview({ writeReport = false } = {}) {
     memories: runtime.memoryStore.list(),
     reminders: runtime.reminderStore.list(),
   });
+  const docs = {
+    readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
+    systemDesign: fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
+    cliRuntime: fs.existsSync(path.join(process.cwd(), 'docs', 'cli-runtime.md')),
+  };
+  const systemDesignText = docs.systemDesign
+    ? fs.readFileSync(path.join(process.cwd(), 'docs', 'system-design.md'), 'utf8')
+    : '';
+  docs.localTaskRouter = systemDesignText.includes('Local Task Router')
+    && systemDesignText.includes('本地确定性任务路由');
   const review = {
     phase: 'phase_1_no_ui_cli',
     createdAt: new Date().toISOString(),
     ready: preflightReport.ready
       && Object.values(routing).every(Boolean)
       && Object.values(commandSurface).every(Boolean)
-      && fs.existsSync(path.join(process.cwd(), 'README.md'))
-      && fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
+      && Object.values(docs).every(Boolean),
     checks: {
       preflight: preflightReport,
       routing,
@@ -927,11 +936,7 @@ async function phaseOneReview({ writeReport = false } = {}) {
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,
       },
-      docs: {
-        readme: fs.existsSync(path.join(process.cwd(), 'README.md')),
-        systemDesign: fs.existsSync(path.join(process.cwd(), 'docs', 'system-design.md')),
-        cliRuntime: fs.existsSync(path.join(process.cwd(), 'docs', 'cli-runtime.md')),
-      },
+      docs,
     },
   };
   if (writeReport) {

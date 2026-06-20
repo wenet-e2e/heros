@@ -139,6 +139,15 @@ Realtime Interaction Model 负责判断是否需要委托后台能力：
 - 结果可以流式返回，Interaction Model 负责选择何时、如何把结果带回对话。
 - 不引入 session 概念；运行中只使用必要上下文和长期记忆。
 
+### 5.4.1 Local Task Router
+
+Phase 1 CLI 中增加一个本地确定性任务路由层，位于 Interaction Model 与 Background LLM/Agent 之间：
+
+- 对需要强确定性、低延迟、低风险的本地操作直接执行，例如提醒查询、提醒取消、长期记忆创建/查询/修改/删除。
+- 对需要复杂时间解析、参数推理或更强语义理解的任务继续交给 Background LLM/Agent，例如创建和修改提醒。
+- 对缺少参数或有歧义的本地任务写入 pending clarification，下一句用户回答会继续进入同一任务链路。
+- Local Task Router 不替代 Background LLM/Agent；它是 Phase 1 为了降低无界面验证成本和本地副作用风险加入的确定性执行层。
+
 ### 5.5 任务执行模块（MVP: 提醒）
 
 - 解析提醒时间和内容。
