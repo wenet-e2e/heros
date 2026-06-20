@@ -323,7 +323,7 @@ function printUsage() {
     'Environment:',
     '  DASHSCOPE_API_KEY         Required, usually in .env.local.',
     '  HEROS_REALTIME_MODEL      Default qwen3.5-omni-plus-realtime.',
-    '  HEROS_REALTIME_TURN_DETECTION Default server_vad.',
+    '  HEROS_REALTIME_TURN_DETECTION Default semantic_vad.',
     '  HEROS_BACKGROUND_MODEL    Default qwen3.7-plus.',
     '  HEROS_TIME_ZONE           Default system time zone.',
     '  HEROS_REMINDER_POLL_MS    Default 30000.',
