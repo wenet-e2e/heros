@@ -239,6 +239,9 @@ function testCliStatusOutput() {
   if (status.backgroundTaskTimeoutMs !== 1234 || status.dataDir !== dir) {
     throw new Error('cli status config smoke failed');
   }
+  if (status.backgroundTasks.total !== 0 || typeof status.backgroundTasks.byStatus !== 'object') {
+    throw new Error('cli status background task summary smoke failed');
+  }
 }
 
 function testCliReminderCommands() {

@@ -110,11 +110,18 @@ async function once(text) {
 async function status() {
   const { config, reminderStore, memoryStore, bootstrap } = createRuntime({ requireApiKey: false });
   const reminders = reminderStore.list();
-  const eventSummary = summarizeEvents(readEventLog(config.eventLogPath));
+  const loggedEvents = readEventLog(config.eventLogPath);
+  const eventSummary = summarizeEvents(loggedEvents);
+  const taskSummary = summarizeBackgroundTasks(loggedEvents);
   const remindersByStatus = reminders.reduce((acc, reminder) => {
     acc[reminder.status] = (acc[reminder.status] || 0) + 1;
     return acc;
   }, {});
+  const backgroundTasksByStatus = taskSummary.tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] || 0) + 1;
+    return acc;
+  }, {});
+  const lastBackgroundTask = taskSummary.tasks[0] || null;
   console.log(JSON.stringify({
     apiKeyConfigured: Boolean(config.dashscopeApiKey),
     realtimeModel: config.realtimeModel,
@@ -133,6 +140,12 @@ async function status() {
       total: eventSummary.total,
       lastEventType: eventSummary.lastEventType,
       lastEventAt: eventSummary.lastEventAt,
+    },
+    backgroundTasks: {
+      total: taskSummary.total,
+      byStatus: backgroundTasksByStatus,
+      lastTaskStatus: lastBackgroundTask?.status || null,
+      lastTaskUpdatedAt: lastBackgroundTask?.updatedAt || null,
     },
     memories: {
       total: memoryStore.list().length,

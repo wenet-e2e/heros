@@ -83,6 +83,7 @@ Implemented:
 - Event log filtering and summary commands for CLI debugging and later UI state mapping.
 - Event log follow mode for live CLI debugging and later desktop UI event-stream mapping.
 - Background task summary command reconstructed from event logs for CLI milestone review.
+- Runtime status includes background task status counts reconstructed from event logs.
 - Turn IDs on conversation turns and response/transcript events.
 - Background task response events include their `backgroundTaskId` for CLI/UI correlation.
 - Realtime announcement response events include their background task source and ID.
