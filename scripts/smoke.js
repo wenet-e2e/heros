@@ -2031,7 +2031,14 @@ function testCliReviewCommand() {
     throw new Error('cli review output smoke failed');
   }
   const reviewEvents = readEventLog(env.HEROS_EVENT_LOG_PATH).filter((event) => event.type === 'review.completed');
-  if (reviewEvents.length !== 1 || reviewEvents[0].phase !== review.phase || reviewEvents[0].ready !== review.ready) {
+  if (
+    reviewEvents.length !== 1
+    || reviewEvents[0].phase !== review.phase
+    || reviewEvents[0].ready !== review.ready
+    || reviewEvents[0].summary?.contextHealthReady !== true
+    || reviewEvents[0].summary?.docsReady !== true
+    || reviewEvents[0].summary?.commandSurfaceReady !== true
+  ) {
     throw new Error('cli review event smoke failed');
   }
 
@@ -2081,7 +2088,11 @@ function testCliReviewCommand() {
     throw new Error('cli review report content smoke failed');
   }
   const reportEvent = readEventLog(env.HEROS_EVENT_LOG_PATH).filter((event) => event.type === 'review.completed').at(-1);
-  if (reportEvent?.reportPath !== reportReview.reportPath || reportEvent.ready !== reportReview.ready) {
+  if (
+    reportEvent?.reportPath !== reportReview.reportPath
+    || reportEvent.ready !== reportReview.ready
+    || reportEvent.summary?.contextHealthReady !== true
+  ) {
     throw new Error('cli review report event smoke failed');
   }
 }

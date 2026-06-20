@@ -158,6 +158,7 @@ Implemented:
 - Phase 1 review includes the latest verification report/event as observation-only milestone evidence.
 - Headless Phase 1 review report artifacts for milestone checks and later desktop handoff.
 - Phase 1 review completion emits a structured event for CLI and later UI observability.
+- Phase 1 review completion events include compact readiness summaries for quick milestone checks.
 - Error summary command reconstructed from structured runtime events.
 - Normalized runtime timeline command reconstructed from structured runtime events.
 - Timeline command supports the same turn, background task, event type, and time-window filters as raw event inspection.

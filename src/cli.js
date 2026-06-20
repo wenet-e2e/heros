@@ -1402,6 +1402,17 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     phase: review.phase,
     ready: review.ready,
     reportPath: review.reportPath || null,
+    summary: {
+      preflightReady: preflightReport.ready,
+      routingReady: Object.values(routing).every(Boolean),
+      commandSurfaceReady: Object.values(commandSurface).every(Boolean),
+      contextHealthReady: contextHealthReport.ready,
+      docsReady: Object.values(docs).every(Boolean),
+      singleAudioOutletReady: Object.values(singleAudioOutlet).every(Boolean),
+      interruptionReady: Object.values(interruption).every(Boolean),
+      verificationReportOk: verification.latestReportOk,
+      verificationReportEventAligned: verification.reportEventAligned,
+    },
   });
   console.log(JSON.stringify(review, null, 2));
 }
