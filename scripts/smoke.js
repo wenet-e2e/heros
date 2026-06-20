@@ -580,6 +580,14 @@ function testCliStatusOutput() {
     filters: { backgroundTaskId: 'task_status_clarify' },
     createdAt: '2026-06-21T00:00:01.500Z',
   })}\n${JSON.stringify({
+    type: 'verify_report.created',
+    phase: 'phase_1_no_ui_cli',
+    ok: true,
+    reportPath: verifyReportPath,
+    stepCount: 2,
+    failedStep: null,
+    createdAt: '2026-06-21T00:00:01.750Z',
+  })}\n${JSON.stringify({
     type: 'background_task.started',
     backgroundTaskId: 'task_status_clarify',
     turnId: 'turn_status_clarify',
@@ -656,6 +664,13 @@ function testCliStatusOutput() {
     || status.verify.latestReport.steps[1].name !== 'doctor'
   ) {
     throw new Error('cli status verify report smoke failed');
+  }
+  if (
+    status.verify.latestEvent?.reportPath !== verifyReportPath
+    || status.verify.latestEvent.ok !== true
+    || status.verify.latestEvent.stepCount !== 2
+  ) {
+    throw new Error('cli status verify report event smoke failed');
   }
   if (
     status.sessionReport.latestReport?.path !== sessionReportPath

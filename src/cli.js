@@ -371,6 +371,21 @@ function latestSessionReportEvent(events) {
   };
 }
 
+function latestVerifyReportEvent(events) {
+  const event = events.filter((item) => item.type === 'verify_report.created').at(-1);
+  if (!event) {
+    return null;
+  }
+  return {
+    phase: event.phase || null,
+    ok: typeof event.ok === 'boolean' ? event.ok : null,
+    reportPath: event.reportPath || null,
+    stepCount: event.stepCount ?? null,
+    failedStep: event.failedStep || null,
+    createdAt: event.createdAt || null,
+  };
+}
+
 async function status() {
   const runtime = createRuntime({ requireApiKey: false });
   const { config, reminderStore, memoryStore, bootstrap } = runtime;
@@ -488,6 +503,7 @@ async function status() {
     },
     verify: {
       latestReport: latestVerifyReport(config.dataDir),
+      latestEvent: latestVerifyReportEvent(loggedEvents),
     },
     sessionReport: {
       latestReport: latestSessionReport(config.dataDir),

@@ -162,7 +162,7 @@ Implemented:
 - Background task summary command reconstructed from event logs for CLI milestone review.
 - Background task detail command reconstructs one task's related turns, normalized timeline, and raw event list.
 - No-UI session report command writes milestone artifacts with event, turn, task, timeline, error, Shared Context, and runtime state summaries.
-- Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, verify report, session report/event, turn, error, and background task summaries.
+- Runtime status includes audio, next reminder, local task router boundary, pending clarification details, review report/event, verify report/event, session report/event, turn, error, and background task summaries.
 - Runtime status exposes the latest event, turn, and background task pointers from the reconstructed runtime state.
 - Runtime state summary reconstructed from event logs for CLI milestone review and later desktop UI mapping.
 - Shared Context summary reconstructed from event logs, reminders, memory, and bootstrap files.

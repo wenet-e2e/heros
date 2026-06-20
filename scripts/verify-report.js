@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { configureEvents, emitEvent } from '../src/events.js';
 
 const SECRET_REDACTIONS = [
   /\b(DASHSCOPE_API_KEY|API_KEY|TOKEN|SECRET|PASSWORD)\s*=\s*[^\s,;]+/gi,
@@ -24,6 +25,11 @@ function timestamp() {
 
 function reportDir() {
   return path.join(process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'), 'verify-reports');
+}
+
+function eventLogPath() {
+  return process.env.HEROS_EVENT_LOG_PATH
+    || path.join(process.env.HEROS_DATA_DIR || path.join(process.cwd(), '.heros'), 'events.ndjson');
 }
 
 function runStep(name) {
@@ -82,6 +88,14 @@ const dir = reportDir();
 fs.mkdirSync(dir, { recursive: true });
 const filePath = path.join(dir, `verify-report-${timestamp()}.json`);
 fs.writeFileSync(filePath, `${JSON.stringify(report, null, 2)}\n`);
+configureEvents({ logPath: eventLogPath() });
+emitEvent('verify_report.created', {
+  phase: report.phase,
+  ok: report.ok,
+  reportPath: filePath,
+  stepCount: report.steps.length,
+  failedStep: report.steps.find((step) => !step.ok)?.name || null,
+});
 console.log(`Verify report: ${filePath}`);
 
 if (!report.ok) {
