@@ -3028,6 +3028,32 @@ function testVoiceLoopAssistantTurnId() {
   }
 }
 
+async function testVoiceLoopInputAudioEpoch() {
+  const dir = createTempDir('heros-voice-input-epoch-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const realtime = new EventEmitter();
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.attachRealtimeEvents();
+  realtime.emit('event', { type: 'input_audio_buffer.speech_started' });
+  realtime.emit('event', { type: 'input_audio_buffer.speech_stopped' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const events = readEventLog(logPath);
+  const started = events.find((event) => event.type === 'input_audio.started');
+  const completed = events.find((event) => event.type === 'input_audio.completed');
+  if (started?.turnEpoch !== 1 || completed?.turnEpoch !== 1) {
+    throw new Error('voice loop input audio epoch smoke failed');
+  }
+  configureEvents();
+}
+
 function testVoiceLoopAnnouncementResponseCorrelation() {
   const dir = createTempDir('heros-voice-response-correlation-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -3503,6 +3529,7 @@ testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
+await testVoiceLoopInputAudioEpoch();
 testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();

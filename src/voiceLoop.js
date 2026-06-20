@@ -142,7 +142,7 @@ export class VoiceLoop {
       } else if (event.type === 'input_audio_buffer.speech_started') {
         this.handleSpeechStarted();
       } else if (event.type === 'input_audio_buffer.speech_stopped') {
-        emitEvent('input_audio.completed');
+        emitEvent('input_audio.completed', { turnEpoch: this.turnEpoch });
       } else if (event.type === 'conversation.item.input_audio_transcription.completed') {
         this.handleUserTranscript(event.transcript || '');
       } else if (event.type === 'response.created') {
@@ -179,13 +179,13 @@ export class VoiceLoop {
     this.turnEpoch += 1;
     emitEvent('conversation.epoch_changed', { turnEpoch: this.turnEpoch, reason: 'user_speech_started' });
     this.cancelBackgroundTasks('user_speech_started');
-    emitEvent('input_audio.started');
+    emitEvent('input_audio.started', { turnEpoch: this.turnEpoch });
     if (!this.isResponding) {
       this.setState('listening', 'user_speech_started', { turnEpoch: this.turnEpoch });
       return;
     }
     this.setState('interrupted', 'user_speech_started', { turnEpoch: this.turnEpoch });
-    emitEvent('response.interrupted', { reason: 'user_speech_started' });
+    emitEvent('response.interrupted', { reason: 'user_speech_started', turnEpoch: this.turnEpoch });
     try {
       this.realtime.cancelResponse();
     } catch (error) {
