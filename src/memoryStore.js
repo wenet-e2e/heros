@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { writeTextFileAtomic } from './storage.js';
 
 const START = '<!-- HEROS_MEMORY_DATA_START -->';
 const END = '<!-- HEROS_MEMORY_DATA_END -->';
@@ -34,7 +35,7 @@ export class MemoryStore {
   constructor(filePath) {
     this.filePath = filePath;
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, `# MEMORY.md\n\n${EMPTY_BLOCK}\n`);
+      writeTextFileAtomic(filePath, `# MEMORY.md\n\n${EMPTY_BLOCK}\n`);
     }
   }
 
@@ -44,7 +45,7 @@ export class MemoryStore {
 
   write(memories) {
     const markdown = fs.readFileSync(this.filePath, 'utf8');
-    fs.writeFileSync(this.filePath, replaceJsonBlock(markdown, memories));
+    writeTextFileAtomic(this.filePath, replaceJsonBlock(markdown, memories));
   }
 
   create(content) {

@@ -72,6 +72,7 @@ Implemented:
 - Background clarification results are tracked as `needs_clarification` in Shared Context.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Local reminder and memory files use atomic writes to reduce partial-write corruption.
 - Headless local reminder listing and cancellation commands.
 - Reminder cancellation is limited to scheduled reminders so historical triggered records are not rewritten.
 - Natural-language scheduled reminder listing.

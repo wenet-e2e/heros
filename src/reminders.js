@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { writeTextFileAtomic } from './storage.js';
 
 export class ReminderStore {
   constructor(dataDir) {
@@ -8,7 +9,7 @@ export class ReminderStore {
     this.filePath = path.join(dataDir, 'reminders.json');
     fs.mkdirSync(dataDir, { recursive: true });
     if (!fs.existsSync(this.filePath)) {
-      fs.writeFileSync(this.filePath, '[]\n');
+      writeTextFileAtomic(this.filePath, '[]\n');
     }
   }
 
@@ -35,7 +36,7 @@ export class ReminderStore {
       createdAt: new Date().toISOString(),
     };
     reminders.push(reminder);
-    fs.writeFileSync(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
+    writeTextFileAtomic(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
     return reminder;
   }
 
@@ -61,7 +62,7 @@ export class ReminderStore {
       ...patch,
       updatedAt: new Date().toISOString(),
     };
-    fs.writeFileSync(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
+    writeTextFileAtomic(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);
     return reminders[index];
   }
 
