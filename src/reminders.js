@@ -27,13 +27,15 @@ export class ReminderStore {
       throw new Error(`Invalid reminder time: ${remindAt}`);
     }
     const reminders = this.list();
+    const now = new Date().toISOString();
     const reminder = {
       id: crypto.randomUUID(),
       title: reminderTitle,
       remindAt,
       note: String(note || '').trim(),
       status: 'scheduled',
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
     reminders.push(reminder);
     writeTextFileAtomic(this.filePath, `${JSON.stringify(reminders, null, 2)}\n`);

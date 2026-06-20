@@ -539,7 +539,16 @@ async function phaseOneReview() {
 
 async function listReminders() {
   const { reminderStore } = createRuntime({ requireApiKey: false });
-  console.log(JSON.stringify(reminderStore.list(), null, 2));
+  const reminders = reminderStore.list().sort((a, b) => {
+    if (a.status === 'scheduled' && b.status !== 'scheduled') {
+      return -1;
+    }
+    if (a.status !== 'scheduled' && b.status === 'scheduled') {
+      return 1;
+    }
+    return Date.parse(a.remindAt || a.updatedAt || a.createdAt || 0) - Date.parse(b.remindAt || b.updatedAt || b.createdAt || 0);
+  });
+  console.log(JSON.stringify(reminders, null, 2));
 }
 
 async function cancelReminder(id) {

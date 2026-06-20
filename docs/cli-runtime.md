@@ -87,6 +87,7 @@ Implemented:
 - Background and local-router clarification results are tracked as `needs_clarification` events/context.
 - Background task result announcements through the same realtime audio outlet.
 - Local reminder creation, validation, scheduling, and trigger events.
+- Local reminders keep created/updated timestamps and list scheduled items by reminder time.
 - Headless one-shot due reminder trigger checks.
 - Local reminder and memory files use atomic writes to reduce partial-write corruption.
 - Headless local reminder listing and cancellation commands.

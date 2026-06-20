@@ -125,6 +125,9 @@ function testReminderScheduler() {
   if (item.status !== 'triggered') {
     throw new Error('reminder scheduler smoke failed');
   }
+  if (!item.createdAt || !item.updatedAt) {
+    throw new Error('reminder timestamp smoke failed');
+  }
   if (!triggeredByListener) {
     throw new Error('reminder trigger listener smoke failed');
   }
