@@ -38,7 +38,7 @@ export class VoiceLoop {
       voice: this.config.realtimeVoice,
       instructions: this.config.realtimeInstructions,
       turnDetection: {
-        type: 'server_vad',
+        type: this.config.realtimeTurnDetection,
         threshold: Number(this.config.realtimeVadThreshold),
         prefix_padding_ms: Number(this.config.realtimeVadPrefixPaddingMs),
         silence_duration_ms: Number(this.config.realtimeVadSilenceDurationMs),
@@ -62,7 +62,7 @@ export class VoiceLoop {
     emitEvent('voice_loop.started', {
       realtimeModel: this.config.realtimeModel,
       backgroundModel: this.config.backgroundModel,
-      turnDetection: 'server_vad',
+      turnDetection: this.config.realtimeTurnDetection,
     });
     this.setState('listening', 'voice_loop_started');
     console.log('HerOS voice loop is running. Speak naturally; press Ctrl+C to exit.');

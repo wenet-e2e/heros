@@ -56,6 +56,7 @@ async function doctor() {
   console.log(`Realtime URL: ${config.realtimeUrl}`);
   console.log(`Realtime model: ${config.realtimeModel}`);
   console.log(`Realtime voice: ${config.realtimeVoice}`);
+  console.log(`Realtime turn detection: ${config.realtimeTurnDetection}`);
   console.log(`Background model: ${config.backgroundModel}`);
   console.log(`Time zone: ${config.timeZone}`);
   console.log(`Reminder poll interval: ${config.reminderPollMs}ms`);

@@ -53,6 +53,7 @@ export function getConfig() {
     realtimeVoice: process.env.HEROS_REALTIME_VOICE || 'Ethan',
     realtimeInstructions,
     realtimeInputTranscriptionModel: process.env.HEROS_REALTIME_INPUT_TRANSCRIPTION_MODEL || 'gummy-realtime-v1',
+    realtimeTurnDetection: process.env.HEROS_REALTIME_TURN_DETECTION || 'server_vad',
     realtimeVadThreshold: process.env.HEROS_REALTIME_VAD_THRESHOLD || '0.5',
     realtimeVadPrefixPaddingMs: process.env.HEROS_REALTIME_VAD_PREFIX_PADDING_MS || '500',
     realtimeVadSilenceDurationMs: process.env.HEROS_REALTIME_VAD_SILENCE_DURATION_MS || '800',
