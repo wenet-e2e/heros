@@ -94,6 +94,34 @@ export function summarizeTurns(events) {
   };
 }
 
+const ERROR_EVENT_TYPES = new Set([
+  'announcement.failed',
+  'doctor.failed',
+  'error',
+  'event_log.malformed',
+  'tool_call.failed',
+]);
+
+export function summarizeErrors(events) {
+  const errors = events
+    .filter((event) => ERROR_EVENT_TYPES.has(event.type) || event.type?.endsWith?.('.failed'))
+    .map((event) => ({
+      type: event.type,
+      createdAt: event.createdAt || null,
+      source: event.source || null,
+      toolName: event.toolName || null,
+      backgroundTaskId: event.backgroundTaskId || null,
+      turnId: event.turnId || event.sourceTurnId || null,
+      message: event.message || event.error?.message || event.error || event.result?.error || null,
+      lineNumber: event.lineNumber || null,
+    }));
+
+  return {
+    total: errors.length,
+    errors,
+  };
+}
+
 function statusFromCompletion(result) {
   if (result?.action === 'timeout') {
     return 'timeout';

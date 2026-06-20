@@ -16,6 +16,7 @@
     "events": "node src/cli.js --events",
     "events:follow": "node src/cli.js --events --follow",
     "event-summary": "node src/cli.js --event-summary",
+    "errors": "node src/cli.js --errors",
     "tasks": "node src/cli.js --tasks",
     "runtime-state": "node src/cli.js --runtime-state",
     "turns": "node src/cli.js --turns",

@@ -14,6 +14,7 @@ import {
   followEventLog,
   readEventLog,
   summarizeBackgroundTasks,
+  summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
   summarizeTurns,
@@ -217,6 +218,15 @@ async function events({ backgroundTaskId, count = 20, follow = false, fromStart 
 async function eventSummary() {
   const { config } = createRuntime({ requireApiKey: false });
   console.log(JSON.stringify(summarizeEvents(readEventLog(config.eventLogPath)), null, 2));
+}
+
+async function errorSummary({ count = 20 } = {}) {
+  const { config } = createRuntime({ requireApiKey: false });
+  const summary = summarizeErrors(readEventLog(config.eventLogPath));
+  console.log(JSON.stringify({
+    ...summary,
+    errors: summary.errors.slice(-count),
+  }, null, 2));
 }
 
 async function taskSummary({ count = 20 } = {}) {
@@ -557,6 +567,7 @@ function printUsage() {
     '  npm run events -- --source-turn-id turn_xxx',
     '  npm run events -- --background-task-id task_xxx',
     '  npm run event-summary     Summarize structured runtime events.',
+    '  npm run errors            Summarize recent error events.',
     '  npm run tasks             Summarize background tasks from event logs.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
@@ -607,6 +618,8 @@ try {
     });
   } else if (args[0] === '--event-summary') {
     await eventSummary();
+  } else if (args[0] === '--errors') {
+    await errorSummary({ count: getEventCount(args) });
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
   } else if (args[0] === '--runtime-state') {

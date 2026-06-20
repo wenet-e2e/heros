@@ -17,6 +17,7 @@ import {
   followEventLog,
   readEventLog,
   summarizeBackgroundTasks,
+  summarizeErrors,
   summarizeEvents,
   summarizeRuntimeState,
   summarizeTurns,
@@ -310,6 +311,33 @@ function testTurnSummary() {
   configureEvents();
 }
 
+function testErrorSummary() {
+  const dir = createTempDir('heros-error-summary-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('tool_call.failed', {
+    backgroundTaskId: 'task_error_summary',
+    turnId: 'turn_error_summary',
+    toolName: 'create_reminder',
+    message: 'bad time',
+  });
+  emitEvent('announcement.failed', {
+    source: 'background_task',
+    message: 'realtime closed',
+  });
+  fs.appendFileSync(logPath, 'not-json\n');
+  const summary = summarizeErrors(readEventLog(logPath));
+  if (
+    summary.total !== 3
+    || summary.errors[0].toolName !== 'create_reminder'
+    || summary.errors[1].message !== 'realtime closed'
+    || summary.errors[2].type !== 'event_log.malformed'
+  ) {
+    throw new Error('error summary smoke failed');
+  }
+  configureEvents();
+}
+
 function testAgentBootstrap() {
   const dir = createTempDir('heros-bootstrap-');
   const bootstrap = ensureAgentBootstrap(dir);
@@ -404,6 +432,33 @@ function testCliTurnsCommand() {
   const summary = JSON.parse(result.stdout);
   if (summary.total !== 2 || summary.turns[0].turnId !== 'turn_cli_user' || summary.turns[1].text !== '我记住了。') {
     throw new Error('cli turns output smoke failed');
+  }
+}
+
+function testCliErrorsCommand() {
+  const dir = createTempDir('heros-cli-errors-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('tool_call.failed', {
+    toolName: 'create_reminder',
+    message: 'bad time',
+  });
+  configureEvents();
+  const result = spawnSync(process.execPath, ['src/cli.js', '--errors'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (result.status !== 0) {
+    throw new Error(`cli errors smoke failed: ${result.stderr || result.stdout}`);
+  }
+  const summary = JSON.parse(result.stdout);
+  if (summary.total !== 1 || summary.errors[0].message !== 'bad time') {
+    throw new Error('cli errors output smoke failed');
   }
 }
 
@@ -1362,10 +1417,12 @@ testMemoryStore();
 testBackgroundTaskSummary();
 testRuntimeStateSummary();
 testTurnSummary();
+testErrorSummary();
 testAgentBootstrap();
 testCliStatusOutput();
 testCliRuntimeStateCommand();
 testCliTurnsCommand();
+testCliErrorsCommand();
 testCliRouteCommand();
 testCliBootstrapCommand();
 testCliReminderCommands();
