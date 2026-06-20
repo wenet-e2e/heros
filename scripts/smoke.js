@@ -644,6 +644,62 @@ function testRuntimeHydratesEventLog() {
   }
 }
 
+function testRuntimeHydratesPendingClarification() {
+  const dir = createTempDir('heros-runtime-pending-hydration-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  emitEvent('transcript.completed', {
+    text: '取消提醒',
+    turnId: 'turn_runtime_pending_cancel',
+    contextVersion: 1,
+  });
+  emitEvent('background_task.requested', {
+    backgroundTaskId: 'task_runtime_pending_cancel',
+    turnId: 'turn_runtime_pending_cancel',
+    taskType: 'cancel_reminder',
+    reason: 'explicit_cancel_reminder_request',
+  });
+  emitEvent('background_task.needs_clarification', {
+    backgroundTaskId: 'task_runtime_pending_cancel',
+    turnId: 'turn_runtime_pending_cancel',
+    question: '你想取消哪一个提醒？',
+    reason: 'missing_cancel_reminder_query',
+  });
+  emitEvent('background_task.completed', {
+    backgroundTaskId: 'task_runtime_pending_cancel',
+    turnId: 'turn_runtime_pending_cancel',
+    result: { action: 'cancel_reminder_needs_clarification' },
+  });
+  configureEvents();
+
+  const previousDataDir = process.env.HEROS_DATA_DIR;
+  const previousEventLogPath = process.env.HEROS_EVENT_LOG_PATH;
+  process.env.HEROS_DATA_DIR = dir;
+  process.env.HEROS_EVENT_LOG_PATH = logPath;
+  try {
+    const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+    const decision = runtime.taskRouter.shouldDelegate('喝水');
+    if (
+      decision?.type !== 'cancel_reminder'
+      || decision.reason !== 'pending_clarification_response'
+      || decision.pendingBackgroundTaskId !== 'task_runtime_pending_cancel'
+    ) {
+      throw new Error('runtime pending clarification hydration smoke failed');
+    }
+  } finally {
+    if (previousDataDir === undefined) {
+      delete process.env.HEROS_DATA_DIR;
+    } else {
+      process.env.HEROS_DATA_DIR = previousDataDir;
+    }
+    if (previousEventLogPath === undefined) {
+      delete process.env.HEROS_EVENT_LOG_PATH;
+    } else {
+      process.env.HEROS_EVENT_LOG_PATH = previousEventLogPath;
+    }
+  }
+}
+
 function testCliContextCommand() {
   const dir = createTempDir('heros-cli-context-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -2578,6 +2634,7 @@ testCliRuntimeStateCommand();
 testSharedContextSummary();
 testSharedContextHydration();
 testRuntimeHydratesEventLog();
+testRuntimeHydratesPendingClarification();
 testCliContextCommand();
 testCliTurnsCommand();
 testCliTranscriptCommand();

@@ -154,7 +154,7 @@ function statusFromCompletion(result) {
   if (result?.action === 'failed') {
     return 'failed';
   }
-  if (result?.action === 'clarify' || result?.action?.endsWith?.('needs_clarification')) {
+  if (result?.action === 'clarify' || result?.action?.endsWith?.('_needs_clarification')) {
     return 'needs_clarification';
   }
   if (result?.action?.endsWith?.('_ambiguous')) {

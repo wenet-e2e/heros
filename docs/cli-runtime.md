@@ -87,6 +87,7 @@ Implemented:
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
 - Shared Context updates from typed turns and realtime transcripts.
 - Runtime startup hydrates recent Shared Context turns and background tasks from the event log.
+- Runtime startup preserves pending clarification state reconstructed from local task event logs.
 - Realtime session instructions include agent bootstrap context and long-term memory summaries.
 - Background reminder delegation through a shared TaskRouter.
 - Background Agent reminder creation and update are covered by a temp-dir network smoke.
