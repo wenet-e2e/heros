@@ -982,6 +982,10 @@ function testCliTurnsCommand() {
     text: '我记住了。',
     turnId: 'turn_cli_assistant',
   });
+  emitEvent('transcript.completed', {
+    text: '这轮不应该出现在过滤结果里',
+    turnId: 'turn_cli_other',
+  });
   configureEvents();
   const result = spawnSync(process.execPath, ['src/cli.js', '--turns'], {
     cwd: process.cwd(),
@@ -996,8 +1000,28 @@ function testCliTurnsCommand() {
     throw new Error(`cli turns smoke failed: ${result.stderr || result.stdout}`);
   }
   const summary = JSON.parse(result.stdout);
-  if (summary.total !== 2 || summary.turns[0].turnId !== 'turn_cli_user' || summary.turns[1].text !== '我记住了。') {
+  if (
+    summary.total !== 3
+    || !summary.turns.some((turn) => turn.turnId === 'turn_cli_user')
+    || !summary.turns.some((turn) => turn.text === '我记住了。')
+  ) {
     throw new Error('cli turns output smoke failed');
+  }
+  const filteredResult = spawnSync(process.execPath, ['src/cli.js', '--turns', '--turn-id', 'turn_cli_user'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HEROS_DATA_DIR: dir,
+      HEROS_EVENT_LOG_PATH: logPath,
+    },
+  });
+  if (filteredResult.status !== 0) {
+    throw new Error(`cli filtered turns smoke failed: ${filteredResult.stderr || filteredResult.stdout}`);
+  }
+  const filteredSummary = JSON.parse(filteredResult.stdout);
+  if (filteredSummary.total !== 1 || filteredSummary.turns[0].turnId !== 'turn_cli_user') {
+    throw new Error('cli filtered turns output smoke failed');
   }
 }
 
@@ -1011,11 +1035,17 @@ function testCliTranscriptCommand() {
   });
   emitEvent('response.completed', {
     source: 'realtime_text',
+    sourceTurnId: 'turn_transcript_user',
     text: '你好，我在。',
     turnId: 'turn_transcript_assistant',
   });
+  emitEvent('response.completed', {
+    source: 'realtime_text',
+    text: '这轮不应该出现在过滤结果里',
+    turnId: 'turn_transcript_other',
+  });
   configureEvents();
-  const result = spawnSync(process.execPath, ['src/cli.js', '--transcript'], {
+  const result = spawnSync(process.execPath, ['src/cli.js', '--transcript', '--source-turn-id', 'turn_transcript_user'], {
     cwd: process.cwd(),
     encoding: 'utf8',
     env: {
@@ -1027,7 +1057,12 @@ function testCliTranscriptCommand() {
   if (result.status !== 0) {
     throw new Error(`cli transcript smoke failed: ${result.stderr || result.stdout}`);
   }
-  if (!result.stdout.includes('User') || !result.stdout.includes('HerOS (realtime_text)') || !result.stdout.includes('你好，我在。')) {
+  if (
+    !result.stdout.includes('User')
+    || !result.stdout.includes('HerOS (realtime_text)')
+    || !result.stdout.includes('你好，我在。')
+    || result.stdout.includes('不应该出现')
+  ) {
     throw new Error('cli transcript output smoke failed');
   }
 }

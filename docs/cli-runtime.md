@@ -27,7 +27,9 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
+- `npm run turns -- --turn-id turn_xxx`: filters reconstructed turns by turn, source turn, background task, event type, or time window.
 - `npm run transcript`: prints recent conversation turns as readable text.
+- `npm run transcript -- --source-turn-id turn_xxx`: filters readable transcript output with the same event filters.
 - `npm run route -- <text>`: shows whether text stays in realtime or delegates to a task path.
 - `npm run task -- <text>`: runs one delegated task and prints a clean JSON result.
 - `npm run scenario -- <turn1> <turn2>`: replays multiple text turns in one Shared Context without microphone input.
@@ -151,6 +153,7 @@ Implemented:
 - Shared Context and Phase 1 review expose which deterministic task types are handled locally before Background Agent delegation.
 - Turn summary command reconstructed from transcript and response events for CLI conversation replay.
 - Readable transcript command for quick no-UI conversation review.
+- Turn summary and transcript commands support the shared event filters for focused no-UI replay.
 - Headless routing check for realtime-direct vs task delegation decisions.
 - Headless delegated task runner for JSON verification without entering the interactive CLI.
 - Headless delegated task runner emits assistant response events for transcript replay.

@@ -57,6 +57,16 @@ function getPositiveNumberArg(args, name, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function getEventFilters(args) {
+  return {
+    type: getArgValue(args, '--type'),
+    since: getArgValue(args, '--since'),
+    turnId: getArgValue(args, '--turn-id'),
+    sourceTurnId: getArgValue(args, '--source-turn-id'),
+    backgroundTaskId: getArgValue(args, '--background-task-id'),
+  };
+}
+
 async function checkRealtime(config) {
   const realtime = createRealtimeClient(config);
   const logSessionEvent = (event) => {
@@ -458,18 +468,30 @@ async function contextSummary() {
   }), null, 2));
 }
 
-async function turnSummary({ count = 20 } = {}) {
+async function turnSummary({ backgroundTaskId, count = 20, since, sourceTurnId, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false });
-  const summary = summarizeTurns(readEventLog(config.eventLogPath));
+  const summary = summarizeTurns(filterEvents(readEventLog(config.eventLogPath), {
+    backgroundTaskId,
+    since,
+    sourceTurnId,
+    turnId,
+    type,
+  }));
   console.log(JSON.stringify({
     ...summary,
     turns: summary.turns.slice(-count),
   }, null, 2));
 }
 
-async function transcript({ count = 20 } = {}) {
+async function transcript({ backgroundTaskId, count = 20, since, sourceTurnId, turnId, type } = {}) {
   const { config } = createRuntime({ requireApiKey: false, printEvents: false });
-  const turns = summarizeTurns(readEventLog(config.eventLogPath)).turns.slice(-count);
+  const turns = summarizeTurns(filterEvents(readEventLog(config.eventLogPath), {
+    backgroundTaskId,
+    since,
+    sourceTurnId,
+    turnId,
+    type,
+  })).turns.slice(-count);
   if (turns.length === 0) {
     console.log('No transcript yet.');
     return;
@@ -1361,7 +1383,9 @@ function printUsage() {
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
+    '  npm run turns -- --turn-id turn_xxx',
     '  npm run transcript        Print recent conversation turns as text.',
+    '  npm run transcript -- --since 2026-06-20T12:00:00Z',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
     '  npm run task -- <text>    Run one delegated task and print JSON.',
     '  npm run scenario -- <turn1> <turn2>',
@@ -1412,11 +1436,7 @@ try {
       follow: args.includes('--follow'),
       fromStart: args.includes('--from-start'),
       pollMs: getPositiveNumberArg(args, '--poll-ms', 500),
-      type: getArgValue(args, '--type'),
-      since: getArgValue(args, '--since'),
-      turnId: getArgValue(args, '--turn-id'),
-      sourceTurnId: getArgValue(args, '--source-turn-id'),
-      backgroundTaskId: getArgValue(args, '--background-task-id'),
+      ...getEventFilters(args),
     });
   } else if (args[0] === '--event-summary') {
     await eventSummary();
@@ -1425,11 +1445,7 @@ try {
   } else if (args[0] === '--timeline') {
     await timeline({
       count: getEventCount(args),
-      type: getArgValue(args, '--type'),
-      since: getArgValue(args, '--since'),
-      turnId: getArgValue(args, '--turn-id'),
-      sourceTurnId: getArgValue(args, '--source-turn-id'),
-      backgroundTaskId: getArgValue(args, '--background-task-id'),
+      ...getEventFilters(args),
     });
   } else if (args[0] === '--tasks') {
     await taskSummary({ count: getEventCount(args) });
@@ -1440,9 +1456,9 @@ try {
   } else if (args[0] === '--context') {
     await contextSummary();
   } else if (args[0] === '--turns') {
-    await turnSummary({ count: getEventCount(args) });
+    await turnSummary({ count: getEventCount(args), ...getEventFilters(args) });
   } else if (args[0] === '--transcript') {
-    await transcript({ count: getEventCount(args) });
+    await transcript({ count: getEventCount(args), ...getEventFilters(args) });
   } else if (args[0] === '--route') {
     await routeText(args.slice(1).join(' '));
   } else if (args[0] === '--task') {
