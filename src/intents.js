@@ -24,6 +24,19 @@ export function likelyMemory(text) {
   return Boolean(extractMemoryContent(text));
 }
 
+export function extractForgetMemoryQuery(text) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(忘记|忘掉|删除记忆|不要记得)[：:，,\s]*(.+)$/);
+  if (!match) {
+    return '';
+  }
+  return match[2].trim();
+}
+
+export function likelyForgetMemory(text) {
+  return Boolean(extractForgetMemoryQuery(text));
+}
+
 export function extractCancelReminderQuery(text) {
   const trimmed = text.trim();
   const match = trimmed.match(/^(取消|删除|去掉)[：:，,\s]*(.+?)(提醒|闹钟)?$/);

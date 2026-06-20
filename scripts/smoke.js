@@ -9,7 +9,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { TaskRouter } from '../src/taskRouter.js';
-import { likelyListReminders, likelyReminder } from '../src/intents.js';
+import { likelyForgetMemory, likelyListReminders, likelyReminder } from '../src/intents.js';
 import { filterEvents, readEventLog, summarizeEvents } from '../src/eventLog.js';
 import { VoiceLoop } from '../src/voiceLoop.js';
 import { ensureAgentBootstrap, readAgentBootstrap } from '../src/bootstrap.js';
@@ -195,6 +195,26 @@ function testTaskRouterMemory() {
   }
 }
 
+function testTaskRouterForgetMemory() {
+  const dir = createTempDir('heros-router-forget-memory-');
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  memoryStore.create('用户喜欢安静的语音风格');
+  const context = new SharedContext();
+  context.setLongTermMemory(memoryStore.list());
+  const router = new TaskRouter({
+    context,
+    memoryStore,
+    backgroundAgent: null,
+  });
+  const result = router.handleForgetMemory('忘记安静的语音风格');
+  if (result.type !== 'memory_deleted' || memoryStore.list().length !== 0) {
+    throw new Error('task router forget memory smoke failed');
+  }
+  if (context.snapshot().longTermMemory.length !== 0) {
+    throw new Error('task router forget memory context smoke failed');
+  }
+}
+
 function testSharedContextRedaction() {
   const context = new SharedContext();
   context.addTurn('user', 'Bearer secret-token');
@@ -224,6 +244,9 @@ function testIntentBoundaries() {
   }
   if (!likelyListReminders('我有哪些提醒？')) {
     throw new Error('list reminders intent smoke failed');
+  }
+  if (!likelyForgetMemory('忘记用户喜欢安静的语音风格')) {
+    throw new Error('forget memory intent smoke failed');
   }
 }
 
@@ -358,6 +381,7 @@ testStaleAnnouncementSkip();
 await testRealtimeConnectRetry();
 await testVoiceLoopBackgroundState();
 testTaskRouterMemory();
+testTaskRouterForgetMemory();
 testTaskRouterCancelReminder();
 testTaskRouterListReminders();
 await testBackgroundAgentInvalidReminder();

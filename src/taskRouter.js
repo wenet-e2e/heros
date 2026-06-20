@@ -2,8 +2,10 @@ import crypto from 'node:crypto';
 import { emitEvent } from './events.js';
 import {
   extractCancelReminderQuery,
+  extractForgetMemoryQuery,
   extractMemoryContent,
   likelyCancelReminder,
+  likelyForgetMemory,
   likelyListReminders,
   likelyMemory,
   likelyReminder,
@@ -47,6 +49,9 @@ export class TaskRouter {
     if (likelyMemory(text)) {
       return { type: 'memory', reason: 'explicit_memory_request' };
     }
+    if (likelyForgetMemory(text)) {
+      return { type: 'forget_memory', reason: 'explicit_forget_memory_request' };
+    }
     if (likelyReminder(text)) {
       return { type: 'reminder', reason: 'likely_reminder' };
     }
@@ -67,6 +72,9 @@ export class TaskRouter {
     });
     if (decision.type === 'memory') {
       return this.handleMemory(text, { backgroundTaskId });
+    }
+    if (decision.type === 'forget_memory') {
+      return this.handleForgetMemory(text, { backgroundTaskId });
     }
     if (decision.type === 'cancel_reminder') {
       return this.handleCancelReminder(text, { backgroundTaskId });
@@ -236,5 +244,60 @@ export class TaskRouter {
         message: '这条内容我不能安全地写入长期记忆。',
       };
     }
+  }
+
+  handleForgetMemory(text, { backgroundTaskId = createBackgroundTaskId() } = {}) {
+    emitEvent('background_task.started', { backgroundTaskId, model: 'local_task_router', taskType: 'forget_memory' });
+    const query = extractForgetMemoryQuery(text);
+    const matches = this.memoryStore.list().filter((memory) => memory.content.includes(query));
+    if (matches.length === 0) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        type: 'forget_memory',
+        status: 'not_found',
+        result: { query },
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory_not_found', query } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'forget_memory_not_found',
+        message: `我没有找到这条长期记忆：${query}`,
+      };
+    }
+    if (matches.length > 1) {
+      this.context.addBackgroundTask({
+        backgroundTaskId,
+        type: 'forget_memory',
+        status: 'ambiguous',
+        result: { query, count: matches.length },
+      });
+      emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory_ambiguous', query, count: matches.length } });
+      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      return {
+        backgroundTaskId,
+        type: 'forget_memory_ambiguous',
+        message: `找到 ${matches.length} 条相关记忆，需要你说得更具体一点。`,
+      };
+    }
+    const [memory] = matches;
+    this.memoryStore.delete(memory.id);
+    const memories = this.memoryStore.list();
+    this.context.addBackgroundTask({
+      backgroundTaskId,
+      type: 'forget_memory',
+      status: 'deleted',
+      result: { memoryId: memory.id },
+    });
+    this.context.setLongTermMemory(memories);
+    emitEvent('memory.deleted', { backgroundTaskId, memoryId: memory.id });
+    emitEvent('background_task.completed', { backgroundTaskId, result: { action: 'forget_memory', memoryId: memory.id } });
+    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    return {
+      backgroundTaskId,
+      type: 'memory_deleted',
+      memory,
+      message: `我忘记了：${memory.content}`,
+    };
   }
 }
