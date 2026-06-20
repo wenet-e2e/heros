@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check.js && node scripts/smoke.js",
+    "verify": "npm run check && npm run doctor && npm run smoke:realtime",
     "smoke": "node scripts/smoke.js",
     "smoke:realtime": "node scripts/realtime-smoke.js",
     "cli": "node src/cli.js",

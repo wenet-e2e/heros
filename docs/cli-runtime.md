@@ -5,6 +5,7 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 ## Commands
 
 - `npm run check`: syntax checks and local smoke tests.
+- `npm run verify`: full local + DashScope verification.
 - `npm run smoke:realtime`: network smoke test for realtime text injection and spoken transcript.
 - `npm run doctor`: checks DashScope Realtime and Background LLM connectivity.
 - `npm run status`: prints local runtime status without network calls.
