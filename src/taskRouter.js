@@ -96,7 +96,7 @@ export class TaskRouter {
       status: result.type,
       result,
     });
-    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
     return result;
   }
 
@@ -117,7 +117,7 @@ export class TaskRouter {
       turnId,
       result: { action: 'list_reminders', count: scheduled.length },
     });
-    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
 
     if (scheduled.length === 0) {
       return {
@@ -151,7 +151,7 @@ export class TaskRouter {
         result: { query },
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_needs_clarification' } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'cancel_reminder_needs_clarification',
@@ -173,7 +173,7 @@ export class TaskRouter {
         result: { query },
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_not_found', query } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'cancel_reminder_not_found',
@@ -189,7 +189,7 @@ export class TaskRouter {
         result: { query, count: matches.length },
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder_ambiguous', query, count: matches.length } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'cancel_reminder_ambiguous',
@@ -206,7 +206,7 @@ export class TaskRouter {
     });
     emitEvent('reminder.cancelled', { backgroundTaskId, turnId, reminder });
     emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'cancel_reminder', reminderId: reminder.id } });
-    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
     return {
       backgroundTaskId,
       type: 'reminder_cancelled',
@@ -231,7 +231,7 @@ export class TaskRouter {
       this.context.setLongTermMemory(memories);
       emitEvent('memory.created', { backgroundTaskId, turnId, memory });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'memory_created', memoryId: memory.id } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'memory_created',
@@ -248,7 +248,7 @@ export class TaskRouter {
       });
       emitEvent('memory.failed', { backgroundTaskId, turnId, message: error.message });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'memory_failed', error: error.message } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'memory_failed',
@@ -270,7 +270,7 @@ export class TaskRouter {
         result: { query },
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_not_found', query } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'forget_memory_not_found',
@@ -286,7 +286,7 @@ export class TaskRouter {
         result: { query, count: matches.length },
       });
       emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory_ambiguous', query, count: matches.length } });
-      emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+      emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
       return {
         backgroundTaskId,
         type: 'forget_memory_ambiguous',
@@ -306,7 +306,7 @@ export class TaskRouter {
     this.context.setLongTermMemory(memories);
     emitEvent('memory.deleted', { backgroundTaskId, turnId, memoryId: memory.id });
     emitEvent('background_task.completed', { backgroundTaskId, turnId, result: { action: 'forget_memory', memoryId: memory.id } });
-    emitEvent('interaction.context_updated', { contextVersion: this.context.version });
+    emitEvent('interaction.context_updated', { backgroundTaskId, turnId, contextVersion: this.context.version });
     return {
       backgroundTaskId,
       type: 'memory_deleted',
