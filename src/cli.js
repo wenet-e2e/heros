@@ -397,6 +397,55 @@ async function routeText(text) {
   }, null, 2));
 }
 
+async function taskText(text) {
+  if (!text.trim()) {
+    throw new Error('Usage: npm run task -- <text>');
+  }
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  const decision = runtime.taskRouter.shouldDelegate(text);
+  const userTurn = runtime.context.addTurn('user', text);
+  emitEvent('input_audio.completed', { mode: 'cli_task' });
+  emitEvent('interaction.context_updated', {
+    contextVersion: runtime.context.version,
+    reason: 'cli_task_input',
+    turnId: userTurn.id,
+  });
+  emitEvent('transcript.completed', {
+    mode: 'cli_task',
+    text,
+    contextVersion: runtime.context.version,
+    turnId: userTurn.id,
+  });
+
+  if (!decision) {
+    console.log(JSON.stringify({
+      text,
+      delegated: false,
+      handledBy: 'realtime_interaction_model',
+      reason: 'no_background_task',
+      turnId: userTurn.id,
+      contextVersion: runtime.context.version,
+      result: null,
+    }, null, 2));
+    return;
+  }
+  if (decision.type === 'reminder' && !runtime.config.dashscopeApiKey) {
+    throw new Error('DASHSCOPE_API_KEY is required for background reminder tasks.');
+  }
+
+  const result = await runtime.taskRouter.maybeHandle(text, { turnId: userTurn.id });
+  console.log(JSON.stringify({
+    text,
+    delegated: true,
+    handledBy: routeTarget(decision),
+    taskType: decision.type,
+    reason: decision.reason,
+    turnId: userTurn.id,
+    contextVersion: runtime.context.version,
+    result,
+  }, null, 2));
+}
+
 async function bootstrapStatus() {
   const { bootstrap, memoryStore } = createRuntime({ requireApiKey: false, printEvents: false });
   const files = bootstrap.files.map((filePath) => {
@@ -918,6 +967,7 @@ function printUsage() {
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
     '  npm run transcript        Print recent conversation turns as text.',
     '  npm run route -- <text>   Show whether text stays realtime or delegates to a task.',
+    '  npm run task -- <text>    Run one delegated task and print JSON.',
     '  npm run bootstrap         Print runtime agent bootstrap status.',
     '  npm run audio             Check local audio recorder/player commands.',
     '  npm run audio:probe       Probe microphone capture without network calls.',
@@ -984,6 +1034,8 @@ try {
     await transcript({ count: getEventCount(args) });
   } else if (args[0] === '--route') {
     await routeText(args.slice(1).join(' '));
+  } else if (args[0] === '--task') {
+    await taskText(args.slice(1).join(' '));
   } else if (args[0] === '--bootstrap') {
     await bootstrapStatus();
   } else if (args[0] === '--audio') {

@@ -648,6 +648,50 @@ function testCliRouteCommand() {
   }
 }
 
+function testCliTaskCommand() {
+  const dir = createTempDir('heros-cli-task-');
+  const logPath = path.join(dir, 'events.ndjson');
+  const env = {
+    ...process.env,
+    HEROS_DATA_DIR: dir,
+    HEROS_EVENT_LOG_PATH: logPath,
+  };
+  const memoryResult = spawnSync(process.execPath, ['src/cli.js', '--task', '记住用户喜欢安静的语音风格'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (memoryResult.status !== 0) {
+    throw new Error(`cli task memory smoke failed: ${memoryResult.stderr || memoryResult.stdout}`);
+  }
+  const memoryTask = JSON.parse(memoryResult.stdout);
+  if (
+    !memoryTask.delegated
+    || memoryTask.handledBy !== 'local_task_router'
+    || memoryTask.taskType !== 'memory'
+    || memoryTask.result.type !== 'memory_created'
+  ) {
+    throw new Error('cli task memory output smoke failed');
+  }
+  const createdEvent = readEventLog(logPath).find((event) => event.type === 'memory.created');
+  if (!createdEvent?.memory?.content.includes('安静')) {
+    throw new Error('cli task memory event smoke failed');
+  }
+
+  const chatResult = spawnSync(process.execPath, ['src/cli.js', '--task', '你怎么看这个观点？'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env,
+  });
+  if (chatResult.status !== 0) {
+    throw new Error(`cli task chat smoke failed: ${chatResult.stderr || chatResult.stdout}`);
+  }
+  const chatTask = JSON.parse(chatResult.stdout);
+  if (chatTask.delegated || chatTask.handledBy !== 'realtime_interaction_model' || chatTask.result !== null) {
+    throw new Error('cli task chat output smoke failed');
+  }
+}
+
 function testCliBootstrapCommand() {
   const dir = createTempDir('heros-cli-bootstrap-');
   const result = spawnSync(process.execPath, ['src/cli.js', '--bootstrap'], {
@@ -1804,6 +1848,7 @@ testCliTurnsCommand();
 testCliTranscriptCommand();
 testCliErrorsCommand();
 testCliRouteCommand();
+testCliTaskCommand();
 testCliBootstrapCommand();
 testCliAudioCommand();
 testCliPreflightCommand();
