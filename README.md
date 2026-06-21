@@ -36,3 +36,54 @@ HerOS 采用 Interaction Model + Background Model 架构：
 - 无界面 CLI 先行：先验证 realtime 语音、上下文、后台任务和提醒闭环，再进入桌面界面。
 - 极简界面：桌面阶段主界面只展示核心状态反馈，让注意力回到语音关系本身。
 - 长期记忆：维护必要的长期记忆，让对话和任务体验具备连续性。
+
+## 安装与运行
+
+HerOS 当前是 Phase 1 无界面 CLI 版本。
+
+安装依赖：
+
+```bash
+npm install
+brew install sox
+```
+
+配置 `.env.local`：
+
+```bash
+DASHSCOPE_API_KEY=your_dashscope_api_key
+HEROS_REALTIME_MODEL=qwen3.5-omni-plus-realtime
+HEROS_BACKGROUND_MODEL=qwen3.7-plus
+HEROS_REALTIME_VOICE=Cindy
+```
+
+检查环境：
+
+```bash
+npm run preflight
+npm run doctor
+```
+
+启动连续语音模式：
+
+```bash
+npm run voice
+```
+
+常用 CLI：
+
+```bash
+npm run status
+npm run cli
+npm run realtime -- "你好"
+npm run task -- "明天九点提醒我喝水"
+npm run skills
+```
+
+添加自定义技能：
+
+```text
+.heros/skills/<skill_id>/SKILL.md
+```
+
+`SKILL.md` 使用标准技能形式：YAML frontmatter 中至少包含 `name` 和 `description`，正文是技能说明。详细说明见 [docs/custom-skills.md](./docs/custom-skills.md)。
