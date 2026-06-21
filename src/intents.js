@@ -54,10 +54,43 @@ export function likelyReminder(text) {
 export function extractMemoryContent(text) {
   const trimmed = text.trim();
   const match = trimmed.match(/^(请)?(帮我)?记住[：:，,\s]*(.+)$/);
-  if (!match) {
+  if (match) {
+    return match[3].trim();
+  }
+  return extractDurableMemoryContent(trimmed);
+}
+
+function normalizeFirstPersonMemory(text) {
+  return text
+    .replace(/^我/, '用户')
+    .replace(/^我的/, '用户的');
+}
+
+export function extractDurableMemoryContent(text) {
+  const trimmed = text.trim();
+  if (!trimmed || /(密码|密钥|令牌|token|secret|api[_-]?key)/i.test(trimmed)) {
     return '';
   }
-  return match[3].trim();
+  if (/(提醒|闹钟|到点|叫我|通知我)/.test(trimmed)) {
+    return '';
+  }
+  const preference = trimmed.match(/^我(喜欢|爱|更喜欢|偏好|讨厌|不喜欢|习惯|常用)(.+)$/);
+  if (preference) {
+    return normalizeFirstPersonMemory(trimmed);
+  }
+  const assistantPreference = trimmed.match(/^我(希望|想要)你(?:以后|之后|今后)?(.+)$/);
+  if (assistantPreference) {
+    return normalizeFirstPersonMemory(trimmed);
+  }
+  const identity = trimmed.match(/^我(叫|是)(.+)$/);
+  if (identity) {
+    return normalizeFirstPersonMemory(trimmed);
+  }
+  const profile = trimmed.match(/^我的([^，。,.!?！？]{1,12})(是|叫|为)[：:，,\s]*(.+)$/);
+  if (profile && !/(密码|密钥|令牌|token|secret|api[_-]?key)/i.test(profile[1])) {
+    return normalizeFirstPersonMemory(trimmed);
+  }
+  return '';
 }
 
 export function likelyMemory(text) {

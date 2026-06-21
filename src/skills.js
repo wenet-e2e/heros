@@ -5,7 +5,7 @@ const JSON_SKILL_FILE_NAME = 'skill.json';
 const MARKDOWN_SKILL_FILE_NAME = 'SKILL.md';
 const VALID_SKILL_ID = /^[a-z][a-z0-9_-]{1,63}$/;
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
-const VALID_HANDLERS = new Set(['local_task_router', 'background_agent']);
+const VALID_HANDLERS = new Set(['local_task_router', 'background_memory_module', 'background_agent']);
 
 function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

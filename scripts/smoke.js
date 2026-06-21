@@ -11,7 +11,7 @@ import { ReminderStore } from '../src/reminders.js';
 import { ReminderScheduler } from '../src/reminderScheduler.js';
 import { SharedContext } from '../src/context.js';
 import { LOCAL_TASK_ROUTER_HANDLED_LOCALLY, TaskRouter } from '../src/taskRouter.js';
-import { likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyNextReminder, likelyReminder, likelyUpdateMemory, likelyUpdateReminder } from '../src/intents.js';
+import { extractMemoryContent, likelyCancelReminder, likelyForgetMemory, likelyListMemory, likelyListReminders, likelyMemory, likelyNextReminder, likelyReminder, likelyUpdateMemory, likelyUpdateReminder } from '../src/intents.js';
 import {
   filterEvents,
   followEventLog,
@@ -815,8 +815,7 @@ function testCliStatusOutput() {
   }
   if (
     !status.localTaskRouter.handledLocally.includes('cancel_reminder')
-    || !status.localTaskRouter.handledLocally.includes('update_memory')
-    || !status.localTaskRouter.handledLocally.includes('forget_memory')
+    || !status.localTaskRouter.handledLocally.includes('list_reminders')
   ) {
     throw new Error('cli status local task router summary smoke failed');
   }
@@ -1694,7 +1693,7 @@ function testCliRouteCommand() {
     throw new Error(`cli route update memory smoke failed: ${updateMemoryResult.stderr || updateMemoryResult.stdout}`);
   }
   const updateMemoryRoute = JSON.parse(updateMemoryResult.stdout);
-  if (!updateMemoryRoute.delegatesToBackground || updateMemoryRoute.handledBy !== 'local_task_router' || updateMemoryRoute.taskType !== 'update_memory') {
+  if (!updateMemoryRoute.delegatesToBackground || updateMemoryRoute.handledBy !== 'background_memory_module' || updateMemoryRoute.taskType !== 'update_memory') {
     throw new Error('cli route update memory output smoke failed');
   }
 
@@ -1770,7 +1769,7 @@ function testCliTaskCommand() {
   const memoryTask = JSON.parse(memoryResult.stdout);
   if (
     !memoryTask.delegated
-    || memoryTask.handledBy !== 'local_task_router'
+    || memoryTask.handledBy !== 'background_memory_module'
     || memoryTask.taskType !== 'memory'
     || !memoryTask.responseTurnId
     || memoryTask.result.type !== 'memory_created'
@@ -1789,7 +1788,7 @@ function testCliTaskCommand() {
   const updateMemoryTask = JSON.parse(updateMemoryResult.stdout);
   if (
     !updateMemoryTask.delegated
-    || updateMemoryTask.handledBy !== 'local_task_router'
+    || updateMemoryTask.handledBy !== 'background_memory_module'
     || updateMemoryTask.taskType !== 'update_memory'
     || updateMemoryTask.result?.type !== 'memory_updated'
   ) {
@@ -2341,14 +2340,14 @@ function testCliReviewCommand() {
     || review.checks.routing.bareCancelReminderClarifiesLocally !== true
     || review.checks.routing.cancelNextReminderHandledLocally !== true
     || review.checks.routing.pendingCancelReminderHandledLocally !== true
-    || review.checks.routing.updateMemoryHandledLocally !== true
-    || review.checks.routing.pendingUpdateMemoryHandledLocally !== true
-    || review.checks.routing.bareForgetMemoryClarifiesLocally !== true
-    || review.checks.routing.pendingForgetMemoryHandledLocally !== true
+    || review.checks.routing.updateMemoryHandledByMemoryModule !== true
+    || review.checks.routing.pendingUpdateMemoryHandledByMemoryModule !== true
+    || review.checks.routing.bareForgetMemoryClarifiesByMemoryModule !== true
+    || review.checks.routing.pendingForgetMemoryHandledByMemoryModule !== true
     || review.checks.routing.chatStaysRealtime !== true
     || !review.checks.sharedContext.localTaskRouter.handledLocally.includes('cancel_reminder')
     || review.checks.sharedContext.localTaskRouter.coversReminderCancel !== true
-    || review.checks.sharedContext.localTaskRouter.coversMemoryCrud !== true
+    || review.checks.sharedContext.memoryModule.coversMemoryCrud !== true
     || review.checks.contextHealth.ready !== true
     || review.checks.contextHealth.checks.contextVersionMatches !== true
     || review.checks.contextHealth.checks.realtimeInstructionsContainSharedContext !== true
@@ -2739,7 +2738,7 @@ async function testBackgroundAgentSystemPrompt() {
     backgroundTaskId: 'task_agent_prompt',
     turnId: 'turn_agent_prompt',
   });
-  if (!systemPrompt.includes('Local Task Router') || !systemPrompt.includes('long-term memory CRUD')) {
+  if (!systemPrompt.includes('Local Task Router') || !systemPrompt.includes('Background Memory Module')) {
     throw new Error('background agent local task router prompt smoke failed');
   }
 }
@@ -3027,10 +3026,10 @@ async function testTaskRouterSkillEvents() {
   const requested = events.find((event) => event.type === 'background_task.requested');
   const invoked = events.find((event) => event.type === 'skill.invoked');
   if (
-    requested?.target !== 'local_task_router'
+    requested?.target !== 'background_memory_module'
     || requested.skillId !== 'memory'
     || invoked?.skillId !== 'memory'
-    || invoked.target !== 'local_task_router'
+    || invoked.target !== 'background_memory_module'
   ) {
     throw new Error('task router skill event smoke failed');
   }
@@ -3207,7 +3206,7 @@ async function testTaskRouterBackgroundContextPackage() {
     || receivedContext.reminders.scheduled[0].title !== '喝水'
     || receivedContext.longTermMemory.total !== 1
     || !receivedContext.localTaskRouter.handledLocally.includes('cancel_reminder')
-    || !receivedContext.localTaskRouter.handledLocally.includes('update_memory')
+    || !receivedContext.localTaskRouter.handledLocally.includes('list_reminders')
     || !receivedContext.sharedContext
   ) {
     throw new Error('task router background context package smoke failed');
@@ -3401,6 +3400,15 @@ function testIntentBoundaries() {
   if (!likelyListMemory('查询长期记忆')) {
     throw new Error('natural list memory intent smoke failed');
   }
+  if (!likelyMemory('我喜欢吃苹果') || extractMemoryContent('我喜欢吃苹果') !== '用户喜欢吃苹果') {
+    throw new Error('implicit durable memory preference smoke failed');
+  }
+  if (!likelyMemory('我的名字是小张') || extractMemoryContent('我的名字是小张') !== '用户的名字是小张') {
+    throw new Error('implicit durable memory profile smoke failed');
+  }
+  if (likelyMemory('我想要明天九点提醒我喝水')) {
+    throw new Error('task request should not become implicit durable memory');
+  }
   if (!likelyUpdateMemory('把记忆里短回答改成用户喜欢详细回答')) {
     throw new Error('update memory intent smoke failed');
   }
@@ -3489,9 +3497,14 @@ function testVoiceLoopRealtimeInstructions() {
 
 function testVoiceLoopTranscriptDoesNotBypassRouter() {
   let shouldDelegateCalled = false;
+  const sessionUpdates = [];
   const loop = new VoiceLoop({
     config: {},
-    realtime: {},
+    realtime: {
+      updateSession(config) {
+        sessionUpdates.push(config);
+      },
+    },
     taskRouter: {
       shouldDelegate() {
         shouldDelegateCalled = true;
@@ -3505,6 +3518,14 @@ function testVoiceLoopTranscriptDoesNotBypassRouter() {
   loop.handleUserTranscript('我今天有哪些提醒？');
   if (shouldDelegateCalled || loop.lastUserTranscript !== '我今天有哪些提醒？' || !loop.lastUserTurnId) {
     throw new Error('voice loop transcript should not bypass realtime tool call');
+  }
+  loop.handleUserTranscript('我喜欢吃苹果');
+  if (
+    shouldDelegateCalled
+    || loop.forceToolChoice !== 'required'
+    || sessionUpdates.at(-1)?.toolChoice !== 'required'
+  ) {
+    throw new Error('voice loop durable memory should force realtime tool call');
   }
 }
 

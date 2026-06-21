@@ -143,9 +143,10 @@ Realtime Interaction Model 负责判断是否需要委托后台能力：
 
 ### 5.4.1 Local Task Router
 
-Phase 1 CLI 中保留一个本地确定性任务路由层，作为 Background LLM/Agent handoff 之后的内部执行层：
+Phase 1 CLI 中保留两个后台内部确定性执行层，作为 Background LLM/Agent handoff 之后的安全执行面；其中本地确定性任务路由只覆盖低风险、可直接验证的本地任务：
 
-- 对需要强确定性、低延迟、低风险的本地操作直接执行，例如提醒查询、提醒取消、长期记忆创建/查询/修改/删除。
+- Local Task Router 对需要强确定性、低延迟、低风险的提醒操作直接执行，例如提醒查询、提醒取消。
+- Background Memory Module 对长期记忆创建、查询、修改、删除直接执行；记忆数据仍以 Markdown/结构化块作为 source of truth，后续可扩展为 OpenClaw 风格的 Markdown + semantic search/index 后端。
 - 对需要复杂时间解析、参数推理或更强语义理解的任务继续交给 Background LLM/Agent，例如创建和修改提醒。
 - 对缺少参数或有歧义的本地任务写入 pending clarification，下一句用户回答会继续进入同一任务链路。
 - Local Task Router 不替代 Background LLM/Agent，也不作为 Interaction Model 的旁路；它是 Phase 1 为了降低无界面验证成本和本地副作用风险加入的确定性执行层。
@@ -189,6 +190,8 @@ Phase 1 引入轻量技能系统，用技能定义组织任务能力，而不是
 
 - 使用 `MEMORY.md` 保存长期记忆。
 - 记忆数据采用结构化 JSON 数据块。
+- 记忆增删改查只由 Background Memory Module 执行，Realtime Interaction Model 不能直接承诺或修改记忆。
+- 设计参考 OpenClaw 的记忆分层：Markdown 文件是 source of truth，检索/索引是可替换后端；MVP 先实现文件型 CRUD，后续再接 semantic search/vector index。
 - 不保存密钥、令牌、密码等敏感信息。
 - MVP 不实现会话级记忆。
 

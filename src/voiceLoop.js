@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { PcmPlayer, PcmRecorder } from './audio.js';
 import { emitEvent } from './events.js';
+import { likelyMemory } from './intents.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 const BACKGROUND_HANDOFF_TOOL = Object.freeze({
@@ -88,6 +89,7 @@ export class VoiceLoop {
     this.activeFunctionCall = null;
     this.currentAssistantText = '';
     this.currentAssistantTurnId = null;
+    this.forceToolChoice = null;
     this.handledFunctionCallIds = new Set();
     this.lastUserTranscript = '';
     this.lastUserTurnId = null;
@@ -116,6 +118,8 @@ export class VoiceLoop {
       [
         '工具边界：你只能直接聊天和自然播报。',
         '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，先用一句很短的中文 filler 自然回应，例如“我看看”“我查一下”“我找找”，然后调用 handoff_to_background。',
+        '当用户表达稳定偏好或事实时，也必须调用 handoff_to_background 写入记忆，例如“我喜欢吃苹果”“我不喜欢咖啡”“我习惯晚上工作”“我的名字是...”。',
+        '不要只口头说“我记住了/我记下了”；只有收到 handoff_to_background 的 function result 后才能确认已经记住。',
         '不要自己编造后台任务结果；收到 handoff_to_background 的 function result 后，再用自然、简短、适合语音的中文告诉用户结果。',
       ].join('\n'),
       bootstrap ? `Agent Bootstrap:\n${bootstrap}` : '',
@@ -124,6 +128,7 @@ export class VoiceLoop {
   }
 
   realtimeSessionConfig() {
+    const toolChoice = this.forceToolChoice || 'auto';
     return {
       modalities: ['text', 'audio'],
       voice: this.config.realtimeVoice,
@@ -137,7 +142,7 @@ export class VoiceLoop {
       inputAudioTranscription: {
         model: this.config.realtimeInputTranscriptionModel,
       },
-      toolChoice: 'auto',
+      toolChoice,
       tools: [BACKGROUND_HANDOFF_TOOL],
     };
   }
@@ -454,6 +459,9 @@ export class VoiceLoop {
     });
     this.lastUserTranscript = transcript;
     this.lastUserTurnId = userTurn.id;
+    if (likelyMemory(transcript)) {
+      this.forceNextToolCall('durable_memory_intent', { turnEpoch: this.turnEpoch, turnId: userTurn.id });
+    }
   }
 
   handleAssistantDelta(delta) {
@@ -563,11 +571,27 @@ export class VoiceLoop {
       source: 'background_task',
       turnId,
     };
+    this.forceToolChoice = null;
+    this.syncRealtimeContext('background_function_call_completed');
     this.realtime.createResponse();
     emitEvent('tool_call.completed', {
       toolName: functionCall.name,
       callId: functionCall.callId,
       backgroundTaskId: output.backgroundTaskId,
+      turnId,
+    });
+  }
+
+  forceNextToolCall(reason, { turnEpoch, turnId } = {}) {
+    if (typeof this.realtime.updateSession !== 'function') {
+      return;
+    }
+    this.forceToolChoice = 'required';
+    this.realtime.updateSession(this.realtimeSessionConfig());
+    emitEvent('realtime.tool_choice_forced', {
+      reason,
+      toolName: 'handoff_to_background',
+      turnEpoch,
       turnId,
     });
   }
@@ -591,7 +615,6 @@ export class VoiceLoop {
           source: 'background_agent',
         };
       }
-      this.syncRealtimeContext('background_function_call_finished');
       return {
         ok: true,
         callId,

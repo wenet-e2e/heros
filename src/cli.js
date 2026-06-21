@@ -962,7 +962,10 @@ function buildContextHealth(runtime) {
     longTermMemoryMatches: realtimeSharedContext.longTermMemory.length === agentContextPackage.longTermMemory.total,
     backgroundTasksAvailable: Array.isArray(agentContextPackage.sharedContext.backgroundTasks),
     localTaskRouterBoundaryExposed: agentContextPackage.localTaskRouter.handledLocally.includes('cancel_reminder')
-      && agentContextPackage.localTaskRouter.handledLocally.includes('memory'),
+      && agentContextPackage.localTaskRouter.handledLocally.includes('list_reminders'),
+    backgroundMemoryModuleBoundaryExposed: agentContextPackage.skills.capabilities.some((capability) => (
+      capability.handler === 'background_memory_module' && capability.type === 'memory'
+    )),
     skillsAvailable: agentContextPackage.skills.enabled >= 2,
     skillCapabilitiesAvailable: agentContextPackage.skills.capabilities.some((capability) => capability.type === 'reminder')
       && agentContextPackage.skills.capabilities.some((capability) => capability.type === 'memory'),
@@ -988,6 +991,9 @@ function buildContextHealth(runtime) {
       memoryCount: agentContextPackage.longTermMemory.total,
       backgroundTaskCount: agentContextPackage.sharedContext.backgroundTasks.length,
       localTaskRouterHandledLocally: agentContextPackage.localTaskRouter.handledLocally,
+      memoryModuleCapabilities: agentContextPackage.skills.capabilities
+        .filter((capability) => capability.handler === 'background_memory_module')
+        .map((capability) => capability.type),
       skillCount: agentContextPackage.skills.enabled,
     },
     checks,
@@ -1002,6 +1008,9 @@ async function contextHealth() {
 function routeTarget(decision) {
   if (!decision) {
     return 'realtime_interaction_model';
+  }
+  if (['forget_memory', 'list_memory', 'memory', 'update_memory'].includes(decision.type)) {
+    return 'background_memory_module';
   }
   return LOCAL_TASK_ROUTER_HANDLED_LOCALLY.includes(decision.type) ? 'local_task_router' : 'background_agent';
 }
@@ -1409,12 +1418,12 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     pendingCancelReminderHandledLocally: pendingCancelReminderRoute?.type === 'cancel_reminder'
       && pendingCancelReminderRoute.reason === 'pending_clarification_response'
       && pendingCancelReminderRoute.pendingBackgroundTaskId === 'review_pending_cancel_reminder',
-    updateMemoryHandledLocally: updateMemoryRoute?.type === 'update_memory',
-    pendingUpdateMemoryHandledLocally: pendingUpdateMemoryRoute?.type === 'update_memory'
+    updateMemoryHandledByMemoryModule: updateMemoryRoute?.type === 'update_memory',
+    pendingUpdateMemoryHandledByMemoryModule: pendingUpdateMemoryRoute?.type === 'update_memory'
       && pendingUpdateMemoryRoute.reason === 'pending_clarification_response'
       && pendingUpdateMemoryRoute.pendingBackgroundTaskId === 'review_pending_update_memory',
-    bareForgetMemoryClarifiesLocally: bareForgetMemoryRoute?.type === 'forget_memory',
-    pendingForgetMemoryHandledLocally: pendingForgetMemoryRoute?.type === 'forget_memory'
+    bareForgetMemoryClarifiesByMemoryModule: bareForgetMemoryRoute?.type === 'forget_memory',
+    pendingForgetMemoryHandledByMemoryModule: pendingForgetMemoryRoute?.type === 'forget_memory'
       && pendingForgetMemoryRoute.reason === 'pending_clarification_response'
       && pendingForgetMemoryRoute.pendingBackgroundTaskId === 'review_pending_forget_memory',
     chatStaysRealtime: !chatRoute,
@@ -1523,7 +1532,10 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     reminderCapability: skillSummary.capabilities.some((capability) => capability.type === 'reminder'),
     memoryCapability: skillSummary.capabilities.some((capability) => capability.type === 'memory'),
     localRouterMappedToSkills: skillSummary.capabilities.some((capability) => capability.handler === 'local_task_router' && capability.type === 'cancel_reminder')
-      && skillSummary.capabilities.some((capability) => capability.handler === 'local_task_router' && capability.type === 'memory'),
+      && skillSummary.capabilities.some((capability) => capability.handler === 'local_task_router' && capability.type === 'list_reminders'),
+    memoryModuleMappedToSkills: skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'memory')
+      && skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'update_memory')
+      && skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'forget_memory'),
     backgroundAgentMappedToSkills: skillSummary.capabilities.some((capability) => capability.handler === 'background_agent' && capability.type === 'reminder'),
   };
   const voiceLoopText = fs.existsSync(path.join(process.cwd(), 'src', 'voiceLoop.js'))
@@ -1589,9 +1601,15 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
         localTaskRouter: {
           handledLocally: contextHandledLocally,
           coversReminderCancel: contextHandledLocally.includes('cancel_reminder'),
-          coversMemoryCrud: contextHandledLocally.includes('memory')
-            && contextHandledLocally.includes('update_memory')
-            && contextHandledLocally.includes('forget_memory'),
+          coversReminderList: contextHandledLocally.includes('list_reminders'),
+        },
+        memoryModule: {
+          capabilities: skillSummary.capabilities
+            .filter((capability) => capability.handler === 'background_memory_module')
+            .map((capability) => capability.type),
+          coversMemoryCrud: skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'memory')
+            && skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'update_memory')
+            && skillSummary.capabilities.some((capability) => capability.handler === 'background_memory_module' && capability.type === 'forget_memory'),
         },
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,

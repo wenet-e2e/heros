@@ -14,25 +14,25 @@
     {
       "type": "memory",
       "description": "Create a durable user memory.",
-      "handler": "local_task_router",
+      "handler": "background_memory_module",
       "risk": "low"
     },
     {
       "type": "list_memory",
       "description": "List durable user memories.",
-      "handler": "local_task_router",
+      "handler": "background_memory_module",
       "risk": "low"
     },
     {
       "type": "update_memory",
       "description": "Update a durable user memory after target and patch are clear.",
-      "handler": "local_task_router",
+      "handler": "background_memory_module",
       "risk": "medium"
     },
     {
       "type": "forget_memory",
       "description": "Delete a durable user memory after the target is clear.",
-      "handler": "local_task_router",
+      "handler": "background_memory_module",
       "risk": "medium"
     }
   ],
