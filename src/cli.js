@@ -452,7 +452,7 @@ async function buildGateResult(runtime, events) {
 
 async function status() {
   const runtime = createRuntime({ requireApiKey: false });
-  const { config, reminderStore, memoryStore, bootstrap } = runtime;
+  const { config, reminderStore, memoryStore, bootstrap, skillRegistry, skills } = runtime;
   const reminders = reminderStore.list();
   const loggedEvents = readEventLog(config.eventLogPath);
   const eventSummary = summarizeEvents(loggedEvents);
@@ -489,6 +489,7 @@ async function status() {
     eventLogPath: config.eventLogPath,
     bootstrapDir: bootstrap.targetDir,
     bootstrapFiles: bootstrap.files.length,
+    skillsDir: skills.localDir,
     audio: {
       recorderAvailable: await commandExists('rec'),
       playerAvailable: await commandExists('play'),
@@ -526,8 +527,9 @@ async function status() {
       lastTaskUpdatedAt: lastBackgroundTask?.updatedAt || null,
     },
     localTaskRouter: {
-      handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY,
+      handledLocally: skillRegistry.handledLocally(),
     },
+    skills: skillRegistry.summary(),
     contextHealth: {
       ready: contextHealthReport.ready,
       realtime: contextHealthReport.realtime,
@@ -586,7 +588,7 @@ async function status() {
 }
 
 function buildClientStateSnapshot(runtime, events) {
-  const { memoryStore, reminderStore } = runtime;
+  const { memoryStore, reminderStore, skillRegistry } = runtime;
   const runtimeState = summarizeRuntimeState(events);
   const reminders = reminderStore.list();
   const scheduledReminders = reminders
@@ -616,6 +618,7 @@ function buildClientStateSnapshot(runtime, events) {
       remindAt: scheduledReminders[0].remindAt,
     } : null,
     memoryCount: memoryStore.list().length,
+    skillCount: skillRegistry.enabled().length,
     lastEventType: runtimeState.lastEventType,
     lastEventAt: runtimeState.lastEventAt,
     lastTurnId: runtimeState.lastTurnId,
@@ -780,12 +783,13 @@ async function runtimeState() {
 }
 
 async function contextSummary() {
-  const { bootstrap, config, memoryStore, reminderStore } = createRuntime({ requireApiKey: false, printEvents: false });
+  const { bootstrap, config, memoryStore, reminderStore, skillRegistry } = createRuntime({ requireApiKey: false, printEvents: false });
   console.log(JSON.stringify(summarizeSharedContext(readEventLog(config.eventLogPath), {
     bootstrapFiles: bootstrap.files,
-    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
+    localTaskRouter: { handledLocally: skillRegistry.handledLocally() },
     memories: memoryStore.list(),
     reminders: reminderStore.list(),
+    skills: skillRegistry.summary(),
   }), null, 2));
 }
 
@@ -845,9 +849,10 @@ async function sessionReport({ backgroundTaskId, count = 50, since, sourceTurnId
   const currentRuntimeState = summarizeRuntimeState(allEvents);
   const sharedContext = summarizeSharedContext(allEvents, {
     bootstrapFiles: runtime.bootstrap.files,
-    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
+    localTaskRouter: { handledLocally: runtime.skillRegistry.handledLocally() },
     memories: runtime.memoryStore.list(),
     reminders: runtime.reminderStore.list(),
+    skills: runtime.skillRegistry.summary(),
   });
   const report = {
     phase: 'phase_1_no_ui_cli',
@@ -912,6 +917,7 @@ async function agentContext(text) {
     reason: decision?.reason || null,
     pendingBackgroundTaskId: decision?.pendingBackgroundTaskId || null,
     context: runtime.taskRouter.buildContextPackage(),
+    skill: decision ? runtime.skillRegistry.findByTaskType(decision.type) : null,
   }, null, 2));
 }
 
@@ -927,6 +933,7 @@ async function realtimeContext() {
     inputAudioTranscription: sessionConfig.inputAudioTranscription,
     instructions: sessionConfig.instructions,
     sharedContext: runtime.context.snapshot(),
+    skills: runtime.skillRegistry.summary(),
   }, null, 2));
 }
 
@@ -956,7 +963,12 @@ function buildContextHealth(runtime) {
     backgroundTasksAvailable: Array.isArray(agentContextPackage.sharedContext.backgroundTasks),
     localTaskRouterBoundaryExposed: agentContextPackage.localTaskRouter.handledLocally.includes('cancel_reminder')
       && agentContextPackage.localTaskRouter.handledLocally.includes('memory'),
+    skillsAvailable: agentContextPackage.skills.enabled >= 2,
+    skillCapabilitiesAvailable: agentContextPackage.skills.capabilities.some((capability) => capability.type === 'reminder')
+      && agentContextPackage.skills.capabilities.some((capability) => capability.type === 'memory'),
+    skillContextMatches: realtimeSharedContext.skills.length === agentContextPackage.skills.enabled,
     realtimeInstructionsContainSharedContext: sessionConfig.instructions.includes('Shared Context JSON'),
+    realtimeInstructionsContainSkills: sessionConfig.instructions.includes('"skills"'),
     realtimeInstructionsContainBootstrap: sessionConfig.instructions.includes('Agent Bootstrap:'),
     realtimeTurnDetectionConfigured: Boolean(sessionConfig.turnDetection?.type),
   };
@@ -975,6 +987,7 @@ function buildContextHealth(runtime) {
       memoryCount: agentContextPackage.longTermMemory.total,
       backgroundTaskCount: agentContextPackage.sharedContext.backgroundTasks.length,
       localTaskRouterHandledLocally: agentContextPackage.localTaskRouter.handledLocally,
+      skillCount: agentContextPackage.skills.enabled,
     },
     checks,
   };
@@ -1006,7 +1019,12 @@ async function routeText(text) {
     reason: decision?.reason || 'no_background_task',
     pendingBackgroundTaskId: decision?.pendingBackgroundTaskId || null,
     nextOnly: decision?.nextOnly || false,
+    skillId: decision ? taskRouterSkillId(taskRouter, decision.type) : null,
   }, null, 2));
+}
+
+function taskRouterSkillId(taskRouter, taskType) {
+  return taskRouter.skillRegistry?.findByTaskType?.(taskType)?.id || null;
 }
 
 async function taskText(text) {
@@ -1449,15 +1467,17 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     remember: Boolean(scripts.remember),
     updateMemory: Boolean(scripts['update-memory']),
     forgetMemory: Boolean(scripts['forget-memory']),
+    skills: Boolean(scripts.skills),
     realtime: Boolean(scripts.realtime),
     talk: Boolean(scripts.talk),
     voice: Boolean(scripts.voice),
   };
   const context = summarizeSharedContext(events, {
     bootstrapFiles: runtime.bootstrap.files,
-    localTaskRouter: { handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY },
+    localTaskRouter: { handledLocally: runtime.skillRegistry.handledLocally() },
     memories: runtime.memoryStore.list(),
     reminders: runtime.reminderStore.list(),
+    skills: runtime.skillRegistry.summary(),
   });
   const contextHealthReport = buildContextHealth(runtime);
   const contextHandledLocally = context.localTaskRouter.handledLocally || [];
@@ -1493,6 +1513,18 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     && systemDesignText.includes('桌面界面只消费核心事件');
   docs.localTaskRouter = systemDesignText.includes('Local Task Router')
     && systemDesignText.includes('本地确定性任务路由');
+  docs.skillSystem = systemDesignText.includes('Skill Registry')
+    && systemDesignText.includes('技能系统');
+  const skillSummary = runtime.skillRegistry.summary();
+  const skillSystem = {
+    builtInReminderSkill: Boolean(runtime.skillRegistry.find('reminders')),
+    builtInMemorySkill: Boolean(runtime.skillRegistry.find('memory')),
+    reminderCapability: skillSummary.capabilities.some((capability) => capability.type === 'reminder'),
+    memoryCapability: skillSummary.capabilities.some((capability) => capability.type === 'memory'),
+    localRouterMappedToSkills: skillSummary.capabilities.some((capability) => capability.handler === 'local_task_router' && capability.type === 'cancel_reminder')
+      && skillSummary.capabilities.some((capability) => capability.handler === 'local_task_router' && capability.type === 'memory'),
+    backgroundAgentMappedToSkills: skillSummary.capabilities.some((capability) => capability.handler === 'background_agent' && capability.type === 'reminder'),
+  };
   const voiceLoopText = fs.existsSync(path.join(process.cwd(), 'src', 'voiceLoop.js'))
     ? fs.readFileSync(path.join(process.cwd(), 'src', 'voiceLoop.js'), 'utf8')
     : '';
@@ -1532,6 +1564,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
       && Object.values(routing).every(Boolean)
       && Object.values(commandSurface).every(Boolean)
       && contextHealthReport.ready
+      && Object.values(skillSystem).every(Boolean)
       && Object.values(singleAudioOutlet).every(Boolean)
       && Object.values(interruption).every(Boolean)
       && Object.values(docs).every(Boolean),
@@ -1557,8 +1590,10 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
         },
         reminders: context.reminders.total,
         memories: context.longTermMemory.total,
+        skills: context.skills.enabled,
       },
       contextHealth: contextHealthReport,
+      skillSystem,
       singleAudioOutlet,
       interruption,
       verification,
@@ -1579,6 +1614,7 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
       routingReady: Object.values(routing).every(Boolean),
       commandSurfaceReady: Object.values(commandSurface).every(Boolean),
       contextHealthReady: contextHealthReport.ready,
+      skillSystemReady: Object.values(skillSystem).every(Boolean),
       docsReady: Object.values(docs).every(Boolean),
       singleAudioOutletReady: Object.values(singleAudioOutlet).every(Boolean),
       interruptionReady: Object.values(interruption).every(Boolean),
@@ -1663,6 +1699,23 @@ async function listMemories() {
   console.log(JSON.stringify(memoryStore.list(), null, 2));
 }
 
+async function listSkills(id) {
+  const runtime = createRuntime({ requireApiKey: false, printEvents: false });
+  if (id) {
+    const skill = runtime.skillRegistry.find(id);
+    if (!skill) {
+      throw new Error(`Skill not found: ${id}`);
+    }
+    console.log(JSON.stringify(skill, null, 2));
+    return;
+  }
+  console.log(JSON.stringify({
+    builtInDir: runtime.skills.builtInDir,
+    localDir: runtime.skills.localDir,
+    ...runtime.skillRegistry.summary(),
+  }, null, 2));
+}
+
 async function remember(content) {
   if (!content.trim()) {
     throw new Error('Usage: npm run remember -- <content>');
@@ -1707,6 +1760,7 @@ function printInteractiveHelp() {
     '  /context',
     '  /cancel-reminder <id>',
     '  /memory',
+    '  /skills',
     '  /remember <content>',
     '  /update-memory <id> <content>',
     '  /forget <id>',
@@ -1714,10 +1768,10 @@ function printInteractiveHelp() {
 }
 
 async function interactive() {
-  const { interactionModel, reminderStore, reminderScheduler, memoryStore } = createRuntime();
+  const { interactionModel, reminderStore, reminderScheduler, memoryStore, skillRegistry } = createRuntime();
   const rl = readline.createInterface({ input, output });
   reminderScheduler.start();
-  console.log('HerOS CLI ready. Type /exit to quit, /reminders to list reminders, /memory to list memory.');
+  console.log('HerOS CLI ready. Type /exit to quit, /reminders to list reminders, /memory to list memory, /skills to list skills.');
   try {
     while (true) {
       const text = (await rl.question('You: ')).trim();
@@ -1747,6 +1801,10 @@ async function interactive() {
       if (text === '/memory') {
         console.log(JSON.stringify(memoryStore.list(), null, 2));
         interactionModel.context.setLongTermMemory(memoryStore.list());
+        continue;
+      }
+      if (text === '/skills') {
+        console.log(JSON.stringify(skillRegistry.summary(), null, 2));
         continue;
       }
       if (text.startsWith('/remember ')) {
@@ -1935,6 +1993,8 @@ function printUsage() {
     '  npm run context-health     Compare realtime and background context surfaces.',
     '  npm run runtime-state     Reconstruct client runtime state from event logs.',
     '  npm run context           Reconstruct Shared Context from runtime data.',
+    '  npm run skills            List loaded skills and capabilities.',
+    '  npm run skills -- <id>    Show one loaded skill.',
     '  npm run turns             Reconstruct recent user/assistant turns from event logs.',
     '  npm run turns -- --turn-id turn_xxx',
     '  npm run transcript        Print recent conversation turns as text.',
@@ -2032,6 +2092,8 @@ try {
     await runtimeState();
   } else if (args[0] === '--context') {
     await contextSummary();
+  } else if (args[0] === '--skills') {
+    await listSkills(args[1]);
   } else if (args[0] === '--turns') {
     await turnSummary({ count: getEventCount(args), ...getEventFilters(args) });
   } else if (args[0] === '--transcript') {

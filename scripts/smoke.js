@@ -34,6 +34,7 @@ import { CliInteractionModel } from '../src/interactionModel.js';
 import { DashScopeClient } from '../src/dashscope.js';
 import { commandExists } from '../src/audio.js';
 import { createRuntime } from '../src/runtime.js';
+import { loadSkillRegistry } from '../src/skills.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -254,6 +255,73 @@ function testMemoryStore() {
   }
   if (!refused) {
     throw new Error('memory secret refusal smoke failed');
+  }
+}
+
+function writeSkill(dir, id, patch = {}) {
+  const skillDir = path.join(dir, id);
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(path.join(skillDir, 'skill.json'), `${JSON.stringify({
+    id,
+    name: id,
+    version: '0.1.0',
+    description: `${id} skill`,
+    status: 'enabled',
+    capabilities: [
+      {
+        type: `${id}_task`,
+        description: `${id} task`,
+        handler: 'local_task_router',
+        risk: 'low',
+      },
+    ],
+    tools: [
+      {
+        name: `${id}_tool`,
+        description: `${id} tool`,
+        risk: 'low',
+      },
+    ],
+    ...patch,
+  }, null, 2)}\n`);
+}
+
+function testSkillRegistry() {
+  const dir = createTempDir('heros-skills-');
+  const cwd = path.join(dir, 'repo');
+  const dataDir = path.join(dir, 'data');
+  writeSkill(path.join(cwd, 'skills'), 'alpha');
+  writeSkill(path.join(dataDir, 'skills'), 'alpha', {
+    name: 'alpha local',
+    capabilities: [
+      {
+        type: 'alpha_local_task',
+        description: 'local override task',
+        handler: 'background_agent',
+        risk: 'medium',
+      },
+    ],
+  });
+  writeSkill(path.join(dataDir, 'skills'), 'beta');
+  const { registry, builtInDir, localDir } = loadSkillRegistry({ cwd, dataDir });
+  const summary = registry.summary();
+  if (!builtInDir.endsWith('skills') || !localDir.endsWith('skills')) {
+    throw new Error('skill registry directories smoke failed');
+  }
+  if (summary.total !== 2 || summary.enabled !== 2) {
+    throw new Error('skill registry count smoke failed');
+  }
+  if (registry.find('alpha')?.name !== 'alpha local') {
+    throw new Error('local skill did not override built-in skill');
+  }
+  if (registry.findByTaskType('alpha_local_task')?.id !== 'alpha') {
+    throw new Error('skill task lookup smoke failed');
+  }
+  if (!summary.capabilities.some((capability) => capability.type === 'beta_task')) {
+    throw new Error('skill capability summary smoke failed');
+  }
+  if (!registry.handledLocally().includes('beta_task')) {
+    throw new Error('skill local handler summary smoke failed');
   }
 }
 
@@ -3995,6 +4063,7 @@ await testEventLog();
 await testCommandExistsMissingWhich();
 testReminderScheduler();
 testMemoryStore();
+testSkillRegistry();
 testBackgroundTaskSummary();
 testRuntimeStateSummary();
 testTimelineSummary();

@@ -16,6 +16,7 @@ HerOS 在“对话”之外，需要具备 Agent 决策和任务执行能力。M
 - 支持麦克风输入、语音输出、连续 VAD 监听和用户打断。
 - 输出结构化事件日志，便于调试每一轮输入、后台委托、Agent 执行和播报。
 - 验证提醒任务闭环：解析、必要澄清、创建、查询、修改、取消和确认。
+- 验证技能系统：用 Skill Registry 描述提醒、记忆等任务能力，并暴露给 realtime 与 Background LLM/Agent。
 - 验证长期记忆模板和运行时工作目录初始化。
 
 CLI 阶段不实现主界面、不实现复杂设置页、不绑定最终桌面技术栈。
@@ -155,6 +156,23 @@ Phase 1 CLI 中增加一个本地确定性任务路由层，位于 Interaction M
 - 处理缺失参数追问。
 - 创建本地提醒、通知或系统日程。
 - 返回明确的成功/失败确认。
+
+### 5.5.1 Skill Registry 技能系统
+
+Phase 1 引入轻量技能系统，用技能定义组织任务能力，而不是把所有能力硬编码在 prompt 中：
+
+- 内置技能放在仓库 `skills/<skill_id>/skill.json`。
+- 本地用户技能放在运行时目录 `.heros/skills/<skill_id>/skill.json`，同 ID 时覆盖内置技能。
+- 每个技能定义包含技能元数据、触发词、capabilities、tools、风险等级和给 Agent 的执行说明。
+- Skill Registry 在 runtime 启动时加载技能，并把启用技能写入 Shared Context。
+- Realtime Interaction Model 能看到技能摘要，用于知道哪些能力应进入任务链路。
+- Background LLM/Agent 能看到技能、工具和执行说明，用于更稳地做参数推理和工具选择。
+- Local Task Router 根据技能 capability 的 handler 暴露确定性本地能力边界。
+
+当前内置技能：
+
+- `reminders`：创建、修改、查询、取消和到点播报提醒。
+- `memory`：创建、查询、修改和删除长期记忆。
 
 ### 5.6 单一语音播报出口
 

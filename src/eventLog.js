@@ -563,7 +563,7 @@ export function summarizeRuntimeState(events) {
 
 export function summarizeSharedContext(
   events,
-  { bootstrapFiles = [], localTaskRouter = { handledLocally: [] }, memories = [], reminders = [] } = {},
+  { bootstrapFiles = [], localTaskRouter = { handledLocally: [] }, memories = [], reminders = [], skills = null } = {},
 ) {
   const turnSummary = summarizeTurns(events);
   const taskSummary = summarizeBackgroundTasks(events);
@@ -592,6 +592,13 @@ export function summarizeSharedContext(
     },
     localTaskRouter: {
       handledLocally: [...(localTaskRouter.handledLocally || [])],
+    },
+    skills: skills || {
+      total: 0,
+      enabled: 0,
+      skills: [],
+      capabilities: [],
+      tools: [],
     },
     reminders: {
       total: reminders.length,

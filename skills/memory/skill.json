@@ -1,0 +1,62 @@
+{
+  "id": "memory",
+  "name": "Long-Term Memory",
+  "version": "0.1.0",
+  "description": "Manage durable user preferences and facts that improve future conversations.",
+  "status": "enabled",
+  "triggers": [
+    "记住",
+    "你记住了什么",
+    "修改记忆",
+    "忘记"
+  ],
+  "capabilities": [
+    {
+      "type": "memory",
+      "description": "Create a durable user memory.",
+      "handler": "local_task_router",
+      "risk": "low"
+    },
+    {
+      "type": "list_memory",
+      "description": "List durable user memories.",
+      "handler": "local_task_router",
+      "risk": "low"
+    },
+    {
+      "type": "update_memory",
+      "description": "Update a durable user memory after target and patch are clear.",
+      "handler": "local_task_router",
+      "risk": "medium"
+    },
+    {
+      "type": "forget_memory",
+      "description": "Delete a durable user memory after the target is clear.",
+      "handler": "local_task_router",
+      "risk": "medium"
+    }
+  ],
+  "tools": [
+    {
+      "name": "create_memory",
+      "description": "Persist a durable user memory.",
+      "risk": "low"
+    },
+    {
+      "name": "list_memory",
+      "description": "Read durable user memories.",
+      "risk": "low"
+    },
+    {
+      "name": "update_memory",
+      "description": "Patch a durable user memory.",
+      "risk": "medium"
+    },
+    {
+      "name": "forget_memory",
+      "description": "Delete a durable user memory.",
+      "risk": "medium"
+    }
+  ],
+  "instructions": "Use this skill only for durable preferences or facts that should survive future runs. Do not store secrets, credentials, access tokens, passwords, or sensitive private data."
+}

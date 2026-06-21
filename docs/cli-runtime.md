@@ -37,6 +37,8 @@ Phase 1 uses a no-UI CLI to validate the core runtime before any desktop UI work
 - `npm run context-health`: compares realtime and Background Agent context surfaces without network calls.
 - `npm run runtime-state`: reconstructs the current client runtime state from structured runtime events.
 - `npm run context`: reconstructs the current Shared Context view from event logs and local runtime data.
+- `npm run skills`: lists loaded skills, capabilities, and tools.
+- `npm run skills -- <id>`: prints one loaded skill definition.
 - `npm run turns`: reconstructs recent user/assistant turns from structured runtime events.
 - `npm run turns -- --turn-id turn_xxx`: filters reconstructed turns by turn, source turn, background task, event type, or time window.
 - `npm run transcript`: prints recent conversation turns as readable text.
@@ -73,6 +75,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 - `events.ndjson`: structured runtime event log.
 - `reminders.json`: local reminder data.
 - `agent-bootstrap/`: runtime copies of `AGENTS.md`, `SOUL.md`, and `MEMORY.md`.
+- `skills/`: optional local skill definitions that can override built-in skills by ID.
 
 ## Typed CLI Commands
 
@@ -81,6 +84,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 - `/help`: list typed CLI commands.
 - `/cancel-reminder <id>`: cancel a scheduled reminder.
 - `/memory`: list long-term memories.
+- `/skills`: list loaded skills.
 - `/remember <content>`: create a long-term memory.
 - `/update-memory <id> <content>`: update a long-term memory.
 - `/forget <id>`: delete a long-term memory.
@@ -102,6 +106,10 @@ Implemented:
 - Voice loop shutdown cancels active Background Agent delegations before waiting for cleanup.
 - Background Agent checks cancellation before tool execution so interrupted tasks cannot create stale reminders.
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
+- Background Agent receives the Skill Registry summary and skill instructions in its context package.
+- Runtime loads built-in skills from `skills/` and optional local skill overrides from `.heros/skills/`.
+- Headless skill listing and skill detail commands expose loaded capabilities and tools.
+- Realtime session instructions include the current Skill Registry summary in Shared Context.
 - Background Agent context package preview command for no-network routing and prompt-context debugging.
 - Shared Context summaries expose the Local Task Router capability boundary used before Background Agent delegation.
 - Shared Context updates from typed turns and realtime transcripts.

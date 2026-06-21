@@ -9,6 +9,7 @@ import { CliInteractionModel } from './interactionModel.js';
 import { MemoryStore } from './memoryStore.js';
 import { ReminderScheduler } from './reminderScheduler.js';
 import { ReminderStore } from './reminders.js';
+import { loadSkillRegistry } from './skills.js';
 import { TaskRouter } from './taskRouter.js';
 
 export function createRuntime({ printEvents = true, requireApiKey = true } = {}) {
@@ -33,12 +34,15 @@ export function createRuntime({ printEvents = true, requireApiKey = true } = {})
   const bootstrap = ensureAgentBootstrap(config.dataDir);
   const agentBootstrap = readAgentBootstrap(bootstrap.files);
   const memoryStore = new MemoryStore(bootstrap.files.find((file) => file.endsWith('MEMORY.md')));
+  const skills = loadSkillRegistry({ dataDir: config.dataDir });
   context.setLongTermMemory(memoryStore.list());
+  context.setSkills(skills.registry.summary().skills);
   const backgroundAgent = new BackgroundAgent({
     agentBootstrap,
     client,
     model: config.backgroundModel,
     reminderStore,
+    skillRegistry: skills.registry,
     timeZone: config.timeZone,
   });
   const taskRouter = new TaskRouter({
@@ -46,6 +50,7 @@ export function createRuntime({ printEvents = true, requireApiKey = true } = {})
     context,
     memoryStore,
     reminderStore,
+    skillRegistry: skills.registry,
     taskTimeoutMs: config.backgroundTaskTimeoutMs,
     timeZone: config.timeZone,
   });
@@ -68,5 +73,7 @@ export function createRuntime({ printEvents = true, requireApiKey = true } = {})
     memoryStore,
     bootstrap,
     agentBootstrap,
+    skills,
+    skillRegistry: skills.registry,
   };
 }

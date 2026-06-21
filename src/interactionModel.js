@@ -53,6 +53,7 @@ export class CliInteractionModel {
       contextVersion: contextSnapshot.contextVersion,
       longTermMemory: contextSnapshot.longTermMemory,
       backgroundTasks: contextSnapshot.backgroundTasks.slice(-5),
+      skills: contextSnapshot.skills,
     };
 
     const content = await this.client.text({

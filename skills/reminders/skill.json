@@ -1,0 +1,63 @@
+{
+  "id": "reminders",
+  "name": "Reminders",
+  "version": "0.1.0",
+  "description": "Create, update, list, cancel, and announce local reminders from natural conversation.",
+  "status": "enabled",
+  "triggers": [
+    "提醒我",
+    "叫我",
+    "下一个提醒",
+    "取消提醒",
+    "修改提醒"
+  ],
+  "capabilities": [
+    {
+      "type": "reminder",
+      "description": "Create a reminder when time and content can be resolved.",
+      "handler": "background_agent",
+      "risk": "medium"
+    },
+    {
+      "type": "update_reminder",
+      "description": "Update a scheduled reminder after selecting a clear target.",
+      "handler": "background_agent",
+      "risk": "medium"
+    },
+    {
+      "type": "list_reminders",
+      "description": "List scheduled reminders or the next scheduled reminder.",
+      "handler": "local_task_router",
+      "risk": "low"
+    },
+    {
+      "type": "cancel_reminder",
+      "description": "Cancel a scheduled reminder after the target is clear.",
+      "handler": "local_task_router",
+      "risk": "medium"
+    }
+  ],
+  "tools": [
+    {
+      "name": "create_reminder",
+      "description": "Persist a local reminder with title, remindAt, and optional note.",
+      "risk": "medium"
+    },
+    {
+      "name": "update_reminder",
+      "description": "Patch a scheduled local reminder.",
+      "risk": "medium"
+    },
+    {
+      "name": "cancel_reminder",
+      "description": "Cancel a scheduled local reminder.",
+      "risk": "medium"
+    },
+    {
+      "name": "list_reminders",
+      "description": "Read scheduled local reminders.",
+      "risk": "low"
+    }
+  ],
+  "instructions": "Use this skill for reminder, schedule, timer-like follow-up, and reminder management intents. Ask a concise clarification when time or target reminder is ambiguous. Never create or update reminders in the past."
+}

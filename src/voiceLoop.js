@@ -43,6 +43,7 @@ export class VoiceLoop {
       contextVersion: contextSnapshot.contextVersion,
       longTermMemory: contextSnapshot.longTermMemory,
       backgroundTasks: contextSnapshot.backgroundTasks.slice(-5),
+      skills: contextSnapshot.skills,
     };
     const bootstrap = [
       this.agentBootstrap['AGENTS.md'],

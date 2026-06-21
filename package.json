@@ -31,6 +31,7 @@
     "context-health": "node src/cli.js --context-health",
     "runtime-state": "node src/cli.js --runtime-state",
     "context": "node src/cli.js --context",
+    "skills": "node src/cli.js --skills",
     "turns": "node src/cli.js --turns",
     "transcript": "node src/cli.js --transcript",
     "route": "node src/cli.js --route",

@@ -10,6 +10,7 @@ export class SharedContext {
     this.turns = [];
     this.backgroundTasks = [];
     this.longTermMemory = [];
+    this.skills = [];
     this.version = 0;
   }
 
@@ -54,6 +55,22 @@ export class SharedContext {
     this.longTermMemory = next;
   }
 
+  setSkills(skills) {
+    const next = skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      version: skill.version,
+      description: skill.description,
+      capabilities: skill.capabilities || [],
+      tools: skill.tools || [],
+    }));
+    if (JSON.stringify(next) === JSON.stringify(this.skills)) {
+      return;
+    }
+    this.version += 1;
+    this.skills = next;
+  }
+
   hydrate({ backgroundTasks = [], turns = [] } = {}) {
     const hydratedTurns = turns.map((turn) => ({
       id: turn.turnId || turn.id,
@@ -92,6 +109,7 @@ export class SharedContext {
       turns: this.turns,
       backgroundTasks: this.backgroundTasks,
       longTermMemory: this.longTermMemory,
+      skills: this.skills,
     };
   }
 }

@@ -164,11 +164,12 @@ function latestPendingClarification(context) {
 }
 
 export class TaskRouter {
-  constructor({ backgroundAgent, context, memoryStore, reminderStore, taskTimeoutMs = 60000, timeZone }) {
+  constructor({ backgroundAgent, context, memoryStore, reminderStore, skillRegistry, taskTimeoutMs = 60000, timeZone }) {
     this.backgroundAgent = backgroundAgent;
     this.context = context;
     this.memoryStore = memoryStore;
     this.reminderStore = reminderStore;
+    this.skillRegistry = skillRegistry;
     this.taskTimeoutMs = taskTimeoutMs;
     this.timeZone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
@@ -233,13 +234,15 @@ export class TaskRouter {
         updatedAt: memory.updatedAt,
       }))
       || sharedContext.longTermMemory;
+    const handledLocally = this.skillRegistry?.handledLocally?.() || LOCAL_TASK_ROUTER_HANDLED_LOCALLY;
     return redactSecrets({
       runtime: {
         timeZone: this.timeZone,
       },
       localTaskRouter: {
-        handledLocally: LOCAL_TASK_ROUTER_HANDLED_LOCALLY,
+        handledLocally,
       },
+      skills: this.skillRegistry?.summary?.() || { total: 0, enabled: 0, skills: [], capabilities: [], tools: [] },
       sharedContext,
       pendingClarification,
       reminders: {

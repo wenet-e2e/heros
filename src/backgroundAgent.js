@@ -51,11 +51,12 @@ function getScheduledReminders(context, reminderStore) {
 }
 
 export class BackgroundAgent {
-  constructor({ agentBootstrap = {}, client, model, reminderStore, timeZone }) {
+  constructor({ agentBootstrap = {}, client, model, reminderStore, skillRegistry, timeZone }) {
     this.agentBootstrap = agentBootstrap;
     this.client = client;
     this.model = model;
     this.reminderStore = reminderStore;
+    this.skillRegistry = skillRegistry;
     this.timeZone = timeZone;
   }
 
@@ -79,7 +80,8 @@ export class BackgroundAgent {
       'Your job is to handle complex tasks asynchronously for a realtime interaction model.',
       'You receive a rich context package with sharedContext, reminders, longTermMemory, and runtime metadata.',
       'A deterministic Local Task Router runs before you and handles low-risk local tasks such as listing reminders, cancelling reminders, and long-term memory CRUD.',
-      'For this MVP, your executable tools are create_reminder and update_reminder.',
+      'Available skills and tools are provided in context.skills.',
+      'For this MVP, your background executable tools are create_reminder and update_reminder.',
       'Decide whether the user asks to create or update a reminder.',
       'Return strict JSON only, with this schema:',
       '{"action":"create_reminder"|"update_reminder"|"none"|"clarify","reminderId":"string","title":"string","remindAt":"ISO-8601 string or empty","note":"string","clarifyingQuestion":"string"}',
@@ -96,6 +98,7 @@ export class BackgroundAgent {
       this.agentBootstrap['AGENTS.md'],
       this.agentBootstrap['SOUL.md'],
       this.agentBootstrap['MEMORY.md'],
+      this.skillRegistry?.instructions?.(),
     ].filter(Boolean).join('\n\n');
 
     const content = await this.client.text({
