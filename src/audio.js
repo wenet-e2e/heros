@@ -51,6 +51,7 @@ export class PcmPlayer {
     this.sampleRate = sampleRate;
     this.enabled = enabled;
     this.child = null;
+    this.available = false;
   }
 
   async start() {
@@ -61,7 +62,17 @@ export class PcmPlayer {
       this.enabled = false;
       return;
     }
-    this.child = spawn('play', [
+    this.available = true;
+  }
+
+  begin() {
+    if (!this.enabled || !this.available) {
+      return;
+    }
+    if (this.child && !this.child.killed) {
+      this.stop();
+    }
+    const child = spawn('play', [
       '-q',
       '-b',
       '16',
@@ -75,11 +86,21 @@ export class PcmPlayer {
       'raw',
       '-',
     ], { stdio: ['pipe', 'ignore', 'inherit'] });
+    this.child = child;
+    child.once('close', () => {
+      if (this.child !== child) {
+        return;
+      }
+      this.child = null;
+    });
   }
 
   write(chunk) {
     if (!this.enabled) {
       return;
+    }
+    if (!this.child) {
+      this.begin();
     }
     if (!this.child || this.child.killed || !this.child.stdin.writable) {
       return;
@@ -87,12 +108,20 @@ export class PcmPlayer {
     this.child.stdin.write(chunk);
   }
 
+  end() {
+    if (!this.child || this.child.killed) {
+      return;
+    }
+    if (this.child.stdin?.writable) {
+      this.child.stdin.end();
+    }
+  }
+
   async interrupt() {
     if (!this.enabled) {
       return;
     }
     this.stop();
-    await this.start();
   }
 
   stop() {

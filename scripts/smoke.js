@@ -3434,6 +3434,70 @@ function testVoiceLoopOutputDurationSuppression() {
   }
 }
 
+function testVoiceLoopResponsePlaybackSegments() {
+  const realtime = new EventEmitter();
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  const calls = [];
+  loop.player = {
+    begin() {
+      calls.push('begin');
+    },
+    write(chunk) {
+      calls.push(`write:${chunk.length}`);
+    },
+    end() {
+      calls.push('end');
+    },
+  };
+  loop.attachRealtimeEvents();
+  const audio = Buffer.from('pcm').toString('base64');
+  realtime.emit('event', { type: 'response.created' });
+  realtime.emit('event', { type: 'response.audio.delta', delta: audio });
+  realtime.emit('event', { type: 'response.done' });
+  realtime.emit('event', { type: 'response.created' });
+  if (calls.join(',') !== 'begin,write:3,end,begin') {
+    throw new Error('voice loop response playback segment smoke failed');
+  }
+}
+
+async function testVoiceLoopWaitsForPlaybackBeforeListening() {
+  const realtime = new EventEmitter();
+  const loop = new VoiceLoop({
+    config: {
+      voiceInputMode: 'half_duplex',
+      voiceOutputTailMs: 20,
+    },
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  loop.player = {
+    begin() {},
+    write() {},
+    end() {},
+  };
+  loop.attachRealtimeEvents();
+  realtime.emit('event', { type: 'response.created' });
+  realtime.emit('event', { type: 'response.audio.delta', delta: Buffer.alloc(480).toString('base64') });
+  realtime.emit('event', { type: 'response.done' });
+  if (loop.state !== 'speaking' || !loop.isPlaybackDraining) {
+    throw new Error('voice loop should keep speaking while playback drains');
+  }
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  if (loop.state !== 'listening' || loop.isPlaybackDraining) {
+    throw new Error('voice loop did not return to listening after playback drain');
+  }
+}
+
 async function testVoiceLoopIgnoresEchoSpeechStarted() {
   const dir = createTempDir('heros-voice-echo-speech-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -3497,7 +3561,7 @@ function testVoiceLoopFullDuplexInput() {
   }
 }
 
-function testVoiceLoopAnnouncementResponseCorrelation() {
+async function testVoiceLoopAnnouncementResponseCorrelation() {
   const dir = createTempDir('heros-voice-response-correlation-');
   const logPath = path.join(dir, 'events.ndjson');
   configureEvents({ logPath });
@@ -3519,8 +3583,9 @@ function testVoiceLoopAnnouncementResponseCorrelation() {
   };
   loop.currentAssistantTurnId = 'turn_announcement';
   realtime.emit('event', { type: 'response.done' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
   const completed = readEventLog(logPath).find((event) => event.type === 'response.completed');
-  const responseDoneState = readEventLog(logPath).find((event) => event.type === 'state.changed' && event.reason === 'response_done');
+  const responseDoneState = readEventLog(logPath).find((event) => event.type === 'state.changed' && event.reason === 'response_playback_done');
   if (
     completed?.backgroundTaskId !== 'task_announcement'
     || completed.reminderId !== 'reminder_announcement'
@@ -3977,9 +4042,11 @@ testVoiceLoopAssistantTurnId();
 await testVoiceLoopInputAudioEpoch();
 testVoiceLoopInputSuppression();
 testVoiceLoopOutputDurationSuppression();
+testVoiceLoopResponsePlaybackSegments();
+await testVoiceLoopWaitsForPlaybackBeforeListening();
 await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
-testVoiceLoopAnnouncementResponseCorrelation();
+await testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();

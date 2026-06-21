@@ -21,6 +21,9 @@ export class VoiceLoop {
     this.lastSuppressionReason = null;
     this.ignoredSpeechActive = false;
     this.ignoredSpeechCount = 0;
+    this.isPlaybackDraining = false;
+    this.responsePlaybackEpoch = 0;
+    this.responsePlaybackDoneTimer = null;
     this.isResponding = false;
     this.isAnnouncing = false;
     this.announcementQueue = [];
@@ -169,9 +172,13 @@ export class VoiceLoop {
         }
         this.handleUserTranscript(event.transcript || '');
       } else if (event.type === 'response.created') {
+        this.clearResponsePlaybackDoneTimer();
+        this.isPlaybackDraining = false;
+        this.responsePlaybackEpoch += 1;
         this.isResponding = true;
         this.currentAssistantText = '';
         this.currentAssistantTurnId = null;
+        this.player.begin();
         this.setState('speaking', 'response_created');
         emitEvent('response.started', { source: 'realtime' });
       } else if (event.type === 'response.audio_transcript.delta' || event.type === 'response.text.delta') {
@@ -184,7 +191,9 @@ export class VoiceLoop {
         this.player.write(audio);
       } else if (event.type === 'response.done') {
         this.isResponding = false;
+        this.player.end();
         this.startInputSuppressionTail('response_done');
+        this.isPlaybackDraining = true;
         emitEvent('response.completed', {
           backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
           reminderId: this.activeAnnouncement?.reminderId,
@@ -193,8 +202,7 @@ export class VoiceLoop {
           text: this.currentAssistantText,
           turnId: this.currentAssistantTurnId,
         });
-        this.setState('listening', 'response_done', { turnId: this.currentAssistantTurnId });
-        this.drainAnnouncements();
+        this.scheduleResponsePlaybackDone(this.responsePlaybackEpoch);
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
       }
@@ -205,7 +213,7 @@ export class VoiceLoop {
     if (this.voiceInputMode === 'full_duplex' || !this.playAudio) {
       return null;
     }
-    if (this.isResponding || this.isAnnouncing) {
+    if (this.isResponding || this.isAnnouncing || this.isPlaybackDraining) {
       return 'assistant_output_active';
     }
     if (Date.now() < this.suppressInputUntil) {
@@ -271,6 +279,38 @@ export class VoiceLoop {
       tailMs: this.voiceOutputTailMs,
       suppressForMs: Math.max(0, this.suppressInputUntil - now),
     });
+  }
+
+  clearResponsePlaybackDoneTimer() {
+    if (this.responsePlaybackDoneTimer) {
+      clearTimeout(this.responsePlaybackDoneTimer);
+      this.responsePlaybackDoneTimer = null;
+    }
+  }
+
+  scheduleResponsePlaybackDone(epoch) {
+    this.clearResponsePlaybackDoneTimer();
+    const waitMs = Math.max(0, this.suppressInputUntil - Date.now());
+    emitEvent('response.playback_draining', {
+      turnId: this.currentAssistantTurnId,
+      waitMs,
+    });
+    this.responsePlaybackDoneTimer = setTimeout(() => {
+      this.finishResponsePlayback(epoch);
+    }, waitMs);
+  }
+
+  finishResponsePlayback(epoch) {
+    if (epoch !== this.responsePlaybackEpoch || this.isResponding) {
+      return;
+    }
+    this.clearResponsePlaybackDoneTimer();
+    this.isPlaybackDraining = false;
+    emitEvent('response.playback_completed', {
+      turnId: this.currentAssistantTurnId,
+    });
+    this.setState('listening', 'response_playback_done', { turnId: this.currentAssistantTurnId });
+    this.drainAnnouncements();
   }
 
   shouldIgnoreRemoteSpeech() {
@@ -418,7 +458,7 @@ export class VoiceLoop {
   }
 
   async drainAnnouncements() {
-    if (this.isResponding || this.isAnnouncing || this.announcementQueue.length === 0) {
+    if (this.isResponding || this.isAnnouncing || this.isPlaybackDraining || this.announcementQueue.length === 0) {
       return;
     }
     const announcement = this.announcementQueue.shift();
@@ -487,6 +527,7 @@ export class VoiceLoop {
         if (timer) {
           clearTimeout(timer);
         }
+        this.clearResponsePlaybackDoneTimer();
         this.setState('stopping', 'shutdown');
         emitEvent('voice_loop.stopping');
         this.cancelBackgroundTasks('shutdown');
