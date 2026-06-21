@@ -76,7 +76,7 @@ flowchart LR
 
 1. 客户端采集麦克风音频并发送到 realtime 语音会话。
 2. Realtime Interaction Model 持续输出文本片段、音频片段和结构化事件。
-3. 当需要更复杂的推理或任务执行时，Interaction Model 先用一句很短的 filler 自然承接，再通过 realtime function call `handoff_to_background` 把任务目标交给 Background LLM/Agent。
+3. 当需要更复杂的推理或任务执行时，Interaction Model 先用一句极短 filler 自然承接，仅使用“我看看”“我查查”“我看一下”“我查一下”这类短句，再通过 realtime function call `handoff_to_background` 把任务目标交给 Background LLM/Agent。
 4. Background LLM/Agent 执行期间，Interaction Model 继续维护语音会话；后台结果通过 realtime function output 写回，再由 Interaction Model 生成最终播报。
 
 CLI 阶段的“客户端”是命令行运行时；桌面阶段的“客户端”是带界面的桌面应用。两者复用同一核心会话和 Agent 接口。
@@ -121,7 +121,7 @@ Realtime Interaction Model 负责判断是否需要委托后台能力：
 - 管理 realtime 连接生命周期。
 - 接收用户音频并输出文本、音频和结构化事件。
 - 保持与用户的实时共处：听、说、等待、插话、打断、承接上下文。
-- 判断任务是否超出即时交互能力；需要后台能力时先输出简短 filler，再调用 `handoff_to_background`。
+- 判断任务是否超出即时交互能力；需要后台能力时先输出极短 filler，再调用 `handoff_to_background`。
 - 接收后台结果并生成最终可听回复。
 - 支持低时延回复、流式输出、用户打断和会话恢复。
 - 不绑定特定供应商，重新实现时通过接口隔离具体服务。

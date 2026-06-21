@@ -3493,6 +3493,14 @@ function testVoiceLoopRealtimeInstructions() {
   ) {
     throw new Error('voice loop realtime handoff tool smoke failed');
   }
+  for (const filler of ['我看看', '我查查', '我看一下', '我查一下']) {
+    if (!sessionConfig.instructions.includes(filler)) {
+      throw new Error('voice loop short filler instruction smoke failed');
+    }
+  }
+  if (sessionConfig.instructions.includes('我找找')) {
+    throw new Error('voice loop filler should stay short and constrained');
+  }
 }
 
 function testVoiceLoopTranscriptDoesNotBypassRouter() {
