@@ -237,6 +237,7 @@ Common overrides:
 - `HEROS_VOICE_INPUT_MODE` (default `half_duplex`; use `full_duplex` only when local echo cancellation is available)
 - `HEROS_VOICE_OUTPUT_TAIL_MS` (default `800`; microphone suppression tail after assistant playback)
 - `HEROS_HANDOFF_POST_FILLER_PAUSE_MS` (default `250`; short pause after filler playback before final task result)
+- `HEROS_STARTUP_GREETING` (default `你好啊，有什么可以帮你？`; set empty to disable startup greeting)
 - `HEROS_BACKGROUND_MODEL`
 - `HEROS_BACKGROUND_TASK_TIMEOUT_MS` (default `60000`)
 - `HEROS_TIME_ZONE`

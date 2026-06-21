@@ -73,6 +73,7 @@ export function getConfig({ requireApiKey = true } = {}) {
     voiceInputMode: enumConfig('HEROS_VOICE_INPUT_MODE', 'half_duplex', ['half_duplex', 'full_duplex']),
     voiceOutputTailMs: numberConfig('HEROS_VOICE_OUTPUT_TAIL_MS', 800),
     handoffPostFillerPauseMs: numberConfig('HEROS_HANDOFF_POST_FILLER_PAUSE_MS', 250),
+    startupGreeting: process.env.HEROS_STARTUP_GREETING ?? '你好啊，有什么可以帮你？',
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
     backgroundTaskTimeoutMs: numberConfig('HEROS_BACKGROUND_TASK_TIMEOUT_MS', 60000),
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',

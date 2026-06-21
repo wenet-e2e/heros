@@ -2721,6 +2721,7 @@ function testEnvExampleCoverage() {
     'HEROS_VOICE_INPUT_MODE',
     'HEROS_VOICE_OUTPUT_TAIL_MS',
     'HEROS_HANDOFF_POST_FILLER_PAUSE_MS',
+    'HEROS_STARTUP_GREETING',
     'HEROS_BACKGROUND_MODEL',
     'HEROS_BACKGROUND_TASK_TIMEOUT_MS',
     'HEROS_TIME_ZONE',
@@ -3841,6 +3842,57 @@ function testVoiceLoopFullDuplexInput() {
   }
 }
 
+async function testVoiceLoopStartupGreeting() {
+  const dir = createTempDir('heros-voice-startup-greeting-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const calls = [];
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {
+      createSpeechResponse(text) {
+        calls.push({ type: 'speech_response', text });
+      },
+      async waitFor(type) {
+        calls.push({ type: 'wait_for', eventType: type });
+      },
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  await loop.speakStartupGreeting();
+  const events = readEventLog(logPath);
+  if (
+    calls[0]?.type !== 'speech_response'
+    || calls[0].text !== '你好啊，有什么可以帮你？'
+    || calls[1]?.eventType !== 'response.done'
+    || !events.find((event) => event.type === 'startup_greeting.started')
+    || !events.find((event) => event.type === 'startup_greeting.completed')
+  ) {
+    throw new Error('voice loop startup greeting smoke failed');
+  }
+
+  const disabledLoop = new VoiceLoop({
+    config: { startupGreeting: '' },
+    realtime: {
+      createSpeechResponse(text) {
+        calls.push({ type: 'disabled_speech_response', text });
+      },
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  await disabledLoop.speakStartupGreeting();
+  if (calls.find((call) => call.type === 'disabled_speech_response')) {
+    throw new Error('voice loop startup greeting disable smoke failed');
+  }
+  configureEvents();
+}
+
 async function testVoiceLoopAnnouncementResponseCorrelation() {
   const dir = createTempDir('heros-voice-response-correlation-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -4527,6 +4579,7 @@ testVoiceLoopResponsePlaybackSegments();
 await testVoiceLoopWaitsForPlaybackBeforeListening();
 await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
+await testVoiceLoopStartupGreeting();
 await testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopBackgroundFunctionCall();
 await testVoiceLoopUnsupportedBackgroundHandoff();

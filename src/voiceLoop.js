@@ -74,6 +74,7 @@ export class VoiceLoop {
     this.voiceInputMode = config.voiceInputMode || 'half_duplex';
     this.voiceOutputTailMs = Number.isFinite(Number(config.voiceOutputTailMs)) ? Number(config.voiceOutputTailMs) : 800;
     this.handoffPostFillerPauseMs = Number.isFinite(Number(config.handoffPostFillerPauseMs)) ? Number(config.handoffPostFillerPauseMs) : 250;
+    this.startupGreeting = typeof config.startupGreeting === 'string' ? config.startupGreeting : '你好啊，有什么可以帮你？';
     this.suppressInputUntil = 0;
     this.suppressedInputChunks = 0;
     this.lastSuppressionReason = null;
@@ -186,6 +187,7 @@ export class VoiceLoop {
       await this.realtime.waitFor('session.updated', 15000);
 
       await this.player.start();
+      await this.speakStartupGreeting();
       this.recorder.on('data', (chunk) => {
         try {
           this.appendMicrophoneAudio(chunk);
@@ -224,6 +226,29 @@ export class VoiceLoop {
       this.unsubscribeReminderTrigger = null;
       this.reminderScheduler?.stop();
       throw error;
+    }
+  }
+
+  async speakStartupGreeting() {
+    const greeting = this.startupGreeting.trim();
+    if (!greeting) {
+      return;
+    }
+    emitEvent('startup_greeting.started', { text: greeting });
+    try {
+      if (typeof this.realtime.createSpeechResponse === 'function') {
+        this.realtime.createSpeechResponse(greeting);
+      } else {
+        this.realtime.createUserTextMessage(greeting);
+        this.realtime.createResponse();
+      }
+      if (typeof this.realtime.waitFor === 'function') {
+        await this.realtime.waitFor('response.done', 15000);
+      }
+      await this.waitForCurrentPlaybackDone({ timeoutMs: 5000 });
+      emitEvent('startup_greeting.completed', { text: greeting });
+    } catch (error) {
+      emitEvent('startup_greeting.failed', { text: greeting, message: error.message });
     }
   }
 
