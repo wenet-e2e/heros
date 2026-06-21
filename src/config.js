@@ -60,7 +60,7 @@ export function getConfig({ requireApiKey = true } = {}) {
     dashscopeRequestTimeoutMs: numberConfig('DASHSCOPE_REQUEST_TIMEOUT_MS', 60000),
     realtimeUrl: process.env.HEROS_REALTIME_URL || 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime',
     realtimeModel: process.env.HEROS_REALTIME_MODEL || 'qwen3.5-omni-plus-realtime',
-    realtimeVoice: process.env.HEROS_REALTIME_VOICE || 'Ethan',
+    realtimeVoice: process.env.HEROS_REALTIME_VOICE || 'Cindy',
     realtimeInstructions,
     realtimeInputTranscriptionModel: process.env.HEROS_REALTIME_INPUT_TRANSCRIPTION_MODEL || 'gummy-realtime-v1',
     realtimeTurnDetection: process.env.HEROS_REALTIME_TURN_DETECTION || 'semantic_vad',

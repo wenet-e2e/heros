@@ -275,7 +275,7 @@ export class DashScopeRealtimeClient extends EventEmitter {
 
   updateSession({
     modalities = ['text', 'audio'],
-    voice = 'Ethan',
+    voice = 'Cindy',
     instructions,
     turnDetection = null,
     inputAudioTranscription,
