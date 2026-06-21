@@ -32,7 +32,7 @@ import { DashScopeRealtimeClient } from '../src/realtimeClient.js';
 import { getConfig } from '../src/config.js';
 import { CliInteractionModel } from '../src/interactionModel.js';
 import { DashScopeClient } from '../src/dashscope.js';
-import { commandExists } from '../src/audio.js';
+import { commandExists, PcmPlayer } from '../src/audio.js';
 import { createRuntime } from '../src/runtime.js';
 import { loadSkillRegistry } from '../src/skills.js';
 
@@ -184,6 +184,52 @@ async function testCommandExistsMissingWhich() {
   } finally {
     process.env.PATH = previousPath;
   }
+}
+
+async function testPcmPlayerPlaybackCursorWaitsForIdle() {
+  const player = new PcmPlayer({ enabled: true, drainPaddingMs: 10 });
+  player.available = true;
+  player.child = {
+    killed: false,
+    stdin: {
+      writable: true,
+    },
+  };
+  player.playbackCursorUntil = Date.now() + 35;
+  const startedAt = Date.now();
+  const idle = await player.waitForIdle({ timeoutMs: 500 });
+  const elapsedMs = Date.now() - startedAt;
+  if (!idle || elapsedMs < 30) {
+    throw new Error('pcm player playback cursor idle wait smoke failed');
+  }
+}
+
+function testPcmPlayerFlushesTailWithSilence() {
+  const writes = [];
+  const player = new PcmPlayer({
+    enabled: true,
+    sampleRate: 24000,
+    drainPaddingMs: 0,
+    flushSilenceMs: 100,
+  });
+  player.available = true;
+  player.child = {
+    killed: false,
+    stdin: {
+      writable: true,
+      write(chunk) {
+        writes.push(chunk.length);
+        return true;
+      },
+    },
+  };
+  player.write(Buffer.alloc(480));
+  const cursorBeforeEnd = player.playbackCursorUntil;
+  player.end();
+  if (writes.length !== 2 || writes[1] !== 4800 || player.playbackCursorUntil <= cursorBeforeEnd) {
+    throw new Error('pcm player should flush response tail with silence');
+  }
+  player.stop();
 }
 
 function testReminderScheduler() {
@@ -2672,6 +2718,9 @@ function testEnvExampleCoverage() {
     'HEROS_REALTIME_VAD_SILENCE_DURATION_MS',
     'HEROS_REALTIME_CONNECT_RETRIES',
     'HEROS_REALTIME_CONNECT_RETRY_DELAY_MS',
+    'HEROS_VOICE_INPUT_MODE',
+    'HEROS_VOICE_OUTPUT_TAIL_MS',
+    'HEROS_HANDOFF_POST_FILLER_PAUSE_MS',
     'HEROS_BACKGROUND_MODEL',
     'HEROS_BACKGROUND_TASK_TIMEOUT_MS',
     'HEROS_TIME_ZONE',
@@ -3503,8 +3552,9 @@ function testVoiceLoopRealtimeInstructions() {
   }
 }
 
-function testVoiceLoopTranscriptDoesNotBypassRouter() {
-  let shouldDelegateCalled = false;
+async function testVoiceLoopTranscriptDoesNotBypassRouter() {
+  const delegatedTexts = [];
+  const calls = [];
   const sessionUpdates = [];
   const loop = new VoiceLoop({
     config: {},
@@ -3512,28 +3562,46 @@ function testVoiceLoopTranscriptDoesNotBypassRouter() {
       updateSession(config) {
         sessionUpdates.push(config);
       },
+      createResponse() {
+        calls.push({ type: 'response.create' });
+      },
+      createSpeechResponse(text) {
+        calls.push({ type: 'speech_response', text });
+      },
     },
     taskRouter: {
-      shouldDelegate() {
-        shouldDelegateCalled = true;
-        return true;
+      shouldDelegate(text) {
+        delegatedTexts.push(text);
+        return text.includes('提醒') ? { type: 'list_reminders' } : null;
       },
     },
     context: new SharedContext(),
     reminderScheduler: null,
     playAudio: false,
   });
-  loop.handleUserTranscript('我今天有哪些提醒？');
-  if (shouldDelegateCalled || loop.lastUserTranscript !== '我今天有哪些提醒？' || !loop.lastUserTurnId) {
-    throw new Error('voice loop transcript should not bypass realtime tool call');
-  }
-  loop.handleUserTranscript('我喜欢吃苹果');
+  loop.handleUserTranscript('你好');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   if (
-    shouldDelegateCalled
+    delegatedTexts.at(-1) !== '你好'
+    || calls.length !== 1
+    || calls[0].type !== 'response.create'
+    || sessionUpdates.at(-1)?.toolChoice !== 'auto'
+  ) {
+    throw new Error('voice loop chat transcript should create direct response');
+  }
+
+  loop.handleUserTranscript('我今天有哪些提醒？');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  if (
+    delegatedTexts.at(-1) !== '我今天有哪些提醒？'
+    || calls.at(-2)?.type !== 'speech_response'
+    || calls.at(-1)?.type !== 'response.create'
     || loop.forceToolChoice !== 'required'
     || sessionUpdates.at(-1)?.toolChoice !== 'required'
+    || loop.lastUserTranscript !== '我今天有哪些提醒？'
+    || !loop.lastUserTurnId
   ) {
-    throw new Error('voice loop durable memory should force realtime tool call');
+    throw new Error('voice loop task transcript should play controlled filler then request tool response');
   }
 }
 
@@ -3829,6 +3897,9 @@ async function testVoiceLoopBackgroundFunctionCall() {
   realtime.createResponse = () => {
     calls.push({ type: 'response.create' });
   };
+  realtime.createSpeechResponse = (text) => {
+    calls.push({ type: 'speech_response', text });
+  };
   const loop = new VoiceLoop({
     config: {},
     realtime,
@@ -3866,7 +3937,8 @@ async function testVoiceLoopBackgroundFunctionCall() {
     || calls[0].type !== 'function_call_output'
     || calls[0].callId !== 'call_background'
     || output.message !== '查到了：我今天有哪些提醒？'
-    || calls[1].type !== 'response.create'
+    || calls[1].type !== 'speech_response'
+    || calls[1].text !== '查到了：我今天有哪些提醒？'
     || !events.find((event) => event.type === 'tool_call.started' && event.toolName === 'handoff_to_background')
     || !events.find((event) => event.type === 'tool_call.completed' && event.backgroundTaskId === 'task_function_call')
   ) {
@@ -3888,8 +3960,13 @@ async function testVoiceLoopFunctionCallWaitsForFillerPlayback() {
   realtime.createResponse = () => {
     calls.push({ type: 'response.create' });
   };
+  realtime.createSpeechResponse = (text) => {
+    calls.push({ type: 'speech_response', text });
+  };
   const loop = new VoiceLoop({
-    config: {},
+    config: {
+      handoffPostFillerPauseMs: 10,
+    },
     realtime,
     taskRouter: {
       async maybeHandle() {
@@ -3905,6 +3982,14 @@ async function testVoiceLoopFunctionCallWaitsForFillerPlayback() {
     reminderScheduler: null,
     playAudio: true,
   });
+  let resolvePlayerIdle;
+  loop.player = {
+    waitForIdle() {
+      return new Promise((resolve) => {
+        resolvePlayerIdle = () => resolve(true);
+      });
+    },
+  };
   loop.attachRealtimeEvents();
   loop.isResponding = false;
   loop.isPlaybackDraining = true;
@@ -3925,13 +4010,16 @@ async function testVoiceLoopFunctionCallWaitsForFillerPlayback() {
   if (calls.length !== 0) {
     throw new Error('voice loop function call should wait for filler playback before final response');
   }
-  loop.finishResponsePlayback(loop.responsePlaybackEpoch);
+  resolvePlayerIdle();
   await waitForCondition(() => calls.length === 2);
   const events = readEventLog(logPath);
   if (
     calls[0].type !== 'function_call_output'
-    || calls[1].type !== 'response.create'
+    || calls[1].type !== 'speech_response'
+    || calls[1].text !== '记好了。'
     || !events.find((event) => event.type === 'handoff.waiting_for_playback')
+    || !events.find((event) => event.type === 'handoff.playback_idle')
+    || !events.find((event) => event.type === 'handoff.post_filler_pause' && event.pauseMs === 10)
   ) {
     throw new Error('voice loop function call playback wait smoke failed');
   }
@@ -4334,6 +4422,8 @@ function testTaskRouterListMemory() {
 await testEventLog();
 testConsoleEventFormatting();
 await testCommandExistsMissingWhich();
+await testPcmPlayerPlaybackCursorWaitsForIdle();
+testPcmPlayerFlushesTailWithSilence();
 testReminderScheduler();
 testMemoryStore();
 testSkillRegistry();
@@ -4380,7 +4470,7 @@ await testCliBackgroundResponseCorrelation();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
-testVoiceLoopTranscriptDoesNotBypassRouter();
+await testVoiceLoopTranscriptDoesNotBypassRouter();
 testVoiceLoopAssistantTurnId();
 await testVoiceLoopInputAudioEpoch();
 testVoiceLoopInputSuppression();

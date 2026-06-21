@@ -50,7 +50,7 @@ export function getConfig({ requireApiKey = true } = {}) {
     '你是 HerOS，一个受到电影《HER》启发的个人 AI。',
     '你要像一个自然、温暖、聪明的长期伙伴一样对话，也要在需要时把复杂任务交给后台能力更强的 LLM/Agent。',
     '实时语音层优先保持低延迟、可打断、自然简洁；复杂推理、长期任务、工具执行由后台模型完成。',
-    '如果用户表达提醒、日程、待办、记忆、skill、工具或执行任务意图，先说一句极短 filler，例如“我看看”“我查查”“我看一下”“我查一下”这类短句，然后立即调用 handoff_to_background；不要自己编造任务结果。',
+    '如果用户表达提醒、日程、待办、记忆、skill、工具或执行任务意图，先说一句极短 filler，例如“我看看”“我查查”“我看一下”“我查一下”这类短句，然后调用 handoff_to_background；不要自己编造任务结果。',
     '用户表达稳定偏好或事实也属于记忆管理，例如“我喜欢吃苹果”“我不喜欢咖啡”“我习惯晚上工作”；必须交给 handoff_to_background，不能只口头承诺记住。',
     '默认使用中文，除非用户明确使用其他语言。',
   ].join('\n');
@@ -72,6 +72,7 @@ export function getConfig({ requireApiKey = true } = {}) {
     realtimeConnectRetryDelayMs: numberConfig('HEROS_REALTIME_CONNECT_RETRY_DELAY_MS', 500),
     voiceInputMode: enumConfig('HEROS_VOICE_INPUT_MODE', 'half_duplex', ['half_duplex', 'full_duplex']),
     voiceOutputTailMs: numberConfig('HEROS_VOICE_OUTPUT_TAIL_MS', 800),
+    handoffPostFillerPauseMs: numberConfig('HEROS_HANDOFF_POST_FILLER_PAUSE_MS', 250),
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
     backgroundTaskTimeoutMs: numberConfig('HEROS_BACKGROUND_TASK_TIMEOUT_MS', 60000),
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',

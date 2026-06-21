@@ -349,8 +349,20 @@ export class DashScopeRealtimeClient extends EventEmitter {
     });
   }
 
-  createResponse() {
-    return this.send({ type: 'response.create' });
+  createResponse(response) {
+    const event = { type: 'response.create' };
+    if (response) {
+      event.response = response;
+    }
+    return this.send(event);
+  }
+
+  createSpeechResponse(text) {
+    return this.createResponse({
+      conversation: 'none',
+      modalities: ['text', 'audio'],
+      instructions: `只自然播报下面这句中文，不要添加任何其他内容，不要调用工具：${text}`,
+    });
   }
 
   cancelResponse() {

@@ -1,7 +1,6 @@
 import process from 'node:process';
 import { PcmPlayer, PcmRecorder } from './audio.js';
 import { emitEvent } from './events.js';
-import { likelyMemory } from './intents.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
 const BACKGROUND_HANDOFF_TOOL = Object.freeze({
@@ -74,6 +73,7 @@ export class VoiceLoop {
     this.recorder = new PcmRecorder({ sampleRate: 16000 });
     this.voiceInputMode = config.voiceInputMode || 'half_duplex';
     this.voiceOutputTailMs = Number.isFinite(Number(config.voiceOutputTailMs)) ? Number(config.voiceOutputTailMs) : 800;
+    this.handoffPostFillerPauseMs = Number.isFinite(Number(config.handoffPostFillerPauseMs)) ? Number(config.handoffPostFillerPauseMs) : 250;
     this.suppressInputUntil = 0;
     this.suppressedInputChunks = 0;
     this.lastSuppressionReason = null;
@@ -116,15 +116,19 @@ export class VoiceLoop {
       this.agentBootstrap['SOUL.md'],
       this.agentBootstrap['MEMORY.md'],
     ].filter(Boolean).join('\n\n');
+    const handoffStageInstruction = this.forceToolChoice === 'required'
+      ? '当前系统已经单独播报过 filler。现在不要再说 filler，不要闲聊，立即调用 handoff_to_background。'
+      : '';
     return [
       this.config.realtimeInstructions,
       [
         '工具边界：你只能直接聊天和自然播报。',
-        '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，先说一句极短中文 filler，例如“我看看”“我查查”“我看一下”“我查一下”这类短句，然后立即调用 handoff_to_background。',
+        '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，先说一句极短中文 filler，例如“我看看”“我查查”“我看一下”“我查一下”这类短句，然后调用 handoff_to_background。',
         '当用户表达稳定偏好或事实时，也必须调用 handoff_to_background 写入记忆，例如“我喜欢吃苹果”“我不喜欢咖啡”“我习惯晚上工作”“我的名字是...”。',
         '不要只口头说“我记住了/我记下了”；只有收到 handoff_to_background 的 function result 后才能确认已经记住。',
         '不要自己编造后台任务结果；收到 handoff_to_background 的 function result 后，再用自然、简短、适合语音的中文告诉用户结果。',
       ].join('\n'),
+      handoffStageInstruction,
       bootstrap ? `Agent Bootstrap:\n${bootstrap}` : '',
       `Shared Context JSON:\n${JSON.stringify(sharedContext, null, 2)}`,
     ].filter(Boolean).join('\n\n');
@@ -141,6 +145,7 @@ export class VoiceLoop {
         threshold: Number(this.config.realtimeVadThreshold),
         prefix_padding_ms: Number(this.config.realtimeVadPrefixPaddingMs),
         silence_duration_ms: Number(this.config.realtimeVadSilenceDurationMs),
+        create_response: false,
       },
       inputAudioTranscription: {
         model: this.config.realtimeInputTranscriptionModel,
@@ -389,10 +394,13 @@ export class VoiceLoop {
 
   scheduleResponsePlaybackDone(epoch) {
     this.clearResponsePlaybackDoneTimer();
-    const waitMs = Math.max(0, this.suppressInputUntil - Date.now());
+    const suppressionWaitMs = Math.max(0, this.suppressInputUntil - Date.now());
+    const playerWaitMs = typeof this.player.pendingPlaybackMs === 'function' ? this.player.pendingPlaybackMs() : 0;
+    const waitMs = Math.max(suppressionWaitMs, playerWaitMs);
     emitEvent('response.playback_draining', {
       turnId: this.currentAssistantTurnId,
       waitMs,
+      playerWaitMs,
     });
     this.responsePlaybackDoneTimer = setTimeout(() => {
       this.finishResponsePlayback(epoch);
@@ -436,6 +444,7 @@ export class VoiceLoop {
     }
     this.turnEpoch += 1;
     emitEvent('conversation.epoch_changed', { turnEpoch: this.turnEpoch, reason: 'user_speech_started' });
+    this.forceToolChoice = null;
     this.cancelBackgroundTasks('user_speech_started');
     emitEvent('input_audio.started', { turnEpoch: this.turnEpoch });
     if (!this.isResponding) {
@@ -473,9 +482,84 @@ export class VoiceLoop {
     });
     this.lastUserTranscript = transcript;
     this.lastUserTurnId = userTurn.id;
-    if (likelyMemory(transcript)) {
-      this.forceNextToolCall('durable_memory_intent', { turnEpoch: this.turnEpoch, turnId: userTurn.id });
+    this.respondToUserTranscript(transcript, {
+      turnEpoch: this.turnEpoch,
+      turnId: userTurn.id,
+    }).catch((error) => {
+      emitEvent('error', { source: 'voice_loop.respond_to_transcript', message: error.message });
+    });
+  }
+
+  shouldDelegateTranscript(transcript) {
+    try {
+      return Boolean(this.taskRouter?.shouldDelegate?.(transcript));
+    } catch (error) {
+      emitEvent('error', { source: 'handoff.intent_detection', message: error.message });
+      return false;
     }
+  }
+
+  fillerTextForTranscript(transcript) {
+    if (/(查|查询|搜索|找|提醒|日程|天气|新闻|价格|列表|有哪些)/.test(transcript)) {
+      return Math.random() < 0.5 ? '我查查' : '我看一下';
+    }
+    return Math.random() < 0.5 ? '我看看' : '稍等哦';
+  }
+
+  async respondToUserTranscript(transcript, { turnEpoch, turnId } = {}) {
+    if (turnEpoch < this.turnEpoch) {
+      emitEvent('realtime.response_skipped', {
+        reason: 'stale_turn',
+        turnEpoch,
+        currentTurnEpoch: this.turnEpoch,
+        turnId,
+      });
+      return;
+    }
+    if (!this.shouldDelegateTranscript(transcript)) {
+      this.forceToolChoice = null;
+      this.syncRealtimeContext('direct_chat_response');
+      this.realtime.createResponse();
+      return;
+    }
+
+    await this.speakControlledFiller(this.fillerTextForTranscript(transcript), { turnEpoch, turnId });
+    if (turnEpoch < this.turnEpoch) {
+      emitEvent('realtime.tool_request_skipped', {
+        reason: 'stale_turn_after_filler',
+        turnEpoch,
+        currentTurnEpoch: this.turnEpoch,
+        turnId,
+      });
+      return;
+    }
+    this.forceToolChoice = 'required';
+    this.syncRealtimeContext('controlled_filler_completed_require_tool');
+    this.realtime.createResponse();
+    emitEvent('realtime.tool_response_requested', {
+      toolName: 'handoff_to_background',
+      turnEpoch,
+      turnId,
+    });
+  }
+
+  async speakControlledFiller(text, { turnEpoch, turnId } = {}) {
+    const filler = String(text || '').trim();
+    if (!filler || typeof this.realtime.createSpeechResponse !== 'function') {
+      return;
+    }
+    emitEvent('realtime.controlled_filler_started', { text: filler, turnEpoch, turnId });
+    this.realtime.createSpeechResponse(filler);
+    if (typeof this.realtime.waitFor === 'function') {
+      try {
+        await this.realtime.waitFor('response.done', 10000);
+      } catch (error) {
+        emitEvent('error', { source: 'controlled_filler.wait_for_response_done', message: error.message });
+      }
+    }
+    await this.waitForCurrentPlaybackDone({ timeoutMs: 5000 });
+    await this.waitForPostFillerPause();
+    emitEvent('realtime.controlled_filler_completed', { text: filler, turnEpoch, turnId });
   }
 
   handleAssistantDelta(delta) {
@@ -537,14 +621,31 @@ export class VoiceLoop {
   }
 
   async waitForCurrentPlaybackDone({ timeoutMs = 3000 } = {}) {
-    if (!this.playAudio || !this.isPlaybackDraining || this.lastResponseAudioBytes <= 0) {
+    if (!this.playAudio) {
       return;
     }
-    const estimatedWaitMs = Math.max(0, this.suppressInputUntil - Date.now());
+    const playerWaitMs = typeof this.player.pendingPlaybackMs === 'function' ? this.player.pendingPlaybackMs() : 0;
+    const hasKnownPlayback = this.isPlaybackDraining
+      || this.currentResponseAudioBytes > 0
+      || this.lastResponseAudioBytes > 0
+      || playerWaitMs > 0;
+    if (!hasKnownPlayback) {
+      return;
+    }
+    const estimatedWaitMs = Math.max(0, this.suppressInputUntil - Date.now(), playerWaitMs);
     emitEvent('handoff.waiting_for_playback', {
       estimatedWaitMs,
+      playerWaitMs,
       timeoutMs,
     });
+    if (typeof this.player.waitForIdle === 'function') {
+      const idle = await this.player.waitForIdle({ timeoutMs });
+      emitEvent(idle ? 'handoff.playback_idle' : 'handoff.playback_idle_timeout', {
+        estimatedWaitMs,
+        timeoutMs,
+      });
+      return;
+    }
     await new Promise((resolve) => {
       const timeout = setTimeout(() => {
         cleanup();
@@ -567,6 +668,16 @@ export class VoiceLoop {
       };
       this.responsePlaybackWaiters.push(done);
     });
+  }
+
+  async waitForPostFillerPause() {
+    if (!this.playAudio || this.lastResponseAudioBytes <= 0 || this.handoffPostFillerPauseMs <= 0) {
+      return;
+    }
+    emitEvent('handoff.post_filler_pause', {
+      pauseMs: this.handoffPostFillerPauseMs,
+    });
+    await new Promise((resolve) => setTimeout(resolve, this.handoffPostFillerPauseMs));
   }
 
   async handleFunctionCall(functionCall) {
@@ -613,6 +724,7 @@ export class VoiceLoop {
 
     await this.waitForCurrentResponseDone();
     await this.waitForCurrentPlaybackDone();
+    await this.waitForPostFillerPause();
     this.realtime.createFunctionCallOutput(functionCall.callId, output);
     this.activeFunctionCall = {
       backgroundTaskId: output.backgroundTaskId,
@@ -621,7 +733,7 @@ export class VoiceLoop {
     };
     this.forceToolChoice = null;
     this.syncRealtimeContext('background_function_call_completed');
-    this.realtime.createResponse();
+    this.createResultSpeechResponse(output.message || '处理完成。');
     emitEvent('tool_call.completed', {
       toolName: functionCall.name,
       callId: functionCall.callId,
@@ -630,18 +742,21 @@ export class VoiceLoop {
     });
   }
 
-  forceNextToolCall(reason, { turnEpoch, turnId } = {}) {
-    if (typeof this.realtime.updateSession !== 'function') {
+  createResultSpeechResponse(message) {
+    const text = String(message || '').trim();
+    if (!text) {
       return;
     }
-    this.forceToolChoice = 'required';
-    this.realtime.updateSession(this.realtimeSessionConfig());
-    emitEvent('realtime.tool_choice_forced', {
-      reason,
-      toolName: 'handoff_to_background',
-      turnEpoch,
-      turnId,
-    });
+    if (typeof this.realtime.createSpeechResponse === 'function') {
+      this.realtime.createSpeechResponse(text);
+      return;
+    }
+    this.realtime.createUserTextMessage([
+      '后台任务结果如下。',
+      text,
+      '请只用一句自然、简短、适合语音播报的话告诉用户，不要调用工具。',
+    ].join('\n'));
+    this.realtime.createResponse();
   }
 
   async runBackgroundHandoff(userIntent, { args, callId, signal, turnEpoch, turnId }) {

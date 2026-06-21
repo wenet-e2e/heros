@@ -236,11 +236,14 @@ Common overrides:
 - `HEROS_REALTIME_CONNECT_RETRY_DELAY_MS` (default `500`)
 - `HEROS_VOICE_INPUT_MODE` (default `half_duplex`; use `full_duplex` only when local echo cancellation is available)
 - `HEROS_VOICE_OUTPUT_TAIL_MS` (default `800`; microphone suppression tail after assistant playback)
+- `HEROS_HANDOFF_POST_FILLER_PAUSE_MS` (default `250`; short pause after filler playback before final task result)
 - `HEROS_BACKGROUND_MODEL`
 - `HEROS_BACKGROUND_TASK_TIMEOUT_MS` (default `60000`)
 - `HEROS_TIME_ZONE`
 - `HEROS_REMINDER_POLL_MS`
 - `HEROS_DATA_DIR`
 - `HEROS_EVENT_LOG_PATH`
+
+The CLI voice player keeps one long-lived SoX `play` stream and maintains a local playback cursor from written PCM bytes. At each response boundary it writes a short silence tail to flush SoX pipe buffering, then handoffs wait for the cursor to drain before the final background result is spoken.
 
 See `.env.example` for a local template.
