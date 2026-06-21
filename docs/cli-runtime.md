@@ -75,7 +75,7 @@ Local runtime data is written under `.heros/` by default and is ignored by git:
 - `events.ndjson`: structured runtime event log.
 - `reminders.json`: local reminder data.
 - `agent-bootstrap/`: runtime copies of `AGENTS.md`, `SOUL.md`, and `MEMORY.md`.
-- `skills/`: optional local skill definitions that can override built-in skills by ID.
+- `skills/`: optional local `SKILL.md` definitions that can override built-in skills by ID.
 
 ## Typed CLI Commands
 
@@ -108,6 +108,7 @@ Implemented:
 - Background Agent receives a rich context package with Shared Context, scheduled reminders, memory, and runtime metadata.
 - Background Agent receives the Skill Registry summary and skill instructions in its context package.
 - Runtime loads built-in skills from `skills/` and optional local skill overrides from `.heros/skills/`.
+- Runtime supports standard `SKILL.md` custom skills with YAML frontmatter and Markdown instructions.
 - Headless skill listing and skill detail commands expose loaded capabilities and tools.
 - Realtime session instructions include the current Skill Registry summary in Shared Context.
 - Background Agent context package preview command for no-network routing and prompt-context debugging.

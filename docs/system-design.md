@@ -161,8 +161,10 @@ Phase 1 CLI 中增加一个本地确定性任务路由层，位于 Interaction M
 
 Phase 1 引入轻量技能系统，用技能定义组织任务能力，而不是把所有能力硬编码在 prompt 中：
 
-- 内置技能放在仓库 `skills/<skill_id>/skill.json`。
-- 本地用户技能放在运行时目录 `.heros/skills/<skill_id>/skill.json`，同 ID 时覆盖内置技能。
+- 内置技能放在仓库 `skills/<skill_id>/skill.json` 或 `skills/<skill_id>/SKILL.md`。
+- 本地用户技能放在运行时目录 `.heros/skills/<skill_id>/SKILL.md`，同 ID 时覆盖内置技能。
+- `SKILL.md` 采用标准技能形式：YAML frontmatter 中至少包含 `name` 和 `description`，正文是给 Agent 的技能说明。
+- HerOS 额外支持可选 frontmatter：`version`、`status`、`triggers`、`capabilities`、`tools`，用于暴露任务能力、风险等级和 handler。
 - 每个技能定义包含技能元数据、触发词、capabilities、tools、风险等级和给 Agent 的执行说明。
 - Skill Registry 在 runtime 启动时加载技能，并把启用技能写入 Shared Context。
 - Realtime Interaction Model 能看到技能摘要，用于知道哪些能力应进入任务链路。
@@ -173,6 +175,8 @@ Phase 1 引入轻量技能系统，用技能定义组织任务能力，而不是
 
 - `reminders`：创建、修改、查询、取消和到点播报提醒。
 - `memory`：创建、查询、修改和删除长期记忆。
+
+用户自定义技能说明见 [docs/custom-skills.md](./custom-skills.md)。
 
 ### 5.6 单一语音播报出口
 

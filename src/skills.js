@@ -1,13 +1,105 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SKILL_FILE_NAME = 'skill.json';
+const JSON_SKILL_FILE_NAME = 'skill.json';
+const MARKDOWN_SKILL_FILE_NAME = 'SKILL.md';
 const VALID_SKILL_ID = /^[a-z][a-z0-9_-]{1,63}$/;
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
 const VALID_HANDLERS = new Set(['local_task_router', 'background_agent']);
 
 function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function parseScalar(value) {
+  const trimmed = String(value || '').trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function frontmatterValue(frontmatter, key) {
+  const match = frontmatter.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'));
+  return match ? parseScalar(match[1]) : '';
+}
+
+function frontmatterBlock(frontmatter, key) {
+  const lines = frontmatter.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.match(new RegExp(`^${key}:\\s*$`)));
+  if (start === -1) {
+    return [];
+  }
+  const block = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S[^:]*:\s*/.test(line)) {
+      break;
+    }
+    if (line.trim()) {
+      block.push(line);
+    }
+  }
+  return block;
+}
+
+function frontmatterStringList(frontmatter, key) {
+  return frontmatterBlock(frontmatter, key)
+    .map((line) => line.match(/^\s*-\s*(.*)$/)?.[1])
+    .filter(Boolean)
+    .map(parseScalar);
+}
+
+function frontmatterObjectList(frontmatter, key) {
+  const items = [];
+  let current = null;
+  for (const line of frontmatterBlock(frontmatter, key)) {
+    const itemMatch = line.match(/^\s*-\s*(.*)$/);
+    if (itemMatch) {
+      if (current) {
+        items.push(current);
+      }
+      current = {};
+      const rest = itemMatch[1].trim();
+      const pair = rest.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+      if (pair) {
+        current[pair[1]] = parseScalar(pair[2]);
+      }
+      continue;
+    }
+    const pair = line.match(/^\s+([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (pair && current) {
+      current[pair[1]] = parseScalar(pair[2]);
+    }
+  }
+  if (current) {
+    items.push(current);
+  }
+  return items;
+}
+
+function splitMarkdownSkill(content, filePath) {
+  if (!content.startsWith('---')) {
+    throw new Error(`Missing YAML frontmatter in ${filePath}`);
+  }
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) {
+    throw new Error(`Invalid YAML frontmatter in ${filePath}`);
+  }
+  return {
+    frontmatter: match[1],
+    body: match[2].trim(),
+  };
+}
+
+function slugFromName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function compactArray(value) {
@@ -78,6 +170,33 @@ export function normalizeSkill(raw, { filePath, source }) {
   };
 }
 
+export function readMarkdownSkill(filePath, source) {
+  const { frontmatter, body } = splitMarkdownSkill(fs.readFileSync(filePath, 'utf8'), filePath);
+  const name = frontmatterValue(frontmatter, 'name');
+  const description = frontmatterValue(frontmatter, 'description');
+  const id = frontmatterValue(frontmatter, 'id') || slugFromName(name) || path.basename(path.dirname(filePath));
+  const capabilities = frontmatterObjectList(frontmatter, 'capabilities');
+  const tools = frontmatterObjectList(frontmatter, 'tools');
+  return normalizeSkill({
+    id,
+    name,
+    description,
+    version: frontmatterValue(frontmatter, 'version') || '0.1.0',
+    status: frontmatterValue(frontmatter, 'status') || 'enabled',
+    triggers: frontmatterStringList(frontmatter, 'triggers'),
+    capabilities: capabilities.length > 0 ? capabilities : [
+      {
+        type: id,
+        description,
+        handler: 'background_agent',
+        risk: 'medium',
+      },
+    ],
+    tools,
+    instructions: body,
+  }, { filePath, source });
+}
+
 function skillDirs(rootDir) {
   if (!fs.existsSync(rootDir)) {
     return [];
@@ -85,13 +204,20 @@ function skillDirs(rootDir) {
   return fs.readdirSync(rootDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(rootDir, entry.name))
-    .filter((dir) => fs.existsSync(path.join(dir, SKILL_FILE_NAME)))
+    .filter((dir) => (
+      fs.existsSync(path.join(dir, MARKDOWN_SKILL_FILE_NAME))
+      || fs.existsSync(path.join(dir, JSON_SKILL_FILE_NAME))
+    ))
     .sort();
 }
 
 function loadSkillDir(rootDir, source) {
   return skillDirs(rootDir).map((dir) => {
-    const filePath = path.join(dir, SKILL_FILE_NAME);
+    const markdownPath = path.join(dir, MARKDOWN_SKILL_FILE_NAME);
+    if (fs.existsSync(markdownPath)) {
+      return readMarkdownSkill(markdownPath, source);
+    }
+    const filePath = path.join(dir, JSON_SKILL_FILE_NAME);
     return normalizeSkill(readJsonFile(filePath), { filePath, source });
   });
 }

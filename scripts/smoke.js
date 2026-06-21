@@ -286,39 +286,58 @@ function writeSkill(dir, id, patch = {}) {
   }, null, 2)}\n`);
 }
 
+function writeMarkdownSkill(dir, id, body = 'Use this skill for smoke tests.') {
+  const skillDir = path.join(dir, id);
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.writeFileSync(path.join(skillDir, 'SKILL.md'), `---
+name: ${id}
+description: Use when ${id} behavior is needed in a smoke test.
+triggers:
+  - ${id}
+capabilities:
+  - type: ${id}_task
+    description: ${id} task from markdown
+    handler: background_agent
+    risk: medium
+tools:
+  - name: ${id}_tool
+    description: ${id} markdown tool
+    risk: low
+---
+
+# ${id}
+
+${body}
+`);
+}
+
 function testSkillRegistry() {
   const dir = createTempDir('heros-skills-');
   const cwd = path.join(dir, 'repo');
   const dataDir = path.join(dir, 'data');
   writeSkill(path.join(cwd, 'skills'), 'alpha');
-  writeSkill(path.join(dataDir, 'skills'), 'alpha', {
-    name: 'alpha local',
-    capabilities: [
-      {
-        type: 'alpha_local_task',
-        description: 'local override task',
-        handler: 'background_agent',
-        risk: 'medium',
-      },
-    ],
-  });
+  writeMarkdownSkill(path.join(dataDir, 'skills'), 'alpha', 'Local markdown override instructions.');
   writeSkill(path.join(dataDir, 'skills'), 'beta');
+  writeMarkdownSkill(path.join(dataDir, 'skills'), 'gamma');
   const { registry, builtInDir, localDir } = loadSkillRegistry({ cwd, dataDir });
   const summary = registry.summary();
   if (!builtInDir.endsWith('skills') || !localDir.endsWith('skills')) {
     throw new Error('skill registry directories smoke failed');
   }
-  if (summary.total !== 2 || summary.enabled !== 2) {
+  if (summary.total !== 3 || summary.enabled !== 3) {
     throw new Error('skill registry count smoke failed');
   }
-  if (registry.find('alpha')?.name !== 'alpha local') {
-    throw new Error('local skill did not override built-in skill');
+  if (!registry.find('alpha')?.instructions.includes('Local markdown override')) {
+    throw new Error('local SKILL.md did not override built-in skill');
   }
-  if (registry.findByTaskType('alpha_local_task')?.id !== 'alpha') {
-    throw new Error('skill task lookup smoke failed');
+  if (registry.findByTaskType('alpha_task')?.id !== 'alpha') {
+    throw new Error('markdown skill task lookup smoke failed');
   }
   if (!summary.capabilities.some((capability) => capability.type === 'beta_task')) {
     throw new Error('skill capability summary smoke failed');
+  }
+  if (!summary.tools.some((tool) => tool.name === 'gamma_tool' && tool.skillId === 'gamma')) {
+    throw new Error('markdown skill tool summary smoke failed');
   }
   if (!registry.handledLocally().includes('beta_task')) {
     throw new Error('skill local handler summary smoke failed');
