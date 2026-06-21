@@ -82,6 +82,9 @@ export class VoiceLoop {
     this.isPlaybackDraining = false;
     this.responsePlaybackEpoch = 0;
     this.responsePlaybackDoneTimer = null;
+    this.responsePlaybackWaiters = [];
+    this.currentResponseAudioBytes = 0;
+    this.lastResponseAudioBytes = 0;
     this.isResponding = false;
     this.isAnnouncing = false;
     this.announcementQueue = [];
@@ -117,7 +120,7 @@ export class VoiceLoop {
       this.config.realtimeInstructions,
       [
         '工具边界：你只能直接聊天和自然播报。',
-        '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，只能先说一句极短中文 filler：“我看看”“我查查”“我看一下”“我查一下”四选一，然后立即调用 handoff_to_background。',
+        '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，先说一句极短中文 filler，例如“我看看”“我查查”“我看一下”“我查一下”这类短句，然后立即调用 handoff_to_background。',
         '当用户表达稳定偏好或事实时，也必须调用 handoff_to_background 写入记忆，例如“我喜欢吃苹果”“我不喜欢咖啡”“我习惯晚上工作”“我的名字是...”。',
         '不要只口头说“我记住了/我记下了”；只有收到 handoff_to_background 的 function result 后才能确认已经记住。',
         '不要自己编造后台任务结果；收到 handoff_to_background 的 function result 后，再用自然、简短、适合语音的中文告诉用户结果。',
@@ -262,6 +265,7 @@ export class VoiceLoop {
         this.isResponding = true;
         this.currentAssistantText = '';
         this.currentAssistantTurnId = null;
+        this.currentResponseAudioBytes = 0;
         this.player.begin();
         this.setState('speaking', 'response_created');
         emitEvent('response.started', { source: 'realtime' });
@@ -271,10 +275,12 @@ export class VoiceLoop {
         this.handleAssistantDone(event.transcript || event.text || this.currentAssistantText);
       } else if (event.type === 'response.audio.delta') {
         const audio = Buffer.from(event.delta || '', 'base64');
+        this.currentResponseAudioBytes += audio.length;
         this.extendInputSuppressionForOutput(audio.length, 'response_audio_delta');
         this.player.write(audio);
       } else if (event.type === 'response.done') {
         this.isResponding = false;
+        this.lastResponseAudioBytes = this.currentResponseAudioBytes;
         this.player.end();
         this.startInputSuppressionTail('response_done');
         this.isPlaybackDraining = true;
@@ -374,6 +380,13 @@ export class VoiceLoop {
     }
   }
 
+  resolveResponsePlaybackWaiters() {
+    const waiters = this.responsePlaybackWaiters.splice(0);
+    for (const resolve of waiters) {
+      resolve();
+    }
+  }
+
   scheduleResponsePlaybackDone(epoch) {
     this.clearResponsePlaybackDoneTimer();
     const waitMs = Math.max(0, this.suppressInputUntil - Date.now());
@@ -395,6 +408,7 @@ export class VoiceLoop {
     emitEvent('response.playback_completed', {
       turnId: this.currentAssistantTurnId,
     });
+    this.resolveResponsePlaybackWaiters();
     this.setState('listening', 'response_playback_done', { turnId: this.currentAssistantTurnId });
     this.drainAnnouncements();
   }
@@ -522,6 +536,39 @@ export class VoiceLoop {
     }
   }
 
+  async waitForCurrentPlaybackDone({ timeoutMs = 3000 } = {}) {
+    if (!this.playAudio || !this.isPlaybackDraining || this.lastResponseAudioBytes <= 0) {
+      return;
+    }
+    const estimatedWaitMs = Math.max(0, this.suppressInputUntil - Date.now());
+    emitEvent('handoff.waiting_for_playback', {
+      estimatedWaitMs,
+      timeoutMs,
+    });
+    await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        emitEvent('handoff.playback_wait_timeout', {
+          estimatedWaitMs,
+          timeoutMs,
+        });
+        resolve();
+      }, timeoutMs);
+      const done = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        clearTimeout(timeout);
+        const index = this.responsePlaybackWaiters.indexOf(done);
+        if (index !== -1) {
+          this.responsePlaybackWaiters.splice(index, 1);
+        }
+      };
+      this.responsePlaybackWaiters.push(done);
+    });
+  }
+
   async handleFunctionCall(functionCall) {
     if (functionCall.name !== 'handoff_to_background') {
       return;
@@ -565,6 +612,7 @@ export class VoiceLoop {
     const output = await task;
 
     await this.waitForCurrentResponseDone();
+    await this.waitForCurrentPlaybackDone();
     this.realtime.createFunctionCallOutput(functionCall.callId, output);
     this.activeFunctionCall = {
       backgroundTaskId: output.backgroundTaskId,

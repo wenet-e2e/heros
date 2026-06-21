@@ -3498,8 +3498,8 @@ function testVoiceLoopRealtimeInstructions() {
       throw new Error('voice loop short filler instruction smoke failed');
     }
   }
-  if (sessionConfig.instructions.includes('我找找')) {
-    throw new Error('voice loop filler should stay short and constrained');
+  if (sessionConfig.instructions.includes('四选一')) {
+    throw new Error('voice loop filler should stay flexible');
   }
 }
 
@@ -3871,6 +3871,69 @@ async function testVoiceLoopBackgroundFunctionCall() {
     || !events.find((event) => event.type === 'tool_call.completed' && event.backgroundTaskId === 'task_function_call')
   ) {
     throw new Error('voice loop background function call smoke failed');
+  }
+  configureEvents();
+}
+
+async function testVoiceLoopFunctionCallWaitsForFillerPlayback() {
+  const dir = createTempDir('heros-voice-function-call-playback-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const realtime = new EventEmitter();
+  const calls = [];
+  realtime.updateSession = () => {};
+  realtime.createFunctionCallOutput = (callId, output) => {
+    calls.push({ type: 'function_call_output', callId, output });
+  };
+  realtime.createResponse = () => {
+    calls.push({ type: 'response.create' });
+  };
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: {
+      async maybeHandle() {
+        return {
+          backgroundTaskId: 'task_fast_background',
+          type: 'memory_created',
+          source: 'background_memory_module',
+          message: '记好了。',
+        };
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  loop.attachRealtimeEvents();
+  loop.isResponding = false;
+  loop.isPlaybackDraining = true;
+  loop.lastResponseAudioBytes = 480;
+  loop.suppressInputUntil = Date.now() + 100;
+  loop.lastUserTurnId = 'turn_fast_background';
+
+  realtime.emit('event', {
+    type: 'response.function_call_arguments.done',
+    call_id: 'call_fast_background',
+    name: 'handoff_to_background',
+    arguments: JSON.stringify({
+      user_intent: '我喜欢吃苹果',
+      reason: 'memory',
+    }),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  if (calls.length !== 0) {
+    throw new Error('voice loop function call should wait for filler playback before final response');
+  }
+  loop.finishResponsePlayback(loop.responsePlaybackEpoch);
+  await waitForCondition(() => calls.length === 2);
+  const events = readEventLog(logPath);
+  if (
+    calls[0].type !== 'function_call_output'
+    || calls[1].type !== 'response.create'
+    || !events.find((event) => event.type === 'handoff.waiting_for_playback')
+  ) {
+    throw new Error('voice loop function call playback wait smoke failed');
   }
   configureEvents();
 }
@@ -4328,6 +4391,7 @@ await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
 await testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopBackgroundFunctionCall();
+await testVoiceLoopFunctionCallWaitsForFillerPlayback();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();
