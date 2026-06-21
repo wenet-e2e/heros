@@ -3947,6 +3947,54 @@ async function testVoiceLoopBackgroundFunctionCall() {
   configureEvents();
 }
 
+async function testVoiceLoopUnsupportedBackgroundHandoff() {
+  const realtime = new EventEmitter();
+  const calls = [];
+  realtime.updateSession = () => {};
+  realtime.createFunctionCallOutput = (callId, output) => {
+    calls.push({ type: 'function_call_output', callId, output });
+  };
+  realtime.createSpeechResponse = (text) => {
+    calls.push({ type: 'speech_response', text });
+  };
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: {
+      async maybeHandle() {
+        return null;
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.attachRealtimeEvents();
+  for (const userIntent of ['今天天气怎么样？', '查看我今天都有哪些 To do。']) {
+    calls.length = 0;
+    realtime.emit('event', {
+      type: 'response.function_call_arguments.done',
+      call_id: `call_${Buffer.from(userIntent).toString('hex').slice(0, 8)}`,
+      name: 'handoff_to_background',
+      arguments: JSON.stringify({
+        user_intent: userIntent,
+        reason: 'requires_background_capability',
+      }),
+    });
+    await waitForCondition(() => calls.length === 2);
+    if (
+      calls[0].type !== 'function_call_output'
+      || calls[0].output.type !== 'unsupported_capability'
+      || calls[0].output.message.includes('不需要后台能力')
+      || !calls[0].output.message.includes('还没有接入')
+      || calls[1].type !== 'speech_response'
+      || calls[1].text.includes('不需要后台能力')
+    ) {
+      throw new Error('voice loop unsupported handoff boundary smoke failed');
+    }
+  }
+}
+
 async function testVoiceLoopFunctionCallWaitsForFillerPlayback() {
   const dir = createTempDir('heros-voice-function-call-playback-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -4481,6 +4529,7 @@ await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
 await testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopBackgroundFunctionCall();
+await testVoiceLoopUnsupportedBackgroundHandoff();
 await testVoiceLoopFunctionCallWaitsForFillerPlayback();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();

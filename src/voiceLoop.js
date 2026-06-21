@@ -759,6 +759,21 @@ export class VoiceLoop {
     this.realtime.createResponse();
   }
 
+  unsupportedBackgroundCapability(userIntent, { args, callId }) {
+    const available = '现阶段我可以处理提醒、长期记忆，以及查询或取消已有提醒。';
+    const reason = String(args?.reason || '').trim();
+    return {
+      ok: false,
+      callId,
+      type: 'unsupported_capability',
+      source: 'background_capability_boundary',
+      message: `这个请求需要后台能力，但当前还没有接入对应的工具或技能，所以我不能准确完成。${available}`,
+      userIntent,
+      reason,
+      availableCapabilities: ['reminders', 'memory', 'list_reminders', 'cancel_reminder'],
+    };
+  }
+
   async runBackgroundHandoff(userIntent, { args, callId, signal, turnEpoch, turnId }) {
     if (!userIntent) {
       return {
@@ -772,11 +787,7 @@ export class VoiceLoop {
     try {
       result = await this.taskRouter.maybeHandle(userIntent, { turnId, signal });
       if (!result) {
-        result = {
-          type: 'none',
-          message: '这个请求不需要后台能力处理，可以直接继续和用户聊天。',
-          source: 'background_agent',
-        };
+        return this.unsupportedBackgroundCapability(userIntent, { args, callId });
       }
       return {
         ok: true,
