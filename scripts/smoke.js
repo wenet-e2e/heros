@@ -3409,6 +3409,71 @@ function testVoiceLoopInputSuppression() {
   configureEvents();
 }
 
+function testVoiceLoopOutputDurationSuppression() {
+  const loop = new VoiceLoop({
+    config: {
+      voiceInputMode: 'half_duplex',
+      voiceOutputTailMs: 1000,
+    },
+    realtime: {
+      appendAudio() {},
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  const before = Date.now();
+  loop.extendInputSuppressionForOutput(48000, 'smoke');
+  if (loop.suppressInputUntil < before + 900) {
+    throw new Error('voice loop output duration suppression smoke failed');
+  }
+  loop.startInputSuppressionTail('smoke');
+  if (loop.suppressInputUntil < before + 1800) {
+    throw new Error('voice loop output tail stacking smoke failed');
+  }
+}
+
+async function testVoiceLoopIgnoresEchoSpeechStarted() {
+  const dir = createTempDir('heros-voice-echo-speech-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  let cancelCount = 0;
+  const realtime = new EventEmitter();
+  realtime.cancelResponse = () => {
+    cancelCount += 1;
+  };
+  const loop = new VoiceLoop({
+    config: {
+      voiceInputMode: 'half_duplex',
+      voiceOutputTailMs: 1000,
+    },
+    realtime,
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  loop.attachRealtimeEvents();
+  loop.isResponding = true;
+  realtime.emit('event', { type: 'input_audio_buffer.speech_started' });
+  realtime.emit('event', { type: 'input_audio_buffer.speech_stopped' });
+  realtime.emit('event', { type: 'conversation.item.input_audio_transcription.completed', transcript: 'echo text' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const events = readEventLog(logPath);
+  if (
+    cancelCount !== 0
+    || loop.turnEpoch !== 0
+    || !events.find((event) => event.type === 'input_audio.ignored')
+    || !events.find((event) => event.type === 'input_audio.ignored_completed')
+    || events.find((event) => event.type === 'response.interrupted')
+    || events.find((event) => event.type === 'transcript.completed')
+  ) {
+    throw new Error('voice loop echo speech ignore smoke failed');
+  }
+  configureEvents();
+}
+
 function testVoiceLoopFullDuplexInput() {
   const appended = [];
   const loop = new VoiceLoop({
@@ -3911,6 +3976,8 @@ testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
 await testVoiceLoopInputAudioEpoch();
 testVoiceLoopInputSuppression();
+testVoiceLoopOutputDurationSuppression();
+await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
 testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopReminderAnnouncementCorrelation();

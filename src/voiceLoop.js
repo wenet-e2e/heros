@@ -19,6 +19,8 @@ export class VoiceLoop {
     this.suppressInputUntil = 0;
     this.suppressedInputChunks = 0;
     this.lastSuppressionReason = null;
+    this.ignoredSpeechActive = false;
+    this.ignoredSpeechCount = 0;
     this.isResponding = false;
     this.isAnnouncing = false;
     this.announcementQueue = [];
@@ -147,8 +149,24 @@ export class VoiceLoop {
       } else if (event.type === 'input_audio_buffer.speech_started') {
         this.handleSpeechStarted();
       } else if (event.type === 'input_audio_buffer.speech_stopped') {
+        if (this.ignoredSpeechActive) {
+          this.ignoredSpeechActive = false;
+          emitEvent('input_audio.ignored_completed', {
+            mode: this.voiceInputMode,
+            ignoredSpeechCount: this.ignoredSpeechCount,
+          });
+          return;
+        }
         emitEvent('input_audio.completed', { turnEpoch: this.turnEpoch });
       } else if (event.type === 'conversation.item.input_audio_transcription.completed') {
+        if (this.shouldIgnoreTranscript()) {
+          emitEvent('transcript.ignored', {
+            mode: this.voiceInputMode,
+            reason: this.inputSuppressionReason() || 'recent_assistant_output',
+            text: event.transcript || '',
+          });
+          return;
+        }
         this.handleUserTranscript(event.transcript || '');
       } else if (event.type === 'response.created') {
         this.isResponding = true;
@@ -161,7 +179,9 @@ export class VoiceLoop {
       } else if (event.type === 'response.audio_transcript.done' || event.type === 'response.text.done') {
         this.handleAssistantDone(event.transcript || event.text || this.currentAssistantText);
       } else if (event.type === 'response.audio.delta') {
-        this.player.write(Buffer.from(event.delta || '', 'base64'));
+        const audio = Buffer.from(event.delta || '', 'base64');
+        this.extendInputSuppressionForOutput(audio.length, 'response_audio_delta');
+        this.player.write(audio);
       } else if (event.type === 'response.done') {
         this.isResponding = false;
         this.startInputSuppressionTail('response_done');
@@ -221,19 +241,59 @@ export class VoiceLoop {
     return true;
   }
 
+  extendInputSuppressionForOutput(byteLength, reason) {
+    if (this.voiceInputMode === 'full_duplex' || !this.playAudio || byteLength <= 0) {
+      return;
+    }
+    const bytesPerSecond = 24000 * 2;
+    const audioDurationMs = Math.ceil((byteLength / bytesPerSecond) * 1000);
+    const now = Date.now();
+    const startAt = Math.max(now, this.suppressInputUntil);
+    this.suppressInputUntil = startAt + audioDurationMs;
+    emitEvent('input_audio.suppression_extended', {
+      mode: this.voiceInputMode,
+      reason,
+      audioBytes: byteLength,
+      audioDurationMs,
+      suppressForMs: Math.max(0, this.suppressInputUntil - now),
+    });
+  }
+
   startInputSuppressionTail(reason) {
     if (this.voiceInputMode === 'full_duplex' || !this.playAudio || this.voiceOutputTailMs <= 0) {
       return;
     }
-    this.suppressInputUntil = Date.now() + this.voiceOutputTailMs;
+    const now = Date.now();
+    this.suppressInputUntil = Math.max(this.suppressInputUntil, now) + this.voiceOutputTailMs;
     emitEvent('input_audio.suppression_tail_started', {
       mode: this.voiceInputMode,
       reason,
       tailMs: this.voiceOutputTailMs,
+      suppressForMs: Math.max(0, this.suppressInputUntil - now),
     });
   }
 
+  shouldIgnoreRemoteSpeech() {
+    return Boolean(this.inputSuppressionReason());
+  }
+
+  shouldIgnoreTranscript() {
+    return this.ignoredSpeechActive || this.shouldIgnoreRemoteSpeech();
+  }
+
   async handleSpeechStarted() {
+    const suppressionReason = this.inputSuppressionReason();
+    if (suppressionReason) {
+      this.ignoredSpeechActive = true;
+      this.ignoredSpeechCount += 1;
+      emitEvent('input_audio.ignored', {
+        mode: this.voiceInputMode,
+        reason: suppressionReason,
+        ignoredSpeechCount: this.ignoredSpeechCount,
+        turnEpoch: this.turnEpoch,
+      });
+      return;
+    }
     this.turnEpoch += 1;
     emitEvent('conversation.epoch_changed', { turnEpoch: this.turnEpoch, reason: 'user_speech_started' });
     this.cancelBackgroundTasks('user_speech_started');
