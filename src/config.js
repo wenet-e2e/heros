@@ -34,6 +34,11 @@ function numberConfig(name, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function enumConfig(name, fallback, allowed) {
+  const value = process.env[name] || fallback;
+  return allowed.includes(value) ? value : fallback;
+}
+
 export function getConfig({ requireApiKey = true } = {}) {
   loadEnvFile();
   const apiKey = process.env.DASHSCOPE_API_KEY;
@@ -64,6 +69,8 @@ export function getConfig({ requireApiKey = true } = {}) {
     realtimeVadSilenceDurationMs: process.env.HEROS_REALTIME_VAD_SILENCE_DURATION_MS || '800',
     realtimeConnectRetries: numberConfig('HEROS_REALTIME_CONNECT_RETRIES', 2),
     realtimeConnectRetryDelayMs: numberConfig('HEROS_REALTIME_CONNECT_RETRY_DELAY_MS', 500),
+    voiceInputMode: enumConfig('HEROS_VOICE_INPUT_MODE', 'half_duplex', ['half_duplex', 'full_duplex']),
+    voiceOutputTailMs: numberConfig('HEROS_VOICE_OUTPUT_TAIL_MS', 800),
     backgroundModel: process.env.HEROS_BACKGROUND_MODEL || 'qwen3.7-plus',
     backgroundTaskTimeoutMs: numberConfig('HEROS_BACKGROUND_TASK_TIMEOUT_MS', 60000),
     timeZone: process.env.HEROS_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',

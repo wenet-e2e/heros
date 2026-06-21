@@ -14,6 +14,11 @@ export class VoiceLoop {
     this.playAudio = playAudio;
     this.player = new PcmPlayer({ sampleRate: 24000, enabled: playAudio });
     this.recorder = new PcmRecorder({ sampleRate: 16000 });
+    this.voiceInputMode = config.voiceInputMode || 'half_duplex';
+    this.voiceOutputTailMs = Number.isFinite(Number(config.voiceOutputTailMs)) ? Number(config.voiceOutputTailMs) : 800;
+    this.suppressInputUntil = 0;
+    this.suppressedInputChunks = 0;
+    this.lastSuppressionReason = null;
     this.isResponding = false;
     this.isAnnouncing = false;
     this.announcementQueue = [];
@@ -96,7 +101,7 @@ export class VoiceLoop {
       await this.player.start();
       this.recorder.on('data', (chunk) => {
         try {
-          this.realtime.appendAudio(chunk);
+          this.appendMicrophoneAudio(chunk);
         } catch (error) {
           emitEvent('error', { source: 'input_audio_buffer.append', message: error.message });
         }
@@ -159,6 +164,7 @@ export class VoiceLoop {
         this.player.write(Buffer.from(event.delta || '', 'base64'));
       } else if (event.type === 'response.done') {
         this.isResponding = false;
+        this.startInputSuppressionTail('response_done');
         emitEvent('response.completed', {
           backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
           reminderId: this.activeAnnouncement?.reminderId,
@@ -172,6 +178,58 @@ export class VoiceLoop {
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
       }
+    });
+  }
+
+  inputSuppressionReason() {
+    if (this.voiceInputMode === 'full_duplex' || !this.playAudio) {
+      return null;
+    }
+    if (this.isResponding || this.isAnnouncing) {
+      return 'assistant_output_active';
+    }
+    if (Date.now() < this.suppressInputUntil) {
+      return 'assistant_output_tail';
+    }
+    return null;
+  }
+
+  appendMicrophoneAudio(chunk) {
+    const suppressionReason = this.inputSuppressionReason();
+    if (suppressionReason) {
+      this.suppressedInputChunks += 1;
+      if (this.lastSuppressionReason !== suppressionReason) {
+        emitEvent('input_audio.suppressed', {
+          mode: this.voiceInputMode,
+          reason: suppressionReason,
+          suppressedChunks: this.suppressedInputChunks,
+          tailMs: this.voiceOutputTailMs,
+        });
+        this.lastSuppressionReason = suppressionReason;
+      }
+      return false;
+    }
+    if (this.suppressedInputChunks > 0) {
+      emitEvent('input_audio.resumed', {
+        mode: this.voiceInputMode,
+        suppressedChunks: this.suppressedInputChunks,
+      });
+      this.suppressedInputChunks = 0;
+      this.lastSuppressionReason = null;
+    }
+    this.realtime.appendAudio(chunk);
+    return true;
+  }
+
+  startInputSuppressionTail(reason) {
+    if (this.voiceInputMode === 'full_duplex' || !this.playAudio || this.voiceOutputTailMs <= 0) {
+      return;
+    }
+    this.suppressInputUntil = Date.now() + this.voiceOutputTailMs;
+    emitEvent('input_audio.suppression_tail_started', {
+      mode: this.voiceInputMode,
+      reason,
+      tailMs: this.voiceOutputTailMs,
     });
   }
 

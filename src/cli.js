@@ -482,6 +482,8 @@ async function status() {
     realtimeModel: config.realtimeModel,
     backgroundModel: config.backgroundModel,
     backgroundTaskTimeoutMs: config.backgroundTaskTimeoutMs,
+    voiceInputMode: config.voiceInputMode,
+    voiceOutputTailMs: config.voiceOutputTailMs,
     timeZone: config.timeZone,
     dataDir: config.dataDir,
     eventLogPath: config.eventLogPath,

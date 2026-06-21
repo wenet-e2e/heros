@@ -225,6 +225,8 @@ Common overrides:
 - `HEROS_REALTIME_VAD_SILENCE_DURATION_MS`
 - `HEROS_REALTIME_CONNECT_RETRIES` (default `2`)
 - `HEROS_REALTIME_CONNECT_RETRY_DELAY_MS` (default `500`)
+- `HEROS_VOICE_INPUT_MODE` (default `half_duplex`; use `full_duplex` only when local echo cancellation is available)
+- `HEROS_VOICE_OUTPUT_TAIL_MS` (default `800`; microphone suppression tail after assistant playback)
 - `HEROS_BACKGROUND_MODEL`
 - `HEROS_BACKGROUND_TASK_TIMEOUT_MS` (default `60000`)
 - `HEROS_TIME_ZONE`

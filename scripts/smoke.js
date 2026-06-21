@@ -3366,6 +3366,72 @@ async function testVoiceLoopInputAudioEpoch() {
   configureEvents();
 }
 
+function testVoiceLoopInputSuppression() {
+  const dir = createTempDir('heros-voice-input-suppression-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const appended = [];
+  const loop = new VoiceLoop({
+    config: {
+      voiceInputMode: 'half_duplex',
+      voiceOutputTailMs: 1000,
+    },
+    realtime: {
+      appendAudio(chunk) {
+        appended.push(chunk);
+      },
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  loop.isResponding = true;
+  if (loop.appendMicrophoneAudio(Buffer.from('echo')) !== false || appended.length !== 0) {
+    throw new Error('voice loop half-duplex input suppression failed');
+  }
+  loop.isResponding = false;
+  loop.startInputSuppressionTail('smoke');
+  if (loop.appendMicrophoneAudio(Buffer.from('tail')) !== false || appended.length !== 0) {
+    throw new Error('voice loop tail input suppression failed');
+  }
+  loop.suppressInputUntil = 0;
+  if (loop.appendMicrophoneAudio(Buffer.from('user')) !== true || appended.length !== 1) {
+    throw new Error('voice loop input resume failed');
+  }
+  const events = readEventLog(logPath);
+  if (!events.find((event) => event.type === 'input_audio.suppressed')) {
+    throw new Error('voice loop input suppression event failed');
+  }
+  if (!events.find((event) => event.type === 'input_audio.resumed')) {
+    throw new Error('voice loop input resume event failed');
+  }
+  configureEvents();
+}
+
+function testVoiceLoopFullDuplexInput() {
+  const appended = [];
+  const loop = new VoiceLoop({
+    config: {
+      voiceInputMode: 'full_duplex',
+      voiceOutputTailMs: 1000,
+    },
+    realtime: {
+      appendAudio(chunk) {
+        appended.push(chunk);
+      },
+    },
+    taskRouter: null,
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: true,
+  });
+  loop.isResponding = true;
+  if (loop.appendMicrophoneAudio(Buffer.from('barge-in')) !== true || appended.length !== 1) {
+    throw new Error('voice loop full-duplex input smoke failed');
+  }
+}
+
 function testVoiceLoopAnnouncementResponseCorrelation() {
   const dir = createTempDir('heros-voice-response-correlation-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -3844,6 +3910,8 @@ testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
 testVoiceLoopAssistantTurnId();
 await testVoiceLoopInputAudioEpoch();
+testVoiceLoopInputSuppression();
+testVoiceLoopFullDuplexInput();
 testVoiceLoopAnnouncementResponseCorrelation();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
