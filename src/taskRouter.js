@@ -263,13 +263,29 @@ export class TaskRouter {
       return null;
     }
     const backgroundTaskId = createBackgroundTaskId();
+    const handledLocally = this.skillRegistry?.handledLocally?.() || LOCAL_TASK_ROUTER_HANDLED_LOCALLY;
+    const target = handledLocally.includes(decision.type) ? 'local_task_router' : 'background_agent';
+    const skill = this.skillRegistry?.findByTaskType(decision.type);
 
     emitEvent('background_task.requested', {
       backgroundTaskId,
       turnId,
       taskType: decision.type,
       reason: decision.reason,
+      target,
+      skillId: skill?.id || null,
+      skillName: skill?.name || null,
     });
+    if (skill) {
+      emitEvent('skill.invoked', {
+        backgroundTaskId,
+        turnId,
+        skillId: skill.id,
+        skillName: skill.name,
+        taskType: decision.type,
+        target,
+      });
+    }
     if (decision.type === 'memory') {
       return { ...this.handleMemory(text, { backgroundTaskId, turnId }), source: 'local_task_router' };
     }

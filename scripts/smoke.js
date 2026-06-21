@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { spawn, spawnSync } from 'node:child_process';
-import { configureEvents, emitEvent } from '../src/events.js';
+import { configureEvents, emitEvent, formatConsoleEvent } from '../src/events.js';
 import { BackgroundAgent } from '../src/backgroundAgent.js';
 import { MemoryStore } from '../src/memoryStore.js';
 import { ReminderStore } from '../src/reminders.js';
@@ -133,6 +133,45 @@ async function testEventLog() {
     throw new Error('event follow smoke failed');
   }
   configureEvents();
+}
+
+function testConsoleEventFormatting() {
+  const requested = formatConsoleEvent({
+    type: 'background_task.requested',
+    backgroundTaskId: 'task_123456789',
+    taskType: 'reminder',
+    target: 'background_agent',
+    skillId: 'reminders',
+    reason: 'likely_reminder',
+  }, { color: false });
+  if (!requested.includes('[schedule]') || !requested.includes('target=background_agent') || !requested.includes('skill=reminders')) {
+    throw new Error('console schedule event formatting smoke failed');
+  }
+
+  const skill = formatConsoleEvent({
+    type: 'skill.invoked',
+    backgroundTaskId: 'task_123456789',
+    taskType: 'reminder',
+    target: 'background_agent',
+    skillId: 'reminders',
+  }, { color: false });
+  if (!skill.includes('[skill]') || !skill.includes('reminders')) {
+    throw new Error('console skill event formatting smoke failed');
+  }
+
+  const tool = formatConsoleEvent({
+    type: 'tool_call.completed',
+    backgroundTaskId: 'task_123456789',
+    toolName: 'create_reminder',
+  }, { color: false });
+  if (!tool.includes('[tool]') || !tool.includes('create_reminder')) {
+    throw new Error('console tool event formatting smoke failed');
+  }
+
+  const ignored = formatConsoleEvent({ type: 'input_audio.suppressed', reason: 'playback' }, { color: false });
+  if (ignored !== null) {
+    throw new Error('console formatter should ignore noisy audio events');
+  }
 }
 
 async function testCommandExistsMissingWhich() {
@@ -2970,6 +3009,33 @@ async function testTaskRouterTurnLink() {
   }
 }
 
+async function testTaskRouterSkillEvents() {
+  const dir = createTempDir('heros-router-skill-events-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const memoryStore = new MemoryStore(path.join(dir, 'MEMORY.md'));
+  const skills = loadSkillRegistry({ cwd: process.cwd(), dataDir: dir });
+  const router = new TaskRouter({
+    context: new SharedContext(),
+    memoryStore,
+    backgroundAgent: null,
+    skillRegistry: skills.registry,
+  });
+  await router.maybeHandle('记住用户喜欢短回答', { turnId: 'turn_skill_events' });
+  const events = readEventLog(logPath);
+  const requested = events.find((event) => event.type === 'background_task.requested');
+  const invoked = events.find((event) => event.type === 'skill.invoked');
+  if (
+    requested?.target !== 'local_task_router'
+    || requested.skillId !== 'memory'
+    || invoked?.skillId !== 'memory'
+    || invoked.target !== 'local_task_router'
+  ) {
+    throw new Error('task router skill event smoke failed');
+  }
+  configureEvents();
+}
+
 async function testTaskRouterBackgroundFailure() {
   const dir = createTempDir('heros-router-background-failure-');
   const logPath = path.join(dir, 'events.ndjson');
@@ -4079,6 +4145,7 @@ function testTaskRouterListMemory() {
 }
 
 await testEventLog();
+testConsoleEventFormatting();
 await testCommandExistsMissingWhich();
 testReminderScheduler();
 testMemoryStore();
@@ -4144,6 +4211,7 @@ await testVoiceLoopBackgroundCancellation();
 await testVoiceLoopShutdownCancelsBackgroundTasks();
 testTaskRouterMemory();
 await testTaskRouterTurnLink();
+await testTaskRouterSkillEvents();
 await testTaskRouterBackgroundFailure();
 await testTaskRouterBackgroundClarification();
 await testTaskRouterBackgroundTimeout();
