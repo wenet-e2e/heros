@@ -247,6 +247,10 @@ export class DashScopeRealtimeClient extends EventEmitter {
         event = { type: 'raw.message', text };
       }
       this.emit('event', event);
+      if (event.type === 'error') {
+        this.emit('realtime.error', event);
+        return;
+      }
       this.emit(event.type, event);
     });
     this.ws.on('close', () => this.emit('close'));
@@ -280,6 +284,8 @@ export class DashScopeRealtimeClient extends EventEmitter {
     turnDetection = null,
     inputAudioTranscription,
     enableSearch = false,
+    toolChoice,
+    tools,
   }) {
     const session = {
       modalities,
@@ -295,6 +301,12 @@ export class DashScopeRealtimeClient extends EventEmitter {
     if (enableSearch) {
       session.enable_search = true;
       session.search_options = { enable_source: true };
+    }
+    if (tools) {
+      session.tools = tools;
+    }
+    if (toolChoice) {
+      session.tool_choice = toolChoice;
     }
     return this.send({ type: 'session.update', session });
   }
@@ -322,6 +334,17 @@ export class DashScopeRealtimeClient extends EventEmitter {
             text,
           },
         ],
+      },
+    });
+  }
+
+  createFunctionCallOutput(callId, output) {
+    return this.send({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: typeof output === 'string' ? output : JSON.stringify(output),
       },
     });
   }

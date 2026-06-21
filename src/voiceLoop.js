@@ -3,6 +3,63 @@ import { PcmPlayer, PcmRecorder } from './audio.js';
 import { emitEvent } from './events.js';
 import { connectRealtimeWithRetry } from './realtimeRetry.js';
 
+const BACKGROUND_HANDOFF_TOOL = Object.freeze({
+  type: 'function',
+  name: 'handoff_to_background',
+  description: 'Hand off task, tool, memory, skill, reminder, schedule, or other action requests to the HerOS background model.',
+  parameters: {
+    type: 'object',
+    properties: {
+      user_intent: {
+        type: 'string',
+        description: 'The user request that needs background handling, preserving important details.',
+      },
+      reason: {
+        type: 'string',
+        description: 'Why this request should be handled by the background model instead of direct chat.',
+      },
+      expected_response_style: {
+        type: 'string',
+        description: 'How the final spoken answer should sound to the user.',
+      },
+    },
+    required: ['user_intent'],
+  },
+});
+
+function parseFunctionArguments(value) {
+  if (!value) {
+    return {};
+  }
+  if (typeof value === 'object') {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { user_intent: String(value) };
+  }
+}
+
+function extractFunctionCall(event) {
+  if (event.type === 'response.function_call_arguments.done') {
+    return {
+      arguments: event.arguments,
+      callId: event.call_id || event.callId,
+      name: event.name,
+    };
+  }
+  const item = event.item || event.output_item;
+  if (item?.type === 'function_call') {
+    return {
+      arguments: item.arguments,
+      callId: item.call_id || item.callId,
+      name: item.name,
+    };
+  }
+  return null;
+}
+
 export class VoiceLoop {
   constructor({ agentBootstrap = {}, config, realtime, taskRouter, context, reminderScheduler, playAudio = true }) {
     this.agentBootstrap = agentBootstrap;
@@ -28,8 +85,12 @@ export class VoiceLoop {
     this.isAnnouncing = false;
     this.announcementQueue = [];
     this.activeAnnouncement = null;
+    this.activeFunctionCall = null;
     this.currentAssistantText = '';
     this.currentAssistantTurnId = null;
+    this.handledFunctionCallIds = new Set();
+    this.lastUserTranscript = '';
+    this.lastUserTurnId = null;
     this.backgroundTasks = new Set();
     this.backgroundTaskControllers = new Set();
     this.unsubscribeReminderTrigger = null;
@@ -52,6 +113,11 @@ export class VoiceLoop {
     ].filter(Boolean).join('\n\n');
     return [
       this.config.realtimeInstructions,
+      [
+        '工具边界：你只能直接聊天和自然播报。',
+        '当用户请求提醒、日程、任务、工具、记忆、skill 或任何需要执行/查询/修改状态的能力时，先用一句很短的中文 filler 自然回应，例如“我看看”“我查一下”“我找找”，然后调用 handoff_to_background。',
+        '不要自己编造后台任务结果；收到 handoff_to_background 的 function result 后，再用自然、简短、适合语音的中文告诉用户结果。',
+      ].join('\n'),
       bootstrap ? `Agent Bootstrap:\n${bootstrap}` : '',
       `Shared Context JSON:\n${JSON.stringify(sharedContext, null, 2)}`,
     ].filter(Boolean).join('\n\n');
@@ -71,6 +137,8 @@ export class VoiceLoop {
       inputAudioTranscription: {
         model: this.config.realtimeInputTranscriptionModel,
       },
+      toolChoice: 'auto',
+      tools: [BACKGROUND_HANDOFF_TOOL],
     };
   }
 
@@ -148,6 +216,16 @@ export class VoiceLoop {
 
   attachRealtimeEvents() {
     this.realtime.on('event', (event) => {
+      const functionCall = extractFunctionCall(event);
+      if (functionCall) {
+        this.handleFunctionCall(functionCall).catch((error) => {
+          emitEvent('tool_call.failed', {
+            toolName: functionCall.name || 'unknown_function',
+            message: error.message,
+          });
+        });
+        return;
+      }
       if (event.type === 'session.created' || event.type === 'session.updated') {
         emitEvent(event.type, { model: this.config.realtimeModel });
       } else if (event.type === 'input_audio_buffer.speech_started') {
@@ -195,14 +273,16 @@ export class VoiceLoop {
         this.player.end();
         this.startInputSuppressionTail('response_done');
         this.isPlaybackDraining = true;
+        const activeOutput = this.activeAnnouncement || this.activeFunctionCall;
         emitEvent('response.completed', {
-          backgroundTaskId: this.activeAnnouncement?.backgroundTaskId,
-          reminderId: this.activeAnnouncement?.reminderId,
-          sourceTurnId: this.activeAnnouncement?.turnId,
-          source: this.activeAnnouncement?.source || 'realtime',
+          backgroundTaskId: activeOutput?.backgroundTaskId,
+          reminderId: activeOutput?.reminderId,
+          sourceTurnId: activeOutput?.turnId,
+          source: activeOutput?.source || 'realtime',
           text: this.currentAssistantText,
           turnId: this.currentAssistantTurnId,
         });
+        this.activeFunctionCall = null;
         this.scheduleResponsePlaybackDone(this.responsePlaybackEpoch);
       } else if (event.type === 'error') {
         emitEvent('error', { source: 'realtime', error: event.error || event });
@@ -372,9 +452,8 @@ export class VoiceLoop {
       turnEpoch: this.turnEpoch,
       turnId: userTurn.id,
     });
-    if (this.taskRouter.shouldDelegate(transcript)) {
-      this.delegateTask(transcript, { turnEpoch: this.turnEpoch, turnId: userTurn.id });
-    }
+    this.lastUserTranscript = transcript;
+    this.lastUserTurnId = userTurn.id;
   }
 
   handleAssistantDelta(delta) {
@@ -422,6 +501,127 @@ export class VoiceLoop {
       }
     });
     this.backgroundTasks.add(task);
+  }
+
+  async waitForCurrentResponseDone({ timeoutMs = 10000 } = {}) {
+    if (!this.isResponding || typeof this.realtime.waitFor !== 'function') {
+      return;
+    }
+    try {
+      await this.realtime.waitFor('response.done', timeoutMs);
+    } catch (error) {
+      emitEvent('error', { source: 'handoff.wait_for_response_done', message: error.message });
+    }
+  }
+
+  async handleFunctionCall(functionCall) {
+    if (functionCall.name !== 'handoff_to_background') {
+      return;
+    }
+    if (!functionCall.callId) {
+      emitEvent('tool_call.failed', {
+        toolName: functionCall.name,
+        message: 'Missing realtime function call id.',
+      });
+      return;
+    }
+    if (this.handledFunctionCallIds.has(functionCall.callId)) {
+      return;
+    }
+    this.handledFunctionCallIds.add(functionCall.callId);
+
+    const args = parseFunctionArguments(functionCall.arguments);
+    const userIntent = String(args.user_intent || args.query || args.text || this.lastUserTranscript || '').trim();
+    const turnId = this.lastUserTurnId;
+    const turnEpoch = this.turnEpoch;
+    emitEvent('tool_call.started', {
+      toolName: functionCall.name,
+      callId: functionCall.callId,
+      turnEpoch,
+      turnId,
+    });
+
+    const controller = new AbortController();
+    this.backgroundTaskControllers.add(controller);
+    const task = this.runBackgroundHandoff(userIntent, {
+      args,
+      callId: functionCall.callId,
+      signal: controller.signal,
+      turnEpoch,
+      turnId,
+    }).finally(() => {
+      this.backgroundTasks.delete(task);
+      this.backgroundTaskControllers.delete(controller);
+    });
+    this.backgroundTasks.add(task);
+    const output = await task;
+
+    await this.waitForCurrentResponseDone();
+    this.realtime.createFunctionCallOutput(functionCall.callId, output);
+    this.activeFunctionCall = {
+      backgroundTaskId: output.backgroundTaskId,
+      source: 'background_task',
+      turnId,
+    };
+    this.realtime.createResponse();
+    emitEvent('tool_call.completed', {
+      toolName: functionCall.name,
+      callId: functionCall.callId,
+      backgroundTaskId: output.backgroundTaskId,
+      turnId,
+    });
+  }
+
+  async runBackgroundHandoff(userIntent, { args, callId, signal, turnEpoch, turnId }) {
+    if (!userIntent) {
+      return {
+        ok: false,
+        callId,
+        message: '我没有拿到需要后台处理的具体请求，请让用户再说一次。',
+      };
+    }
+    this.setState('background_running', 'background_function_call_started', { turnEpoch, turnId });
+    let result = null;
+    try {
+      result = await this.taskRouter.maybeHandle(userIntent, { turnId, signal });
+      if (!result) {
+        result = {
+          type: 'none',
+          message: '这个请求不需要后台能力处理，可以直接继续和用户聊天。',
+          source: 'background_agent',
+        };
+      }
+      this.syncRealtimeContext('background_function_call_finished');
+      return {
+        ok: true,
+        callId,
+        backgroundTaskId: result.backgroundTaskId,
+        type: result.type,
+        source: result.source,
+        message: result.message || '',
+        userIntent,
+        reason: args.reason || '',
+        expectedResponseStyle: args.expected_response_style || '自然、简短、适合语音播报',
+      };
+    } catch (error) {
+      emitEvent('tool_call.failed', {
+        toolName: 'handoff_to_background',
+        callId,
+        message: error.message,
+        turnId,
+      });
+      return {
+        ok: false,
+        callId,
+        message: '后台任务执行失败了，请用简短自然的话告诉用户可以稍后再试。',
+        error: error.message,
+        userIntent,
+      };
+    } finally {
+      if (this.state === 'background_running') {
+        this.setState('listening', 'background_function_call_finished', { turnEpoch, turnId });
+      }
+    }
   }
 
   cancelBackgroundTasks(reason) {

@@ -136,10 +136,12 @@ export function formatConsoleEvent(event, options = {}) {
         'green',
         `${event.skillId || '-'} task=${event.taskType || '-'} target=${event.target || '-'} id=${shortId(event.backgroundTaskId)}`,
       );
+    case 'tool_call.started':
+      return line('tool', 'yellow', `${event.toolName || '-'} start id=${shortId(event.backgroundTaskId)} call=${shortId(event.callId)}`);
     case 'tool_call.completed':
-      return line('tool', 'yellow', `${event.toolName || '-'} ok id=${shortId(event.backgroundTaskId)}`);
+      return line('tool', 'yellow', `${event.toolName || '-'} ok id=${shortId(event.backgroundTaskId)} call=${shortId(event.callId)}`);
     case 'tool_call.failed':
-      return line('tool', 'red', `${event.toolName || '-'} failed id=${shortId(event.backgroundTaskId)} ${clip(event.message)}`);
+      return line('tool', 'red', `${event.toolName || '-'} failed id=${shortId(event.backgroundTaskId)} call=${shortId(event.callId)} ${clip(event.message)}`);
     case 'error':
       return line('error', 'red', `${event.source || '-'} ${clip(event.message || event.error)}`);
     default:

@@ -970,6 +970,7 @@ function buildContextHealth(runtime) {
     realtimeInstructionsContainSharedContext: sessionConfig.instructions.includes('Shared Context JSON'),
     realtimeInstructionsContainSkills: sessionConfig.instructions.includes('"skills"'),
     realtimeInstructionsContainBootstrap: sessionConfig.instructions.includes('Agent Bootstrap:'),
+    realtimeHandoffToolConfigured: sessionConfig.tools?.some((tool) => tool.name === 'handoff_to_background') === true,
     realtimeTurnDetectionConfigured: Boolean(sessionConfig.turnDetection?.type),
   };
   return {
@@ -1532,8 +1533,12 @@ async function phaseOneReview({ audioProbeDurationMs = 500, probeAudio = false, 
     systemDesignConstraint: systemDesignText.includes('单一播报出口'),
     backgroundAnnouncementsUseRealtimeOutlet: voiceLoopText.includes("outlet: 'realtime'")
       && voiceLoopText.includes('this.realtime.createUserTextMessage'),
-    correlatesAnnouncementsToRealtimeResponses: voiceLoopText.includes('this.activeAnnouncement')
-      && voiceLoopText.includes('backgroundTaskId: this.activeAnnouncement?.backgroundTaskId'),
+    backgroundFunctionCallsUseRealtimeOutput: voiceLoopText.includes('createFunctionCallOutput')
+      && voiceLoopText.includes('handoff_to_background'),
+    correlatesBackgroundToRealtimeResponses: voiceLoopText.includes('this.activeAnnouncement')
+      && voiceLoopText.includes('this.activeFunctionCall')
+      && voiceLoopText.includes('const activeOutput = this.activeAnnouncement || this.activeFunctionCall')
+      && voiceLoopText.includes('backgroundTaskId: activeOutput?.backgroundTaskId'),
   };
   const interruption = {
     systemDesignConstraint: systemDesignText.includes('打断优先'),

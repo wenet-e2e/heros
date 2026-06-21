@@ -2354,7 +2354,8 @@ function testCliReviewCommand() {
     || review.checks.contextHealth.checks.realtimeInstructionsContainSharedContext !== true
     || review.checks.singleAudioOutlet.systemDesignConstraint !== true
     || review.checks.singleAudioOutlet.backgroundAnnouncementsUseRealtimeOutlet !== true
-    || review.checks.singleAudioOutlet.correlatesAnnouncementsToRealtimeResponses !== true
+    || review.checks.singleAudioOutlet.backgroundFunctionCallsUseRealtimeOutput !== true
+    || review.checks.singleAudioOutlet.correlatesBackgroundToRealtimeResponses !== true
     || review.checks.interruption.systemDesignConstraint !== true
     || review.checks.interruption.cancelsBackgroundTasksOnSpeech !== true
     || review.checks.interruption.interruptsRealtimeResponse !== true
@@ -3476,6 +3477,35 @@ function testVoiceLoopRealtimeInstructions() {
   if (!instructions.includes('Warm voice.') || !instructions.includes('用户喜欢安静的语音风格')) {
     throw new Error('voice loop realtime instructions smoke failed');
   }
+  const sessionConfig = loop.realtimeSessionConfig();
+  if (
+    !sessionConfig.tools?.some((tool) => tool.name === 'handoff_to_background')
+    || sessionConfig.toolChoice !== 'auto'
+    || !sessionConfig.instructions.includes('handoff_to_background')
+  ) {
+    throw new Error('voice loop realtime handoff tool smoke failed');
+  }
+}
+
+function testVoiceLoopTranscriptDoesNotBypassRouter() {
+  let shouldDelegateCalled = false;
+  const loop = new VoiceLoop({
+    config: {},
+    realtime: {},
+    taskRouter: {
+      shouldDelegate() {
+        shouldDelegateCalled = true;
+        return true;
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.handleUserTranscript('我今天有哪些提醒？');
+  if (shouldDelegateCalled || loop.lastUserTranscript !== '我今天有哪些提醒？' || !loop.lastUserTurnId) {
+    throw new Error('voice loop transcript should not bypass realtime tool call');
+  }
 }
 
 function testVoiceLoopAssistantTurnId() {
@@ -3747,6 +3777,71 @@ async function testVoiceLoopAnnouncementResponseCorrelation() {
     || responseDoneState?.turnId !== 'turn_announcement'
   ) {
     throw new Error('voice loop announcement response correlation smoke failed');
+  }
+  configureEvents();
+}
+
+async function testVoiceLoopBackgroundFunctionCall() {
+  const dir = createTempDir('heros-voice-function-call-');
+  const logPath = path.join(dir, 'events.ndjson');
+  configureEvents({ logPath });
+  const realtime = new EventEmitter();
+  const calls = [];
+  let waitedForDone = false;
+  realtime.waitFor = async (type) => {
+    if (type === 'response.done') {
+      waitedForDone = true;
+    }
+  };
+  realtime.updateSession = () => {};
+  realtime.createFunctionCallOutput = (callId, output) => {
+    calls.push({ type: 'function_call_output', callId, output });
+  };
+  realtime.createResponse = () => {
+    calls.push({ type: 'response.create' });
+  };
+  const loop = new VoiceLoop({
+    config: {},
+    realtime,
+    taskRouter: {
+      async maybeHandle(text) {
+        return {
+          backgroundTaskId: 'task_function_call',
+          type: 'reminders_listed',
+          source: 'local_task_router',
+          message: `查到了：${text}`,
+        };
+      },
+    },
+    context: new SharedContext(),
+    reminderScheduler: null,
+    playAudio: false,
+  });
+  loop.attachRealtimeEvents();
+  loop.isResponding = true;
+  loop.lastUserTurnId = 'turn_function_call';
+  realtime.emit('event', {
+    type: 'response.function_call_arguments.done',
+    call_id: 'call_background',
+    name: 'handoff_to_background',
+    arguments: JSON.stringify({
+      user_intent: '我今天有哪些提醒？',
+      reason: 'reminder_query',
+    }),
+  });
+  await waitForCondition(() => calls.length === 2);
+  const output = calls[0].output;
+  const events = readEventLog(logPath);
+  if (
+    !waitedForDone
+    || calls[0].type !== 'function_call_output'
+    || calls[0].callId !== 'call_background'
+    || output.message !== '查到了：我今天有哪些提醒？'
+    || calls[1].type !== 'response.create'
+    || !events.find((event) => event.type === 'tool_call.started' && event.toolName === 'handoff_to_background')
+    || !events.find((event) => event.type === 'tool_call.completed' && event.backgroundTaskId === 'task_function_call')
+  ) {
+    throw new Error('voice loop background function call smoke failed');
   }
   configureEvents();
 }
@@ -4193,6 +4288,7 @@ await testCliBackgroundResponseCorrelation();
 testIntentBoundaries();
 testStaleAnnouncementSkip();
 testVoiceLoopRealtimeInstructions();
+testVoiceLoopTranscriptDoesNotBypassRouter();
 testVoiceLoopAssistantTurnId();
 await testVoiceLoopInputAudioEpoch();
 testVoiceLoopInputSuppression();
@@ -4202,6 +4298,7 @@ await testVoiceLoopWaitsForPlaybackBeforeListening();
 await testVoiceLoopIgnoresEchoSpeechStarted();
 testVoiceLoopFullDuplexInput();
 await testVoiceLoopAnnouncementResponseCorrelation();
+await testVoiceLoopBackgroundFunctionCall();
 await testVoiceLoopReminderAnnouncementCorrelation();
 await testRealtimeConnectRetry();
 await testRealtimeWaitForClose();

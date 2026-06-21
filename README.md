@@ -17,8 +17,8 @@ HerOS 的灵感来自电影《HER》。目标是做一个接近电影中 HER 形
 HerOS 采用 Interaction Model + Background Model 架构：
 
 - **Realtime Interaction Model**：负责实时语音交互、轻量回应、打断处理和上下文承接。
-- **Background LLM/Agent**：负责复杂推理、工具调用、提醒创建和长任务。
-- **Shared Context**：Interaction Model 和 Background LLM/Agent 共享上下文；后台任务结果由 Interaction Model 自然带回对话。
+- **Background LLM/Agent**：负责任务判断、技能选择、工具调用、提醒创建、记忆管理和长任务。
+- **Shared Context**：Interaction Model 和 Background LLM/Agent 共享上下文；任务通过 realtime function call 交给后台，后台结果再交回 Interaction Model 自然播报。
 
 ![Interaction model and background model reference](./docs/assets/interaction-model-reference.png)
 
@@ -30,8 +30,8 @@ HerOS 采用 Interaction Model + Background Model 架构：
 
 - 深度对话：支持自然、连续、有上下文的语音交流。
 - 端到端语音(realtime)交互：打开后直接说话，支持打断和连续对话。
-- 任务执行：从对话中理解用户意图，并交给 Background LLM/Agent 执行。
-- 技能系统：用可发现的技能定义组织提醒、记忆等任务能力，并把能力边界暴露给 realtime 和 Background LLM/Agent。
+- 任务执行：Realtime 先自然承接，再通过 `handoff_to_background` 把任务交给 Background LLM/Agent 执行。
+- 技能系统：用可发现的技能定义组织提醒、记忆等任务能力，由 Background LLM/Agent 统一选择和调度。
 - 提醒能力（MVP）：识别提醒意图，创建、查询、修改、取消提醒，并语音确认。
 - 无界面 CLI 先行：先验证 realtime 语音、上下文、后台任务和提醒闭环，再进入桌面界面。
 - 极简界面：桌面阶段主界面只展示核心状态反馈，让注意力回到语音关系本身。
